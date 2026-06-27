@@ -261,6 +261,19 @@
 .login-submit {
   width: 100%;
 }
+.login-spin {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(38, 40, 44, 0.3);
+  border-top-color: var(--ink);
+  animation: login-rotate 0.7s linear infinite;
+}
+@keyframes login-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .login-sep {
   display: flex;
   align-items: center;

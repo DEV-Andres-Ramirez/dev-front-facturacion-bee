@@ -1,9 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { PeriodDataset, PeriodId, PermissionRow, User } from '../models';
+import { PeriodDataset, PeriodId, PermissionRow } from '../models';
 import { MAY_2026_DATASET } from '../data/may-2026.dataset';
 import { EMPTY_DATASET } from '../data/empty-period.dataset';
 import { ABRIL_LOADED_DATASET } from '../data/abril-loaded.dataset';
-import { PERMISSION_MATRIX, SYSTEM_USERS } from '../data/system.seed';
+import { PERMISSION_MATRIX } from '../data/system.seed';
 import { PeriodStore } from './period.store';
 
 /**
@@ -41,8 +41,7 @@ export class BillingDataService {
   /** Estado de los soportes cargados por periodo. */
   private readonly uploads = signal<Partial<Record<PeriodId, PeriodUploads>>>({});
 
-  /** Cuentas y permisos: configuración del sistema, independiente del periodo. */
-  readonly users: readonly User[] = SYSTEM_USERS;
+  /** Matriz de permisos por rol: configuración del sistema, independiente del periodo. */
   readonly permissions: readonly PermissionRow[] = PERMISSION_MATRIX;
 
   /** Dataset completo del periodo activo (override importado o semilla). */

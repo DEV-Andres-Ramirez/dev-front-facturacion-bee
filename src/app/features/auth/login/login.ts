@@ -4,10 +4,9 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth.service';
 import { AppConfigService } from '@core/services/app-config.service';
-import { UserRole } from '@core/models';
 import { BeeMarkComponent, IconComponent } from '@shared/ui';
 
-/** Pantalla de inicio de sesión (RF-AUT-01). */
+/** Pantalla de inicio de sesión validada contra la base de datos (RF-AUT-01). */
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -23,44 +22,33 @@ export class Login {
 
   protected readonly showPassword = signal(false);
   protected readonly error = signal('');
+  protected readonly loading = signal(false);
 
   protected readonly form = this.fb.nonNullable.group({
-    email: ['viviana.alvarez@beeconsultoria.com', [Validators.required, Validators.email]],
-    password: ['acceso-demo', [Validators.required]],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required]],
     remember: [true],
   });
-
-  protected readonly quickAccounts: ReadonlyArray<{
-    role: UserRole;
-    initials: string;
-    name: string;
-    detail: string;
-    avatar: string;
-  }> = [
-    { role: 'ADMIN', initials: 'VA', name: 'Viviana Álvarez', detail: 'Administrador · Dirección Operativa', avatar: 'av-ink' },
-    { role: 'USUARIO', initials: 'CF', name: 'Carolina Forero', detail: 'Usuario · Área Financiera', avatar: 'av-honey' },
-  ];
 
   protected togglePassword(): void {
     this.showPassword.update((visible) => !visible);
   }
 
-  protected submit(): void {
+  protected async submit(): Promise<void> {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.error.set('Revisa el correo y la contraseña.');
+      this.error.set('Ingresa un correo y una contraseña válidos.');
       return;
     }
-    const ok = this.auth.loginWithEmail(this.form.controls.email.value);
+    this.loading.set(true);
+    this.error.set('');
+    const { email, password } = this.form.getRawValue();
+    const ok = await this.auth.login(email, password);
+    this.loading.set(false);
     if (ok) {
       void this.router.navigate(['/app', 'dashboard']);
     } else {
-      this.error.set('No encontramos una cuenta con ese correo corporativo.');
+      this.error.set('Correo o contraseña incorrectos. Verifica tus credenciales.');
     }
-  }
-
-  protected enterAs(role: UserRole): void {
-    this.auth.loginAs(role);
-    void this.router.navigate(['/app', 'dashboard']);
   }
 }

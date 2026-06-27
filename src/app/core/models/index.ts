@@ -2,6 +2,7 @@
 export * from './common.model';
 export * from './period.model';
 export * from './user.model';
+export * from './usuario.model';
 export * from './invoice.model';
 export * from './validation.model';
 export * from './talent.model';

@@ -2,20 +2,84 @@
   <div class="kpi-grid k3" style="margin-bottom: 16px">
     <div class="mini">
       <div class="ml">Cuentas activas</div>
-      <div class="mv">{{ activeCount() }}</div>
-      <div class="ms">{{ adminCount() }} administrador · {{ userCount() }} usuarios</div>
+      <div class="mv">{{ activos() }}</div>
+      <div class="ms">{{ administradores() }} admin · {{ operativos() }} usuarios</div>
     </div>
     <div class="mini">
-      <div class="ml">Roles definidos</div>
-      <div class="mv">{{ roleCount }}</div>
-      <div class="ms">Administrador · Usuario</div>
+      <div class="ml">Administradores</div>
+      <div class="mv">{{ administradores() }}</div>
+      <div class="ms">Acceso total al sistema</div>
     </div>
     <div class="mini">
-      <div class="ml">Sesiones (30 días)</div>
-      <div class="mv">{{ sessions30d }}</div>
-      <div class="ms">Acceso con registro en auditoría</div>
+      <div class="ml">Usuarios operativos</div>
+      <div class="mv">{{ operativos() }}</div>
+      <div class="ms">Sin gestión de usuarios ni auditoría</div>
     </div>
   </div>
+
+  <!-- Formulario de alta / edición -->
+  @if (formOpen()) {
+    <div class="card mt-16 fade-up" style="margin-bottom: 16px">
+      <div class="card-h">
+        <div>
+          <div class="ct">{{ isEdit() ? 'Editar cuenta' : 'Nueva cuenta' }}</div>
+          <div class="cd">{{ isEdit() ? 'Actualiza la información del usuario' : 'Crea una cuenta de acceso al sistema' }}</div>
+        </div>
+        <div class="sp"></div>
+        <button class="link" type="button" aria-label="Cerrar formulario" (click)="closeForm()">
+          <bee-icon name="x" [size]="16" />
+        </button>
+      </div>
+      <form class="card-pad" [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <div class="grid-2" style="gap: 14px">
+          <div>
+            <label class="f-label" for="u-nombre">Nombre completo</label>
+            <input id="u-nombre" class="f-input" type="text" formControlName="nombre_usuario" autocomplete="off" />
+          </div>
+          <div>
+            <label class="f-label" for="u-correo">Correo corporativo</label>
+            <input id="u-correo" class="f-input" type="email" formControlName="correo_usuario" autocomplete="off" />
+          </div>
+          <div>
+            <label class="f-label" for="u-area">Área</label>
+            <input id="u-area" class="f-input" type="text" formControlName="area_usuario" autocomplete="off" />
+          </div>
+          <div>
+            <label class="f-label" for="u-pass">
+              Contraseña @if (isEdit()) { <span class="dim">· vacía = conservar</span> }
+            </label>
+            <input id="u-pass" class="f-input" type="text" formControlName="contrasena_usuario" autocomplete="off" />
+          </div>
+          <div>
+            <label class="f-label" for="u-rol">Rol</label>
+            <select id="u-rol" class="f-input" formControlName="rol">
+              <option value="USUARIO">Usuario</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </div>
+          <div>
+            <label class="f-label" for="u-estado">Estado</label>
+            <select id="u-estado" class="f-input" formControlName="estado">
+              <option value="activa">Activa</option>
+              <option value="inactiva">Inactiva</option>
+            </select>
+          </div>
+        </div>
+
+        @if (formError()) {
+          <p class="form-msg" role="alert">{{ formError() }}</p>
+        }
+
+        <div class="row" style="margin-top: 18px; justify-content: flex-end; gap: 10px">
+          <button class="btn-sm btn-ghost" type="button" (click)="closeForm()">Cancelar</button>
+          <button class="btn-sm btn-solid" type="submit" [disabled]="saving()">
+            <bee-icon name="check" [size]="15" [strokeWidth]="2.4" />
+            {{ saving() ? 'Guardando…' : isEdit() ? 'Guardar cambios' : 'Crear cuenta' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
 
   <!-- Cuentas del sistema -->
   <div class="card">
@@ -25,11 +89,21 @@
         <div class="cd">Gestión de acceso · solo administrador</div>
       </div>
       <div class="sp"></div>
-      <button class="btn-sm btn-solid" type="button">
+      <button class="btn-sm btn-solid" type="button" (click)="openCreate()">
         <bee-icon name="plus" [size]="15" [strokeWidth]="2.2" />
         Nueva cuenta
       </button>
     </div>
+
+    @if (loadError() || actionError()) {
+      <div class="card-pad">
+        <div class="alert alert-warn">
+          <span class="ai"><bee-icon name="alert" [size]="18" /></span>
+          <div>{{ loadError() || actionError() }}</div>
+        </div>
+      </div>
+    }
+
     <div class="tbl-wrap">
       <table class="dt">
         <caption class="sr-only">Cuentas de usuario del sistema y su estado de acceso</caption>
@@ -44,7 +118,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (user of users; track user.id) {
+          @for (user of users(); track user.id) {
             <tr>
               <td>
                 <div class="cell-main">
@@ -64,9 +138,32 @@
                 }
               </td>
               <td class="dim mono">{{ user.lastAccess }}</td>
-              <td><bee-badge tone="ok" [label]="user.status" /></td>
+              <td>
+                @if (user.status === 'Activa') {
+                  <bee-badge tone="ok" label="Activa" />
+                } @else {
+                  <bee-badge tone="neutral" label="Inactiva" />
+                }
+              </td>
               <td style="text-align: right">
-                <button class="link" type="button">Editar</button>
+                <div class="row" style="justify-content: flex-end; gap: 12px">
+                  <button class="link" type="button" (click)="openEdit(user)">Editar</button>
+                  @if (user.id !== currentUserId()) {
+                    <button class="link" type="button" (click)="toggleEstado(user)">
+                      {{ user.status === 'Activa' ? 'Deshabilitar' : 'Habilitar' }}
+                    </button>
+                  } @else {
+                    <span class="note-line">Tu cuenta</span>
+                  }
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6">
+                <p class="note-line" style="text-align: center; padding: 22px 0">
+                  {{ loading() ? 'Cargando usuarios…' : 'No hay cuentas registradas.' }}
+                </p>
               </td>
             </tr>
           }

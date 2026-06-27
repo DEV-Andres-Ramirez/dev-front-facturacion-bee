@@ -2,7 +2,7 @@ import { Type, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { PeriodStore } from '@core/services/period.store';
-import { AuthService } from '@core/services/auth.service';
+import { SupabaseService } from '@core/services/supabase.service';
 
 import { Shell } from './layout/shell/shell';
 import { Dashboard } from './features/dashboard/dashboard';
@@ -16,6 +16,39 @@ import { Conciliar } from './features/conciliar/conciliar';
 import { Registros } from './features/registros/registros';
 import { Usuarios } from './features/usuarios/usuarios';
 import { Auditoria } from './features/auditoria/auditoria';
+
+// Mock mínimo del cliente Supabase (sin red) para las pantallas que lo usan.
+function makeQuery(result: unknown) {
+  const q: Record<string, unknown> = {
+    select: () => q,
+    insert: () => q,
+    update: () => q,
+    eq: () => q,
+    order: () => q,
+    then: (resolve: (value: unknown) => void) => resolve(result),
+  };
+  return q;
+}
+const supabaseMock = {
+  client: {
+    from: () => makeQuery({ data: [], error: null }),
+    rpc: () => Promise.resolve({ data: [], error: null }),
+  },
+};
+
+const ADMIN_SESSION = {
+  user: {
+    id: '1',
+    name: 'Administrador',
+    initials: 'AD',
+    email: 'admin@beeconsultoria.com',
+    area: 'Facturación',
+    role: 'ADMIN',
+    status: 'Activa',
+    lastAccess: '—',
+    avatar: 'ink',
+  },
+};
 
 const SCREENS: Array<[string, Type<unknown>]> = [
   ['Shell', Shell],
@@ -34,11 +67,17 @@ const SCREENS: Array<[string, Type<unknown>]> = [
 
 describe('App smoke render', () => {
   beforeEach(() => {
+    localStorage.setItem('bee.session', JSON.stringify(ADMIN_SESSION));
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([])],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        { provide: SupabaseService, useValue: supabaseMock },
+      ],
     });
-    TestBed.inject(AuthService).loginAs('ADMIN');
   });
+
+  afterEach(() => localStorage.clear());
 
   for (const [name, component] of SCREENS) {
     it(`${name} renders in Mayo and Junio without throwing`, () => {
