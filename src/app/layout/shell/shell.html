@@ -1,0 +1,98 @@
+<a class="skip-link" href="#main-content">Saltar al contenido</a>
+
+<div class="shell" [class.nav-open]="sidebarOpen()">
+  <!-- Barra lateral -->
+  <aside class="sidebar" [class.open]="sidebarOpen()">
+    <div class="sb-brand">
+      <span class="sb-logo"><bee-mark [size]="34" tone="light" /></span>
+      <span class="sb-brand-text">
+        <span class="bn">Facturación Bee</span>
+        <span class="bs">Gestión de facturación</span>
+      </span>
+    </div>
+
+    <nav class="sb-nav scroll" aria-label="Navegación principal">
+      @for (group of groups(); track group.title) {
+        <p class="sb-group">{{ group.title }}</p>
+        @for (item of group.items; track item.route) {
+          <a
+            class="nav-item"
+            [routerLink]="['/app', item.route]"
+            routerLinkActive="active"
+            (click)="closeSidebar()"
+          >
+            <bee-icon [name]="item.icon" [size]="18" />
+            <span class="nav-label">{{ item.label }}</span>
+            @if (item.auto) {
+              <span class="tag">AUTO</span>
+            }
+          </a>
+        }
+      }
+    </nav>
+
+    <button class="sb-user" type="button" (click)="logout()">
+      <span class="cell-av" [class]="'av-' + (user()?.avatar ?? 'ink')">{{ user()?.initials }}</span>
+      <span class="sb-user-text">
+        <span class="nm">{{ user()?.name }}</span>
+        <span class="rl">{{ user()?.role === 'ADMIN' ? 'Administrador' : 'Usuario' }} · Salir</span>
+      </span>
+      <span class="ch"><bee-icon name="logout" [size]="16" /></span>
+    </button>
+  </aside>
+
+  <!-- Velo para móvil -->
+  @if (sidebarOpen()) {
+    <button class="nav-veil" type="button" aria-label="Cerrar menú" (click)="closeSidebar()"></button>
+  }
+
+  <!-- Área principal -->
+  <div class="main scroll">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" type="button" aria-label="Abrir menú" (click)="toggleSidebar()">
+        <bee-icon name="dashboard" [size]="18" />
+      </button>
+
+      <div class="tb-title-wrap">
+        <nav class="crumb" aria-label="Ruta de navegación">
+          <span>Facturación Bee</span>
+          <span class="sep" aria-hidden="true">/</span>
+          <span class="cur">{{ title() }}</span>
+        </nav>
+        <h1 class="tb-title">{{ title() }}</h1>
+        @if (subtitle()) {
+          <p class="tb-sub">{{ subtitle() }}</p>
+        }
+      </div>
+
+      <div class="tb-spacer"></div>
+
+      <div class="period">
+        <label class="period-label" for="period-select">Periodo</label>
+        <div class="period-control">
+          <bee-icon name="folder" [size]="15" />
+          <select
+            id="period-select"
+            class="period-select"
+            [value]="periodStore.period()"
+            (change)="onPeriodChange($event)"
+          >
+            @for (option of periodStore.options; track option.id) {
+              <option [value]="option.id">{{ option.label }}</option>
+            }
+          </select>
+          <bee-icon name="chevron-down" [size]="15" />
+        </div>
+      </div>
+
+      <button class="icon-btn" type="button" aria-label="Notificaciones">
+        <bee-icon name="bell" [size]="18" />
+        <span class="ndot" aria-hidden="true"></span>
+      </button>
+    </header>
+
+    <main id="main-content" class="content" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+</div>

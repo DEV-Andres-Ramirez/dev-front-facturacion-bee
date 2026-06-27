@@ -1,0 +1,126 @@
+<div class="login">
+  <!-- Panel de marca -->
+  <section class="login-aside" aria-hidden="true">
+    <div class="grid-tex"></div>
+    <div class="glow"></div>
+
+    <div class="login-brand">
+      <span class="lb-logo"><bee-mark [size]="40" tone="light" /></span>
+      <span>
+        <span class="bn">Facturación Bee</span>
+        <span class="bs">{{ config.org }}</span>
+      </span>
+    </div>
+
+    <div class="login-hero">
+      <p class="eyebrow">Automatización de facturación</p>
+      <h2>El ciclo de facturación,<br /><em>guiado de principio a fin.</em></h2>
+      <p class="hero-lead">
+        Validación, agrupación, revisión, entrega y conciliación en un solo flujo trazable. Menos
+        trabajo manual, más control sobre cada factura.
+      </p>
+    </div>
+
+    <div class="login-meta">
+      <div class="lm"><div class="v">7</div><div class="l">Actividades automatizadas</div></div>
+      <div class="lm"><div class="v">3</div><div class="l">Cuentas · 2 roles</div></div>
+      <div class="lm"><div class="v"><span class="u">USD</span>/COP</div><div class="l">Doble moneda · TRM</div></div>
+    </div>
+
+    <p class="login-tagline">{{ config.tagline }}</p>
+  </section>
+
+  <!-- Panel de acceso -->
+  <main class="login-main">
+    <div class="login-card">
+      <img
+        ngSrc="brand/bee-wordmark-dark.png"
+        width="3300"
+        height="1358"
+        class="login-wordmark"
+        alt="Bee"
+        priority
+      />
+
+      <p class="lc-k">Acceso seguro</p>
+      <h1 class="lc-title">Inicia sesión</h1>
+      <p class="lc-sub">
+        Ingresa con tu cuenta corporativa para gestionar la facturación del periodo.
+      </p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="field">
+          <label for="email">Correo corporativo</label>
+          <input
+            id="email"
+            class="f-input fld"
+            type="email"
+            formControlName="email"
+            autocomplete="username"
+            placeholder="nombre@beeconsultoria.com"
+          />
+        </div>
+
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <div class="input-wrap">
+            <input
+              id="password"
+              class="f-input fld"
+              [type]="showPassword() ? 'text' : 'password'"
+              formControlName="password"
+              autocomplete="current-password"
+              placeholder="••••••••••••"
+            />
+            <button
+              type="button"
+              class="reveal"
+              [attr.aria-label]="showPassword() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+              [attr.aria-pressed]="showPassword()"
+              (click)="togglePassword()"
+            >
+              <bee-icon name="eye" [size]="17" />
+            </button>
+          </div>
+        </div>
+
+        @if (error()) {
+          <p class="form-error" role="alert">{{ error() }}</p>
+        }
+
+        <div class="field-row">
+          <label class="checkbox">
+            <input type="checkbox" formControlName="remember" />
+            <span class="cbx-vis"><bee-icon name="check" [size]="11" [strokeWidth]="3.4" /></span>
+            Mantener sesión
+          </label>
+          <a class="link" href="#" (click)="$event.preventDefault()">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <button class="btn btn-honey login-submit" type="submit">
+          Entrar al panel
+          <bee-icon name="arrow-right" [size]="17" [strokeWidth]="2.2" />
+        </button>
+      </form>
+
+      <div class="login-sep"><span>o entra rápido como</span></div>
+
+      <div class="login-accounts">
+        @for (account of quickAccounts; track account.role) {
+          <button class="acct" type="button" (click)="enterAs(account.role)">
+            <span class="cell-av acct-av" [class]="account.avatar">{{ account.initials }}</span>
+            <span class="acct-text">
+              <span class="nm">{{ account.name }}</span>
+              <span class="rl">{{ account.detail }}</span>
+            </span>
+            <span class="arr"><bee-icon name="chevron-right" [size]="16" /></span>
+          </button>
+        }
+      </div>
+
+      <p class="login-foot">
+        Acceso restringido · Conexión cifrada (HTTPS/TLS) · {{ config.org }}
+      </p>
+    </div>
+  </main>
+</div>

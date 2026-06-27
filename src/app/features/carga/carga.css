@@ -1,0 +1,190 @@
+/* ── Rejilla de soportes (4 tipos) ───────────────────────────────────────── */
+.slot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 720px) {
+  .slot-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.slot {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.16s, box-shadow 0.16s;
+}
+.slot.loaded {
+  border-color: var(--ok-line);
+  background: linear-gradient(180deg, var(--ok-soft), var(--surface) 42%);
+}
+.slot-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 13px;
+}
+.slot-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.slot-title {
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: -0.2px;
+  color: var(--ink);
+}
+.slot-desc {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.slot-head .badge {
+  margin-left: auto;
+}
+
+/* Mini zona de carga */
+.slot-drop {
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+  width: 100%;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+.slot-drop:hover,
+.slot-drop.drag {
+  border-color: var(--honey-600);
+  background: var(--honey-tint);
+  color: var(--honey-deep);
+}
+.slot-drop .sd-t {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.slot-drop .sd-t b {
+  color: var(--honey-deep);
+}
+.slot-drop .sd-s {
+  font-size: 11px;
+  color: var(--faint);
+}
+
+/* Progreso de lectura */
+.slot-progress {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  border: 1.5px solid var(--honey-line);
+  border-radius: var(--radius-sm);
+  background: var(--honey-tint);
+}
+.sp-spin {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid var(--honey-soft);
+  border-top-color: var(--honey-600);
+  animation: sp-rotate 0.7s linear infinite;
+  flex: none;
+}
+.sp-step {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--honey-deep);
+}
+
+/* Soporte cargado */
+.slot-done {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.slot-done .sd-check {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--ok);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.slot-done .sd-info {
+  flex: 1;
+  min-width: 0;
+}
+.slot-done .sd-sum {
+  font-size: 12px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.slot-done .sd-actions {
+  display: flex;
+  gap: 6px;
+}
+.slot-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--honey-deep);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 4px 6px;
+  border-radius: 7px;
+}
+.slot-link:hover {
+  background: var(--honey-soft);
+}
+.slot-error {
+  font-size: 11.5px;
+  color: var(--bad);
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+/* ── Panel de previsualización (solo lectura) ─────────────────────────────── */
+.preview-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--line-2);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@keyframes sp-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,150 @@
+<section class="stagger">
+  <div class="kpi-grid k4">
+    @for (kpi of dashboard().kpis; track kpi.label) {
+      <bee-kpi-card [kpi]="kpi" />
+    }
+  </div>
+
+  @if (isBlank()) {
+    <div class="card mt-16">
+      <bee-empty-state
+        icon="upload"
+        title="Periodo sin iniciar"
+        message="Aún no hay facturación para este periodo. Comienza importando la prefactura aprobada del cliente para iniciar el ciclo desde cero."
+        actionLabel="Cargar prefactura"
+        [actionRoute]="['/app', 'carga']"
+      />
+    </div>
+  } @else {
+    <div class="grid-2-1 mt-16">
+      <!-- Facturas del periodo -->
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="ct">Facturas del periodo</div>
+            <div class="cd">Estado y seguimiento de cobro</div>
+          </div>
+          <div class="sp"></div>
+          <div class="legend">
+            <span><span class="ld" style="background: var(--ok)"></span>Pagada</span>
+            <span><span class="ld" style="background: var(--info)"></span>Pendiente</span>
+            <span><span class="ld" style="background: var(--bad)"></span>Anulada</span>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="dt">
+            <caption class="sr-only">Facturas del periodo y su estado de cobro</caption>
+            <thead>
+              <tr>
+                <th scope="col">Factura</th>
+                <th scope="col">Cliente</th>
+                <th scope="col">Orden</th>
+                <th scope="col" style="text-align: right">Monto</th>
+                <th scope="col">Estado</th>
+                <th scope="col" style="text-align: right">Días</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (invoice of invoices(); track invoice.id) {
+                <tr>
+                  <td>
+                    <div class="cell-main">
+                      <span class="cell-av av-ink">B</span>
+                      <div>
+                        <div class="strong mono">{{ invoice.id }}</div>
+                        <div class="cell-sub">{{ invoice.note }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="strong">{{ invoice.client }}</td>
+                  <td class="mono dim">{{ invoice.order }}</td>
+                  <td class="num">{{ invoice.amountUsd | usd }}</td>
+                  <td>
+                    <bee-badge [tone]="statusOf(invoice.status).tone" [label]="statusOf(invoice.status).label" />
+                  </td>
+                  <td class="num">{{ invoice.days }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Resumen financiero -->
+      @if (dashboard().financial; as fin) {
+        <div class="col">
+          <div class="card card-pad">
+            <div class="row" style="margin-bottom: 16px">
+              <span style="font-weight: 700; font-size: 14px">Resumen financiero</span>
+              <bee-badge tone="neutral" label="May 2026" [dot]="false" style="margin-left: auto" />
+            </div>
+            <div class="stat-line">
+              <span class="sl-k">Total cobrado</span>
+              <span class="sl-v t-ok">{{ fin.totalCollectedUsd | usd }}</span>
+            </div>
+            <div class="stat-line">
+              <span class="sl-k">Por cobrar</span>
+              <span class="sl-v t-honey">{{ fin.receivableUsd | usd }}</span>
+            </div>
+            <div class="stat-line">
+              <span class="sl-k">Retención (12,5%)</span>
+              <span class="sl-v">{{ fin.retentionUsd | usd }}</span>
+            </div>
+            <div class="stat-line">
+              <span class="sl-k">Equivalente COP</span>
+              <span class="sl-v">{{ fin.equivalentCopLabel }}</span>
+            </div>
+            <div style="margin-top: 14px">
+              <div class="row" style="justify-content: space-between; margin-bottom: 7px">
+                <span class="note-line">Avance de cobro</span>
+                <span class="mono t-ok" style="font-size: 12px; font-weight: 700">{{ fin.collectionProgress }}%</span>
+              </div>
+              <div class="progress">
+                <div class="bar ok" [style.width.%]="fin.collectionProgress"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-pad">
+            <div class="row" style="margin-bottom: 13px">
+              <span style="font-weight: 700; font-size: 14px">Tiempo prom. de cobro</span>
+            </div>
+            <div class="row" style="align-items: baseline; gap: 8px">
+              <span class="mono" style="font-size: 34px; font-weight: 700; letter-spacing: -1.5px; color: var(--ink)">
+                {{ fin.avgCollectionDays }}
+              </span>
+              <span class="dim" style="font-size: 14px; font-weight: 600">días</span>
+            </div>
+            <div class="note-line" style="margin-top: 4px">De la generación al pago · meta 30 días</div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Acciones pendientes -->
+    @if (dashboard().pendingActions.length) {
+      <div class="card mt-16">
+        <div class="card-h">
+          <div>
+            <div class="ct">Requiere tu atención</div>
+            <div class="cd">Tareas del ciclo pendientes de acción</div>
+          </div>
+        </div>
+        <div class="card-pad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding-top: 16px">
+          @for (action of dashboard().pendingActions; track action.title) {
+            <a class="tile" [routerLink]="['/app', action.target]">
+              <span class="ti" [class]="'ic-' + (action.tone === 'warn' ? 'honey' : action.tone)">
+                <bee-icon [name]="$any(action.icon)" [size]="20" />
+              </span>
+              <div>
+                <div class="tt">{{ action.title }}</div>
+                <div class="ts">{{ action.description }}</div>
+              </div>
+              <span class="tc"><bee-icon name="chevron-right" [size]="18" /></span>
+            </a>
+          }
+        </div>
+      </div>
+    }
+  }
+</section>

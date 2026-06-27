@@ -1,0 +1,112 @@
+<section class="stagger">
+  @if (archive(); as archive) {
+    <!-- Banner del archivo documental (SharePoint / OneDrive) -->
+    <div class="card card-pad mb-16" style="display: flex; align-items: center; gap: 14px">
+      <span class="ti ic-primary" style="width: 42px; height: 42px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none">
+        <bee-icon name="records" [size]="21" />
+      </span>
+      <div style="flex: 1">
+        <div style="font-weight: 700; font-size: 15px">Archivo documental · SharePoint / OneDrive</div>
+        <div class="note-line">
+          Cada periodo se conserva con su estructura de año y mes: pedidos, prefactura, novedades,
+          facturas, comprobantes y consolidado.
+        </div>
+      </div>
+      @if (archive.synced) {
+        <bee-badge tone="ok" label="Sincronizado" />
+      }
+    </div>
+
+    <div class="grid-2-1">
+      <!-- Estructura de carpetas -->
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="ct">Estructura de carpetas</div>
+            <div class="cd">Facturación · por año y mes</div>
+          </div>
+        </div>
+        <div class="card-pad tree">
+          @for (year of archive.years; track year.label) {
+            <div class="tnode open">
+              <bee-icon name="chevron-down" [size]="16" />
+              <bee-icon name="folder" [size]="17" />
+              {{ year.label }}
+              <span class="tcount">{{ year.monthsLabel }}</span>
+            </div>
+            <div class="tchild">
+              @for (folder of year.folders; track folder.id) {
+                <div class="tnode" [class.open]="folder.active">
+                  <bee-icon [name]="folder.active ? 'chevron-down' : 'chevron-right'" [size]="16" />
+                  <bee-icon name="folder" [size]="17" />
+                  {{ folder.label }}
+                  <span class="tcount">{{ folder.fileCountLabel }}</span>
+                </div>
+
+                @if (folder.active) {
+                  <!-- Subcarpetas por tipo de soporte del periodo activo -->
+                  <div class="tchild">
+                    @for (category of archive.categories; track category.label) {
+                      <div class="tnode">
+                        <bee-icon name="file" [size]="15" />
+                        {{ category.label }}
+                        <span class="tcount">{{ category.count }}</span>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Archivos del periodo activo -->
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="ct">Periodo activo</div>
+            <div class="cd">{{ archive.activeSummary }}</div>
+          </div>
+          <div class="sp"></div>
+          <label class="sr-only" for="archive-search">Buscar archivo</label>
+          <input
+            id="archive-search"
+            class="f-input"
+            type="search"
+            placeholder="Buscar archivo…"
+            style="width: 200px; height: 36px"
+          />
+        </div>
+        <div class="card-pad" style="display: flex; flex-direction: column; gap: 10px">
+          @for (file of archive.files; track file.name) {
+            <div class="doc-item">
+              <span class="fx" [class]="docKind(file.kind).fxClass">{{ docKind(file.kind).label }}</span>
+              <div style="flex: 1">
+                <div class="fn">{{ file.name }}</div>
+                <div class="fm">{{ file.meta }}</div>
+              </div>
+              <button class="link" type="button" [attr.aria-label]="'Descargar ' + file.name">Descargar</button>
+            </div>
+          }
+        </div>
+        <div class="card-pad" style="border-top: 1px solid var(--line-2); display: flex; align-items: center">
+          <span class="empty-pill"><bee-icon name="shield" [size]="13" />Conservación 5 años</span>
+          <div class="spacer"></div>
+          <button class="btn-sm btn-ghost" type="button">
+            <bee-icon name="download" [size]="15" />
+            Descargar periodo (.zip)
+          </button>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <bee-empty-state
+      icon="records"
+      title="Periodo sin registros"
+      message="Al cerrar el ciclo, los soportes del periodo (pedidos, prefactura, facturas, comprobantes y consolidado) se conservarán aquí organizados por año y mes."
+      actionLabel="Ir a carga"
+      [actionRoute]="['/app', 'carga']"
+    />
+  }
+</section>

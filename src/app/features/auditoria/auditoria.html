@@ -1,0 +1,91 @@
+<section class="stagger">
+  @if (audit().length === 0) {
+    <div class="card">
+      <bee-empty-state
+        icon="audit"
+        title="Sin actividad registrada"
+        message="Aún no hay acciones registradas para este periodo. La bitácora mostrará cada acción con usuario, fecha, módulo y entidad afectada."
+      />
+    </div>
+  } @else {
+    <div class="alert alert-info" style="margin-bottom: 16px">
+      <span class="ai"><bee-icon name="shield" [size]="19" /></span>
+      <div>
+        <div class="at">Registro inmutable de solo lectura</div>
+        Cada acción del ciclo queda trazada con usuario, fecha, hora, módulo y entidad afectada. Los
+        registros no se pueden editar ni eliminar.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="ct">Bitácora del sistema</div>
+          <div class="cd">Acciones de los últimos 7 días</div>
+        </div>
+        <div class="sp"></div>
+        <label class="sr-only" for="audit-user">Filtrar por usuario</label>
+        <select id="audit-user" class="f-input" style="width: auto; height: 36px">
+          <option>Todos los usuarios</option>
+          <option>Viviana Álvarez</option>
+          <option>Carolina Forero</option>
+          <option>Mateo Suárez</option>
+        </select>
+        <label class="sr-only" for="audit-module">Filtrar por módulo</label>
+        <select id="audit-module" class="f-input" style="width: auto; height: 36px">
+          <option>Todos los módulos</option>
+          <option>Validación</option>
+          <option>Agrupación</option>
+          <option>Entrega</option>
+          <option>Conciliación</option>
+        </select>
+      </div>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <caption class="sr-only">Bitácora de auditoría: acciones del sistema por usuario, módulo y entidad</caption>
+          <thead>
+            <tr>
+              <th scope="col">Fecha y hora</th>
+              <th scope="col">Usuario</th>
+              <th scope="col">Acción</th>
+              <th scope="col">Módulo</th>
+              <th scope="col">Entidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (event of audit(); track event.timestamp) {
+              <tr>
+                <td class="mono dim">{{ event.timestamp }}</td>
+                <td>
+                  <div class="cell-main">
+                    <span
+                      class="cell-av"
+                      [class]="'av-' + event.userAvatar"
+                      style="width: 26px; height: 26px; font-size: 10px"
+                    >{{ event.userInitials }}</span>
+                    <span class="strong">{{ event.userName }}</span>
+                  </div>
+                </td>
+                <td><bee-badge [tone]="event.actionTone" [label]="event.action" /></td>
+                <td>{{ event.module }}</td>
+                <td class="mono dim">{{ event.entity }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="card-pad" style="display: flex; align-items: center; border-top: 1px solid var(--line-2)">
+        <span class="empty-pill">
+          <bee-icon name="lock" [size]="13" [strokeWidth]="2" />
+          Solo lectura · inmutable
+        </span>
+        <div class="spacer"></div>
+        <span class="note-line">Mostrando {{ audit().length }} de 248 eventos</span>
+        <button class="btn-sm btn-ghost" type="button" style="margin-left: 14px">
+          <bee-icon name="download" [size]="15" />
+          Exportar bitácora
+        </button>
+      </div>
+    </div>
+  }
+</section>

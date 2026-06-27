@@ -1,0 +1,128 @@
+<section class="stagger">
+  <div class="kpi-grid k3" style="margin-bottom: 16px">
+    <div class="mini">
+      <div class="ml">Cuentas activas</div>
+      <div class="mv">{{ activeCount() }}</div>
+      <div class="ms">{{ adminCount() }} administrador · {{ userCount() }} usuarios</div>
+    </div>
+    <div class="mini">
+      <div class="ml">Roles definidos</div>
+      <div class="mv">{{ roleCount }}</div>
+      <div class="ms">Administrador · Usuario</div>
+    </div>
+    <div class="mini">
+      <div class="ml">Sesiones (30 días)</div>
+      <div class="mv">{{ sessions30d }}</div>
+      <div class="ms">Acceso con registro en auditoría</div>
+    </div>
+  </div>
+
+  <!-- Cuentas del sistema -->
+  <div class="card">
+    <div class="card-h">
+      <div>
+        <div class="ct">Cuentas del sistema</div>
+        <div class="cd">Gestión de acceso · solo administrador</div>
+      </div>
+      <div class="sp"></div>
+      <button class="btn-sm btn-solid" type="button">
+        <bee-icon name="plus" [size]="15" [strokeWidth]="2.2" />
+        Nueva cuenta
+      </button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="dt">
+        <caption class="sr-only">Cuentas de usuario del sistema y su estado de acceso</caption>
+        <thead>
+          <tr>
+            <th scope="col">Usuario</th>
+            <th scope="col">Área</th>
+            <th scope="col">Rol</th>
+            <th scope="col">Último acceso</th>
+            <th scope="col">Estado</th>
+            <th scope="col" style="text-align: right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of users; track user.id) {
+            <tr>
+              <td>
+                <div class="cell-main">
+                  <span class="cell-av" [class]="'av-' + user.avatar">{{ user.initials }}</span>
+                  <div>
+                    <div class="strong">{{ user.name }}</div>
+                    <div class="cell-sub">{{ user.email }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ user.area }}</td>
+              <td>
+                @if (user.role === 'ADMIN') {
+                  <bee-badge tone="primary" label="Administrador" />
+                } @else {
+                  <bee-badge tone="neutral" label="Usuario" />
+                }
+              </td>
+              <td class="dim mono">{{ user.lastAccess }}</td>
+              <td><bee-badge tone="ok" [label]="user.status" /></td>
+              <td style="text-align: right">
+                <button class="link" type="button">Editar</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Matriz de permisos por rol -->
+  <div class="card mt-16">
+    <div class="card-h">
+      <div>
+        <div class="ct">Matriz de permisos por rol</div>
+        <div class="cd">Control de acceso basado en roles (RBAC)</div>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="dt">
+        <caption class="sr-only">Permisos concedidos a cada rol por acción o módulo</caption>
+        <thead>
+          <tr>
+            <th scope="col">Acción / módulo</th>
+            <th scope="col" style="text-align: center">Administrador</th>
+            <th scope="col" style="text-align: center">Usuario</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of permissions; track row.action) {
+            <tr>
+              <td class="strong">{{ row.action }}</td>
+              <td style="text-align: center">
+                @if (row.admin) {
+                  <span class="perm perm-y">
+                    <bee-icon name="check" [size]="14" [strokeWidth]="3" label="Permitido" />
+                  </span>
+                } @else {
+                  <span class="perm perm-n">
+                    <bee-icon name="x" [size]="13" [strokeWidth]="2.6" label="Denegado" />
+                  </span>
+                }
+              </td>
+              <td style="text-align: center">
+                @if (row.user) {
+                  <span class="perm perm-y">
+                    <bee-icon name="check" [size]="14" [strokeWidth]="3" label="Permitido" />
+                  </span>
+                } @else {
+                  <span class="perm perm-n">
+                    <bee-icon name="x" [size]="13" [strokeWidth]="2.6" label="Denegado" />
+                  </span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
