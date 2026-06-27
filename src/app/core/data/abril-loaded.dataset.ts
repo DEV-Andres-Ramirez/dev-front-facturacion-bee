@@ -44,7 +44,6 @@ export const ABRIL_LOADED_DATASET: PeriodDataset = {
     },
     pendingActions: [
       { title: '4 discrepancias de monto', description: 'En validación · periodo actual', tone: 'warn', icon: 'alert', target: 'validar' },
-      { title: '1 talento por incorporar', description: 'Diego Ramírez · sin prefactura', tone: 'info', icon: 'talents', target: 'talentos' },
       { title: '4 pagos por conciliar', description: 'Banistmo · vencen pronto', tone: 'warn', icon: 'coins', target: 'conciliar' },
     ],
   },

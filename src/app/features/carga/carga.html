@@ -1,265 +1,300 @@
-<section class="stagger">
-  <div class="card card-pad mb-16">
-    <bee-process-stepper [current]="0" />
-  </div>
+@if (isDemo()) {
+  <app-carga-demo />
+} @else {
+  <section class="stagger">
+    <div class="card card-pad mb-16">
+      <bee-process-stepper [current]="0" />
+    </div>
 
-  <div class="grid-2-1">
-    <!-- Soportes del periodo · 4 tipos de archivo -->
-    <div class="card">
-      <div class="card-h">
-        <div>
-          <div class="ct">Soportes del periodo</div>
-          <div class="cd">4 tipos de archivo · máx. {{ maxMb }} MB · lectura no destructiva</div>
+    <div class="grid-2-1">
+      <!-- Soportes del periodo · 4 tipos de archivo -->
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="ct">Soportes del periodo</div>
+            <div class="cd">4 tipos de archivo · máx. {{ maxMb }} MB · se guardan en Storage</div>
+          </div>
+          <div class="sp"></div>
+          <span class="empty-pill">
+            <bee-icon name="check" [size]="13" [strokeWidth]="2.4" />
+            {{ loadedTipos() }} de 4 tipos
+          </span>
         </div>
-        <div class="sp"></div>
-        <span class="empty-pill">
-          <bee-icon name="check" [size]="13" [strokeWidth]="2.4" />
-          {{ loadedCount() }} de 4 tipos
-        </span>
-      </div>
-      <div class="card-pad">
-        <div class="slot-grid">
-          @for (slot of slots; track slot.id) {
-            <div class="slot" [class.loaded]="isDone(slot.id)">
-              <div class="slot-head">
-                <span class="slot-ic" [class]="slot.iconBg"><bee-icon [name]="slot.icon" [size]="18" /></span>
-                <div>
-                  <div class="slot-title">{{ slot.title }}</div>
-                  <div class="slot-desc">{{ slot.desc }}</div>
-                </div>
-                @if (isDone(slot.id)) {
-                  <span class="badge b-ok"><span class="bd"></span>Cargado</span>
-                }
-              </div>
 
-              <input
-                #fileInput
-                type="file"
-                hidden
-                [accept]="slot.accept"
-                [attr.aria-label]="'Cargar ' + slot.title"
-                (change)="onFileSelected(slot.id, $event)"
-              />
-
-              @if (reading() === slot.id) {
-                <div class="slot-progress" role="status" aria-live="polite">
-                  <span class="sp-spin" aria-hidden="true"></span>
-                  <span class="sp-step">{{ progressLabel() }}</span>
+        <div class="card-pad">
+          <div class="slot-grid">
+            @for (slot of slots; track slot.id) {
+              <div class="slot" [class.loaded]="isSaved(slot.id)">
+                <div class="slot-head">
+                  <span class="slot-ic" [class]="slot.iconBg"><bee-icon [name]="slot.icon" [size]="18" /></span>
+                  <div>
+                    <div class="slot-title">{{ slot.title }}</div>
+                    <div class="slot-desc">{{ slot.desc }}</div>
+                  </div>
+                  @if (isSaved(slot.id)) {
+                    <span class="badge b-ok"><span class="bd"></span>Guardado</span>
+                  } @else if (hasStaged(slot.id)) {
+                    <span class="badge b-warn"><span class="bd"></span>Pendiente</span>
+                  }
                 </div>
-              } @else if (isDone(slot.id)) {
-                <div class="slot-done">
-                  <span class="sd-check"><bee-icon name="check" [size]="16" [strokeWidth]="2.6" /></span>
-                  <div class="sd-info"><div class="sd-sum">{{ summary(slot.id) }}</div></div>
-                  <div class="sd-actions">
+
+                <input
+                  #fileInput
+                  type="file"
+                  hidden
+                  [accept]="slot.accept"
+                  [multiple]="slot.multi"
+                  [attr.aria-label]="'Cargar ' + slot.title"
+                  (change)="onFileSelected(slot, $event)"
+                />
+
+                <!-- Documentos ya guardados -->
+                @if (slot.id === 'pedido') {
+                  @for (doc of pedidoDocs(); track doc.id_documento_facturacion) {
+                    <div class="file-row saved">
+                      <span class="fx fx-pdf">PDF</span>
+                      <span class="file-name mono">{{ nombreArchivo(doc.direccion_documento_facturacion) }}</span>
+                      <a class="slot-link" [href]="doc.direccion_documento_facturacion" target="_blank" rel="noopener">Ver</a>
+                    </div>
+                  }
+                } @else if (isSaved(slot.id)) {
+                  <div class="file-row saved">
+                    <span class="sd-check"><bee-icon name="check" [size]="15" [strokeWidth]="2.6" /></span>
+                    <span class="file-name">{{ resumenGuardado(slot.id) }}</span>
                     <button class="slot-link" type="button" (click)="togglePreview(slot.id)">
                       {{ preview() === slot.id ? 'Ocultar' : 'Ver' }}
                     </button>
-                    <button class="slot-link" type="button" (click)="fileInput.click()">
-                      {{ slot.multi ? 'Añadir' : 'Reemplazar' }}
-                    </button>
+                    <a class="slot-link" [href]="urlDe(slot.id)" target="_blank" rel="noopener">Archivo</a>
                   </div>
-                </div>
-              } @else {
-                <button
-                  class="slot-drop"
-                  type="button"
-                  [class.drag]="dragging() === slot.id"
-                  (click)="fileInput.click()"
-                  (dragover)="onDragOver(slot.id, $event)"
-                  (dragleave)="onDragLeave()"
-                  (drop)="onDrop(slot.id, $event)"
-                >
-                  <bee-icon name="upload" [size]="20" [strokeWidth]="1.8" />
-                  <span class="sd-t">Arrastra o <b>selecciona</b></span>
-                  <span class="sd-s">{{ slot.formats }} · máx. {{ maxMb }} MB</span>
-                </button>
-              }
+                }
 
-              @if (errorSlot() === slot.id) {
-                <p class="slot-error" role="alert">{{ errorMsg() }}</p>
-              }
+                <!-- Archivos en staging (pendientes por guardar) -->
+                @if (slot.id === 'pedido') {
+                  @for (file of stagedPedidos(); track file.name; let i = $index) {
+                    <div class="file-row pending">
+                      <span class="fx fx-pdf">PDF</span>
+                      <span class="file-name">{{ file.name }} · {{ pesoKb(file) }}</span>
+                      <button class="slot-link danger" type="button" (click)="removeStaged('pedido', i)">Quitar</button>
+                    </div>
+                  }
+                } @else if (stagedSingle(slot.id); as file) {
+                  <div class="file-row pending">
+                    <span class="fx fx-xls">XLS</span>
+                    <span class="file-name">{{ file.name }} · {{ pesoKb(file) }}</span>
+                    <button class="slot-link danger" type="button" (click)="removeStaged(slot.id)">Quitar</button>
+                  </div>
+                }
+
+                <!-- Zona de carga -->
+                @if (puedeAgregar(slot.id)) {
+                  <button
+                    class="slot-drop"
+                    type="button"
+                    [class.drag]="dragging() === slot.id"
+                    (click)="fileInput.click()"
+                    (dragover)="onDragOver(slot.id, $event)"
+                    (dragleave)="onDragLeave()"
+                    (drop)="onDrop(slot, $event)"
+                  >
+                    <bee-icon name="upload" [size]="20" [strokeWidth]="1.8" />
+                    <span class="sd-t">
+                      {{ isSaved(slot.id) && !slot.multi ? 'Reemplazar: arrastra o ' : 'Arrastra o ' }}<b>selecciona</b>
+                    </span>
+                    <span class="sd-s">{{ slot.formats }} · máx. {{ maxMb }} MB</span>
+                  </button>
+                }
+
+                @if (errorSlot() === slot.id) {
+                  <p class="slot-error" role="alert">{{ errorMsg() }}</p>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="alert alert-info mt-16">
+            <span class="ai"><bee-icon name="info" [size]="18" /></span>
+            <div>
+              <div class="at">Persistencia en Supabase</div>
+              Cada archivo se sube al almacenamiento y su enlace queda registrado. Al volver a este
+              periodo, los soportes guardados se cargan automáticamente.
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estado del periodo -->
+      <div class="card card-pad">
+        <div class="row" style="margin-bottom: 14px">
+          <span style="font-weight: 700; font-size: 14px">Estado del periodo</span>
+          <span class="badge b-primary" style="margin-left: auto"><span class="bd"></span>{{ period().label }}</span>
+        </div>
+
+        <div class="kv-row"><span class="kv-k">Líneas en prefactura</span><span class="kv-v mono" [class.dim]="!lineasPrefactura()">{{ lineasPrefactura() }}</span></div>
+        <div class="kv-row"><span class="kv-k">Líneas en registro interno</span><span class="kv-v mono" [class.dim]="!lineasRegistro()">{{ lineasRegistro() }}</span></div>
+        <div class="kv-row"><span class="kv-k">Talentos detectados</span><span class="kv-v mono" [class.dim]="!talentos()">{{ talentos() }}</span></div>
+        <div class="kv-row"><span class="kv-k">Órdenes de compra</span><span class="kv-v mono" [class.dim]="!ordenes()">{{ ordenes() }}</span></div>
+        <div class="kv-row"><span class="kv-k">Moneda</span><span class="kv-v mono" [class.dim]="moneda() === '—'">{{ moneda() }}</span></div>
+        <div class="kv-row"><span class="kv-k">Siguiente secuencial</span><span class="kv-v mono" [class.dim]="siguienteSecuencial() === '—'">{{ siguienteSecuencial() }}</span></div>
+
+        <div class="kv-row">
+          <span class="kv-k">Listo para validar</span>
+          @if (canContinue()) {
+            <span class="badge b-ok"><span class="bd"></span>Sí</span>
+          } @else {
+            <span class="badge b-neutral"><span class="bd"></span>Faltan soportes</span>
           }
         </div>
 
-        <div class="alert alert-info mt-16">
-          <span class="ai"><bee-icon name="info" [size]="18" /></span>
-          <div>
-            <div class="at">Lectura no destructiva</div>
-            El sistema importa una copia de cada archivo y permite previsualizarlo en modo solo
-            lectura. Las plantillas originales del cliente nunca se modifican.
-          </div>
-        </div>
-      </div>
-    </div>
+        @if (saveError()) {
+          <p class="slot-error" role="alert" style="margin-top: 12px">{{ saveError() }}</p>
+        }
+        @if (loadError()) {
+          <p class="slot-error" role="alert" style="margin-top: 12px">{{ loadError() }}</p>
+        }
 
-    <!-- Estado del periodo -->
-    <div class="card card-pad">
-      <div class="row" style="margin-bottom: 14px">
-        <span style="font-weight: 700; font-size: 14px">Estado del periodo</span>
-        <span class="badge b-primary" style="margin-left: auto"><span class="bd"></span>{{ period().label }}</span>
-      </div>
+        @if (hasStagedAny()) {
+          <button
+            class="btn-sm btn-solid"
+            style="width: 100%; margin-top: 16px"
+            type="button"
+            [disabled]="saving()"
+            (click)="guardar()"
+          >
+            <bee-icon name="check" [size]="16" [strokeWidth]="2.2" />
+            {{ saving() ? 'Guardando…' : 'Guardar documentos (' + stagedCount() + ')' }}
+          </button>
+        }
 
-      @if (loading().status; as status) {
-        <div class="kv-row"><span class="kv-k">Líneas detectadas</span><span class="kv-v mono">{{ status.linesDetected }}</span></div>
-        <div class="kv-row"><span class="kv-k">Talentos MOP</span><span class="kv-v mono">{{ status.talentsMop }}</span></div>
-        <div class="kv-row"><span class="kv-k">Órdenes de compra</span><span class="kv-v mono">{{ status.orders }}</span></div>
-        <div class="kv-row"><span class="kv-k">Moneda</span><span class="kv-v mono">{{ status.currency }}</span></div>
-        <div class="kv-row">
-          <span class="kv-k">Siguiente secuencial</span>
-          <span class="kv-v mono">{{ nextInvoice }}</span>
-        </div>
-      } @else {
-        <div class="kv-row"><span class="kv-k">Líneas detectadas</span><span class="kv-v mono dim">0</span></div>
-        <div class="kv-row"><span class="kv-k">Talentos MOP</span><span class="kv-v mono dim">0</span></div>
-        <div class="kv-row"><span class="kv-k">Órdenes de compra</span><span class="kv-v mono dim">0</span></div>
-        <div class="kv-row"><span class="kv-k">Moneda</span><span class="kv-v mono dim">—</span></div>
-        <div class="kv-row"><span class="kv-k">Siguiente secuencial</span><span class="kv-v mono dim">—</span></div>
-      }
-
-      <div class="kv-row">
-        <span class="kv-k">Listo para validar</span>
         @if (canContinue()) {
-          <span class="badge b-ok"><span class="bd"></span>Sí</span>
-        } @else {
-          <span class="badge b-neutral"><span class="bd"></span>Faltan soportes</span>
+          <a class="btn-sm btn-ghost" style="width: 100%; margin-top: 10px" [routerLink]="['/app', 'validar']">
+            Continuar a validación
+            <bee-icon name="arrow-right" [size]="16" [strokeWidth]="2.2" />
+          </a>
+        } @else if (!hasStagedAny()) {
+          <p class="note-line" style="margin-top: 12px; text-align: center">
+            Carga y guarda la prefactura aprobada y el registro interno para habilitar la validación.
+          </p>
         }
       </div>
-
-      @if (canContinue()) {
-        <a class="btn-sm btn-solid" style="width: 100%; margin-top: 16px" [routerLink]="['/app', 'validar']">
-          Continuar a validación
-          <bee-icon name="arrow-right" [size]="16" [strokeWidth]="2.2" />
-        </a>
-      } @else {
-        <button class="btn-sm btn-solid" style="width: 100%; margin-top: 16px" type="button" disabled>
-          Continuar a validación
-          <bee-icon name="arrow-right" [size]="16" [strokeWidth]="2.2" />
-        </button>
-        <p class="note-line" style="margin-top: 10px; text-align: center">
-          Carga la prefactura aprobada y el registro interno para habilitar la validación.
-        </p>
-      }
     </div>
-  </div>
 
-  <!-- Previsualización (solo lectura) -->
-  @if (preview(); as pv) {
-    <div class="card mt-16 fade-up">
-      <div class="card-h">
-        <div>
-          <div class="ct">Vista previa · {{ slotLabel(pv) }}</div>
-          <div class="cd">Contenido interpretado del archivo</div>
+    <!-- Previsualización del contenido interpretado -->
+    @if (preview(); as pv) {
+      <div class="card mt-16 fade-up">
+        <div class="card-h">
+          <div>
+            <div class="ct">Vista previa · {{ slotTitle(pv) }}</div>
+            <div class="cd">Contenido interpretado y persistido</div>
+          </div>
+          <div class="sp"></div>
+          <span class="preview-flag"><bee-icon name="lock" [size]="12" />Solo lectura</span>
+          <button class="slot-link" type="button" aria-label="Cerrar vista previa" (click)="preview.set(null)">
+            <bee-icon name="x" [size]="16" />
+          </button>
         </div>
-        <div class="sp"></div>
-        <span class="preview-flag"><bee-icon name="lock" [size]="12" />Solo lectura</span>
-        <button class="slot-link" type="button" aria-label="Cerrar vista previa" (click)="preview.set(null)">
-          <bee-icon name="x" [size]="16" />
-        </button>
-      </div>
 
-      @switch (pv) {
-        @case ('prefactura') {
-          <div class="tbl-wrap">
-            <table class="dt">
-              <caption class="sr-only">Líneas de la prefactura aprobada</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Colaborador</th>
-                  <th scope="col">Rol MOP</th>
-                  <th scope="col">Tipo</th>
-                  <th scope="col">Entrega de valor</th>
-                  <th scope="col" style="text-align: right">Monto a facturar</th>
-                  <th scope="col">Radicar a</th>
-                  <th scope="col">Aprobado</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (line of prefactura(); track line.id) {
+        @switch (pv) {
+          @case ('prefactura') {
+            <div class="tbl-wrap">
+              <table class="dt">
+                <caption class="sr-only">Líneas interpretadas de la prefactura aprobada</caption>
+                <thead>
                   <tr>
-                    <td>
-                      <div class="cell-main">
-                        <span class="cell-av" [class]="'av-' + line.avatar">{{ line.initials }}</span>
-                        <span class="strong">{{ line.talent }}</span>
-                      </div>
-                    </td>
-                    <td>{{ line.roleMop }}</td>
-                    <td>
-                      <span class="badge" [class]="line.purchaseType === 'CAPEX' ? 'b-primary' : 'b-neutral'">{{ line.purchaseType }}</span>
-                    </td>
-                    <td class="dim">{{ line.project }}</td>
-                    <td class="num">{{ line.amountUsd | usd }}</td>
-                    <td class="dim">{{ line.approver }}</td>
-                    <td><span class="badge b-ok"><span class="bd"></span>Aprobado</span></td>
+                    <th scope="col">Colaborador</th>
+                    <th scope="col">Rol MOP</th>
+                    <th scope="col">Proyecto</th>
+                    <th scope="col" style="text-align: right">Monto a facturar</th>
+                    <th scope="col">Líder aprobador</th>
+                    <th scope="col">Aprobado</th>
                   </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        }
-        @case ('registro') {
-          <div class="tbl-wrap">
-            <table class="dt">
-              <caption class="sr-only">Registro interno de facturación</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Sec. factura</th>
-                  <th scope="col">Pedido de compra</th>
-                  <th scope="col">Código</th>
-                  <th scope="col">Colaborador</th>
-                  <th scope="col" style="text-align: right">Monto a facturar</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (row of registroPreview; track row.codigo) {
+                </thead>
+                <tbody>
+                  @for (row of prefacturaRows(); track row.id_prefactura) {
+                    <tr>
+                      <td class="strong">{{ row.nombre_colaborador_prefactura }}</td>
+                      <td class="dim">{{ row.rol_mop_prefactura }}</td>
+                      <td class="dim">{{ row.nombre_proyecto_prefactura }}</td>
+                      <td class="num mono">{{ row.monto_facturar_prefactura }}</td>
+                      <td class="dim">{{ row.lider_aprobador_prefactura }}</td>
+                      <td>
+                        @if (row.aprobado_prefactura) {
+                          <span class="badge b-ok"><span class="bd"></span>{{ row.aprobado_prefactura }}</span>
+                        } @else {
+                          <span class="dim">—</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+          @case ('registro') {
+            <div class="tbl-wrap">
+              <table class="dt">
+                <caption class="sr-only">Registro interno de facturación interpretado</caption>
+                <thead>
                   <tr>
-                    <td class="strong mono">{{ row.sec }}</td>
-                    <td class="mono dim">{{ row.pedido }}</td>
-                    <td class="mono dim">{{ row.codigo }}</td>
-                    <td>{{ row.nombre }}</td>
-                    <td class="num">{{ row.monto | usd }}</td>
+                    <th scope="col">Secuencial</th>
+                    <th scope="col">Pedido de compra</th>
+                    <th scope="col">ID colaborador</th>
+                    <th scope="col">Cliente</th>
+                    <th scope="col">Moneda</th>
+                    <th scope="col" style="text-align: right">Monto a facturar</th>
                   </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-          <div class="card-pad" style="border-top: 1px solid var(--line-2)">
-            <p class="note-line">
-              Última factura del periodo anterior: <span class="em mono">{{ lastInvoice }}</span> · el
-              sistema continúa la secuencia en <span class="em mono">{{ nextInvoice }}</span>.
-            </p>
-          </div>
-        }
-        @case ('pedido') {
-          <div class="card-pad preview-list">
-            @for (oc of pedidoPreview; track oc.oc) {
-              <div class="doc-item">
-                <span class="fx fx-pdf">PDF</span>
-                <div style="flex: 1">
-                  <div class="fn mono">{{ oc.oc }}</div>
-                  <div class="fm">{{ oc.talents }} · {{ oc.proyecto }}</div>
-                </div>
-                <span class="badge b-ok"><span class="bd"></span>Recibido</span>
-              </div>
-            }
-            <p class="note-line">Los talentos sin pedido de compra se facturan de forma individual.</p>
-          </div>
-        }
-        @case ('novedades') {
-          <div class="card-pad preview-list">
-            @for (nov of novedadesPreview; track nov.talento) {
+                </thead>
+                <tbody>
+                  @for (row of registroRows(); track row.id_facturacion_interna) {
+                    <tr>
+                      <td class="strong mono">{{ row.secuencial_facturacion_interna }}</td>
+                      <td class="mono dim">{{ row.pedido_compra_facturacion_interna || 'NO RECIBIDO' }}</td>
+                      <td class="mono dim">{{ row.id_colaborados_facturacion_interna }}</td>
+                      <td class="dim">{{ row.cliente_facturacion_interna }}</td>
+                      <td class="mono">{{ row.tipo_moneda_facturacion_interna }}</td>
+                      <td class="num mono">{{ row.monto_facturar_facturacion_interna }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+          @case ('novedades') {
+            <div class="card-pad preview-list">
               <div class="doc-item">
                 <span class="fx fx-doc">XLS</span>
                 <div style="flex: 1">
-                  <div class="fn">{{ nov.talento }}</div>
-                  <div class="fm">{{ nov.detalle }}</div>
+                  <div class="fn">{{ nombreArchivo(urlDe('novedades') ?? '') }}</div>
+                  <div class="fm">Novedades del periodo · archivo persistido</div>
                 </div>
-                <span class="badge b-warn"><span class="bd"></span>{{ nov.tipo }}</span>
+                <a class="slot-link" [href]="urlDe('novedades')" target="_blank" rel="noopener">Abrir</a>
               </div>
-            }
-          </div>
+            </div>
+          }
         }
-      }
+      </div>
+    }
+  </section>
+
+  <!-- Confirmación de reemplazo -->
+  @if (confirmOpen()) {
+    <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="rep-title">
+      <div class="modal-card">
+        <div class="modal-h">
+          <span class="slot-ic ic-warn"><bee-icon name="alert" [size]="18" /></span>
+          <div id="rep-title" class="ct">Reemplazar documentos guardados</div>
+        </div>
+        <p class="modal-body">
+          Ya hay un documento guardado para este periodo en:
+          <b>{{ tiposAReemplazar().join(', ') }}</b>. Al continuar se eliminará el archivo anterior
+          y sus registros, y se cargarán los nuevos. Esta acción no se puede deshacer.
+        </p>
+        <div class="modal-actions">
+          <button class="btn-sm btn-ghost" type="button" (click)="cancelarReemplazo()">Cancelar</button>
+          <button class="btn-sm btn-solid" type="button" [disabled]="saving()" (click)="confirmarReemplazo()">
+            {{ saving() ? 'Guardando…' : 'Reemplazar y guardar' }}
+          </button>
+        </div>
+      </div>
     </div>
   }
-</section>
+}

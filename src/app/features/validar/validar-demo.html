@@ -1,0 +1,165 @@
+<section class="stagger">
+  @if (validation().lines.length === 0) {
+    <bee-empty-state
+      icon="validate"
+      title="Sin información por validar"
+      message="Este periodo aún no tiene una prefactura cargada. Importa los documentos para iniciar el cotejo contra el registro interno."
+      actionLabel="Ir a carga"
+      [actionRoute]="['/app', 'carga']"
+    />
+  } @else {
+    @if (validation().summary.discrepancias) {
+      <div class="alert alert-warn" style="margin-bottom: 16px">
+        <span class="ai"><bee-icon name="alert" [size]="19" /></span>
+        <div>
+          <div class="at">{{ validation().summary.discrepancias }} discrepancias requieren tu revisión</div>
+          El sistema cotejó la prefactura aprobada contra el registro interno línea por línea. Resuelve
+          las diferencias de monto antes de agrupar.
+        </div>
+      </div>
+    }
+
+    <div class="kpi-grid k4" style="margin-bottom: 16px">
+      <div class="mini">
+        <div class="ml">Líneas cotejadas</div>
+        <div class="mv">{{ validation().summary.cotejadas }}</div>
+        <div class="ms">Prefactura vs registro interno</div>
+      </div>
+      <div class="mini">
+        <div class="ml">Coinciden exacto</div>
+        <div class="mv" style="color: var(--ok)">{{ validation().summary.coinciden }}</div>
+        <div class="ms">Monto con decimales idéntico</div>
+      </div>
+      <div class="mini">
+        <div class="ml">Discrepancias</div>
+        <div class="mv" style="color: var(--bad)">{{ validation().summary.discrepancias }}</div>
+        <div class="ms">Diferencia de monto a facturar</div>
+      </div>
+      <div class="mini">
+        <div class="ml">Sin contrato MOP</div>
+        <div class="mv" style="color: var(--warn)">{{ validation().summary.sinMop }}</div>
+        <div class="ms">Requiere agregar talento</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="ct">Cotejo de talentos</div>
+          <div class="cd">Prefactura aprobada · Registro interno</div>
+        </div>
+        <div class="sp"></div>
+        <div class="seg">
+          <button type="button" class="on">Todos</button>
+          <button type="button">Discrepancias</button>
+          <button type="button">Sin MOP</button>
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <caption class="sr-only">Cotejo de talentos: prefactura aprobada contra registro interno</caption>
+          <thead>
+            <tr>
+              <th scope="col">Talento</th>
+              <th scope="col">Rol MOP</th>
+              <th scope="col">Orden</th>
+              <th scope="col" style="text-align: right">Prefactura</th>
+              <th scope="col" style="text-align: right">Registro interno</th>
+              <th scope="col">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of validation().lines; track line.id) {
+              <tr>
+                <td>
+                  <div class="cell-main">
+                    <span class="cell-av" [class]="'av-' + line.avatar">{{ line.initials }}</span>
+                    <div>
+                      <div class="strong">{{ line.talent }}</div>
+                      <div class="cell-sub">{{ line.reference }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  @if (line.roleMop) {
+                    {{ line.roleMop }}
+                  } @else {
+                    <bee-badge tone="warn" label="Sin MOP" />
+                  }
+                </td>
+                <td class="mono dim">{{ line.order ?? '—' }}</td>
+                <td style="text-align: right">
+                  <span class="diff diff-eq">{{ line.prefactura | usd: false }}</span>
+                </td>
+                <td style="text-align: right">
+                  @if (line.registroInterno === null) {
+                    <span class="dim">No registrado</span>
+                  } @else {
+                    <span class="diff" [class]="line.status === 'coincide' ? 'diff-ok' : 'diff-bad'">
+                      {{ line.registroInterno | usd: false }}
+                    </span>
+                  }
+                </td>
+                <td>
+                  @switch (line.status) {
+                    @case ('coincide') {
+                      <bee-badge tone="ok" label="Coincide" />
+                    }
+                    @case ('discrepancia') {
+                      <bee-badge tone="bad" [label]="'Δ ' + (delta(line) | usd: false)" />
+                    }
+                    @case ('sin_mop') {
+                      <bee-badge tone="warn" label="Agregar" />
+                    }
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="card-pad" style="display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--line-2)">
+        <div class="legend">
+          <span><span class="ld" style="background: var(--ok)"></span>Monto idéntico</span>
+          <span><span class="ld" style="background: var(--bad)"></span>Diferencia detectada</span>
+          <span><span class="ld" style="background: var(--warn)"></span>Talento sin MOP</span>
+        </div>
+        <div class="spacer"></div>
+        <a class="btn-sm btn-solid" [routerLink]="['/app', 'agrupar']">
+          Validar y continuar
+          <bee-icon name="arrow-right" [size]="16" [strokeWidth]="2.2" />
+        </a>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top: 16px">
+      <div class="card card-pad">
+        <span class="ti ic-info" style="width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 11px">
+          <bee-icon name="file" [size]="18" />
+        </span>
+        <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 3px">Campos completados</div>
+        <div class="note-line">
+          El sistema rellena «Radicar factura a» y «Descripción» (mes, contrato, talento, fechas, n° de orden).
+        </div>
+      </div>
+      <div class="card card-pad">
+        <span class="ti ic-honey" style="width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 11px">
+          <bee-icon name="trend" [size]="18" />
+        </span>
+        <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 3px">Inversión CAPEX</div>
+        <div class="note-line">
+          1 línea marcada como CAPEX. Se separa del gasto operativo para su radicación.
+        </div>
+      </div>
+      <div class="card card-pad">
+        <span class="ti ic-warn" style="width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; margin-bottom: 11px">
+          <bee-icon name="clock" [size]="18" />
+        </span>
+        <div style="font-weight: 700; font-size: 13.5px; margin-bottom: 3px">Sin orden de compra</div>
+        <div class="note-line">
+          0 talentos sin orden este periodo. Todos los activos están asociados a una OC vigente.
+        </div>
+      </div>
+    </div>
+  }
+</section>

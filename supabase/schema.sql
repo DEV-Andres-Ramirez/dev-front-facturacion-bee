@@ -164,3 +164,126 @@ on conflict (id_usuario) do nothing;
 select setval('public.usuarios_id_seq',
               greatest((select coalesce(max(id_usuario::int), 0) from public.usuarios), 1),
               true);
+
+
+-- ════════════════════════════════════════════════════════════════════════════
+--  MÓDULO 2 · CARGA Y PERSISTENCIA DE DOCUMENTOS
+--  Persiste los soportes del periodo. Los archivos se guardan en el bucket
+--  público `facturacion-bee` (Storage) y aquí queda el enlace; el contenido de
+--  las plantillas Excel se interpreta y se almacena en sus tablas de detalle.
+--  El campo `periodo_*` se llena con el periodo seleccionado en el encabezado.
+--  NOTA: sin Supabase Auth aún, estas tablas quedan abiertas al rol anónimo
+--  (mismo pendiente de endurecer con JWT + RLS que el módulo de usuarios).
+-- ════════════════════════════════════════════════════════════════════════════
+
+-- ── Documentos cargados del periodo (índice + enlace en Storage) ────────────
+create table if not exists public.documentos_facturacion (
+  id_documento_facturacion        bigint generated always as identity primary key,
+  periodo_documento_facturacion   text not null,
+  tipo_documento_facturacion      text not null,
+  direccion_documento_facturacion text not null
+);
+
+-- ── Detalle de la plantilla «Aprobación Prefactura» (25 columnas en orden) ──
+create table if not exists public.aprobacion_prefactura (
+  id_prefactura                     bigint generated always as identity primary key,
+  periodo_prefactura                text not null,
+  numero_contrato_prefactura        text,
+  etiqueta_aliado_prefactura        text,
+  año_prefactura                    text,
+  mes_prefactura                    text,
+  nombre_colaborador_prefactura     text,
+  id_colaborador_prefactura         text,
+  rol_mop_prefactura                text,
+  tipo_compra_prefactura            text,
+  entega_valor_prefactura           text,
+  tarifa_prefactura                 text,
+  desglose_novedad_prefactura       text,
+  hora_novedad_prefactura           text,
+  tarifa_hora_prefactura            text,
+  monto_novedad_prefactura          text,
+  monto_facturar_prefactura         text,   -- 2 decimales sin aproximar (texto)
+  comentarios_proveedor_prefactura  text,
+  comentarios_capacidad_prefactura  text,
+  id_proyecto_prefactura            text,
+  nombre_proyecto_prefactura        text,
+  quien_paga_prefactura             text,
+  radicar_factura_prefactura        text,
+  lider_aprobador_prefactura        text,
+  trabajo_compartido_prefactura     text,
+  aprobado_prefactura               text,
+  comentarios_lider_prefactura      text
+);
+
+-- ── Detalle de la plantilla «Registro Facturación Interna» (13 columnas) ────
+create table if not exists public.registro_facturacion_interna (
+  id_facturacion_interna              bigint generated always as identity primary key,
+  periodo_facturacion_interna         text not null,
+  pedido_compra_facturacion_interna   text,
+  secuencial_facturacion_interna      text,
+  mes_facturacion_interna             text,
+  cliente_facturacion_interna         text,
+  id_colaborados_facturacion_interna  text,
+  descripcion_facturacion_interna     text,
+  tipo_moneda_facturacion_interna     text,
+  tarifa_facturacion_interna          text,
+  hora_novedad_facturacion_interna    text,
+  tarifa_hora_facturacion_interna     text,
+  monto_facturar_facturacion_interna  text,  -- 2 decimales sin aproximar (texto)
+  valor_letras_facturacion_interna    text,
+  email_aprobador_facturacion_interna text
+);
+
+-- Índices para filtrar y recargar por periodo (consulta frecuente del módulo).
+create index if not exists ix_documentos_periodo  on public.documentos_facturacion (periodo_documento_facturacion);
+create index if not exists ix_prefactura_periodo  on public.aprobacion_prefactura (periodo_prefactura);
+create index if not exists ix_registro_periodo    on public.registro_facturacion_interna (periodo_facturacion_interna);
+
+-- ── RLS · acceso del rol anónimo (sin Auth todavía) ─────────────────────────
+alter table public.documentos_facturacion      enable row level security;
+alter table public.aprobacion_prefactura        enable row level security;
+alter table public.registro_facturacion_interna enable row level security;
+
+grant select, insert, update, delete on public.documentos_facturacion      to anon, authenticated;
+grant select, insert, update, delete on public.aprobacion_prefactura        to anon, authenticated;
+grant select, insert, update, delete on public.registro_facturacion_interna to anon, authenticated;
+
+drop policy if exists documentos_facturacion_all on public.documentos_facturacion;
+create policy documentos_facturacion_all on public.documentos_facturacion
+  for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists aprobacion_prefactura_all on public.aprobacion_prefactura;
+create policy aprobacion_prefactura_all on public.aprobacion_prefactura
+  for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists registro_facturacion_interna_all on public.registro_facturacion_interna;
+create policy registro_facturacion_interna_all on public.registro_facturacion_interna
+  for all to anon, authenticated using (true) with check (true);
+
+-- ── Storage · políticas del bucket `facturacion-bee` ────────────────────────
+-- El bucket es público (lectura por URL no requiere policy), pero SUBIR y
+-- BORRAR objetos sí. Se envuelven en un bloque con manejo de excepción porque
+-- el rol del editor SQL no siempre es dueño de `storage.objects`: si falla, NO
+-- aborta la creación de las tablas de arriba (solo avisa). En ese caso créalas
+-- desde el panel: Storage → facturacion-bee → Policies (mismas condiciones),
+-- o aplícalas con privilegios (Supabase CLI / API de migraciones).
+do $$
+begin
+  drop policy if exists "facturacion_bee_select" on storage.objects;
+  create policy "facturacion_bee_select" on storage.objects
+    for select to anon, authenticated using (bucket_id = 'facturacion-bee');
+
+  drop policy if exists "facturacion_bee_insert" on storage.objects;
+  create policy "facturacion_bee_insert" on storage.objects
+    for insert to anon, authenticated with check (bucket_id = 'facturacion-bee');
+
+  drop policy if exists "facturacion_bee_update" on storage.objects;
+  create policy "facturacion_bee_update" on storage.objects
+    for update to anon, authenticated using (bucket_id = 'facturacion-bee') with check (bucket_id = 'facturacion-bee');
+
+  drop policy if exists "facturacion_bee_delete" on storage.objects;
+  create policy "facturacion_bee_delete" on storage.objects
+    for delete to anon, authenticated using (bucket_id = 'facturacion-bee');
+exception when others then
+  raise notice 'No se pudieron crear las políticas de storage (créalas en Storage → Policies). Detalle: %', sqlerrm;
+end $$;

@@ -8,7 +8,6 @@ import { Shell } from './layout/shell/shell';
 import { Dashboard } from './features/dashboard/dashboard';
 import { Carga } from './features/carga/carga';
 import { Validar } from './features/validar/validar';
-import { Talentos } from './features/talentos/talentos';
 import { Agrupar } from './features/agrupar/agrupar';
 import { Revisar } from './features/revisar/revisar';
 import { Entregar } from './features/entregar/entregar';
@@ -55,7 +54,6 @@ const SCREENS: Array<[string, Type<unknown>]> = [
   ['Dashboard', Dashboard],
   ['Carga', Carga],
   ['Validar', Validar],
-  ['Talentos', Talentos],
   ['Agrupar', Agrupar],
   ['Revisar', Revisar],
   ['Entregar', Entregar],

@@ -1381,3 +1381,55 @@ select.f-input {
   color: var(--honey-deep);
   text-decoration: underline;
 }
+
+/* ── Chip neutro (conteos en tablas) ──────────────────────────────────────── */
+.chip-soft {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: var(--line-2);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── Modal / diálogo (confirmaciones) ─────────────────────────────────────── */
+.modal-veil {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 22, 26, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 60;
+}
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  padding: 22px;
+  width: 100%;
+  max-width: 440px;
+}
+.modal-h {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 12px;
+}
+.modal-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  margin-bottom: 20px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

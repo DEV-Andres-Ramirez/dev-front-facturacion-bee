@@ -36,12 +36,6 @@ export const routes: Routes = [
         loadComponent: () => import('@features/validar/validar').then((m) => m.Validar),
       },
       {
-        path: 'talentos',
-        title: 'Agregar talentos · Facturación Bee',
-        data: { title: 'Agregar talentos', subtitle: 'Incorpora talentos no contemplados al periodo' },
-        loadComponent: () => import('@features/talentos/talentos').then((m) => m.Talentos),
-      },
-      {
         path: 'agrupar',
         title: 'Agrupar información · Facturación Bee',
         data: { title: 'Agrupar información', subtitle: 'Consolida líneas por orden de compra' },
