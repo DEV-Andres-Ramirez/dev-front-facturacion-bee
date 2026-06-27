@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "outputDirectory": "dist/dev-front-facturacion-bee/browser",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
