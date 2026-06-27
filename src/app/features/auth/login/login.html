@@ -23,7 +23,6 @@
 
     <div class="login-meta">
       <div class="lm"><div class="v">7</div><div class="l">Actividades automatizadas</div></div>
-      <div class="lm"><div class="v">3</div><div class="l">Cuentas · 2 roles</div></div>
       <div class="lm"><div class="v"><span class="u">USD</span>/COP</div><div class="l">Doble moneda · TRM</div></div>
     </div>
 
@@ -97,26 +96,16 @@
           <a class="link" href="#" (click)="$event.preventDefault()">¿Olvidaste tu contraseña?</a>
         </div>
 
-        <button class="btn btn-honey login-submit" type="submit">
-          Entrar al panel
-          <bee-icon name="arrow-right" [size]="17" [strokeWidth]="2.2" />
+        <button class="btn btn-honey login-submit" type="submit" [disabled]="loading()">
+          @if (loading()) {
+            <span class="login-spin" aria-hidden="true"></span>
+            Verificando…
+          } @else {
+            Entrar al panel
+            <bee-icon name="arrow-right" [size]="17" [strokeWidth]="2.2" />
+          }
         </button>
       </form>
-
-      <div class="login-sep"><span>o entra rápido como</span></div>
-
-      <div class="login-accounts">
-        @for (account of quickAccounts; track account.role) {
-          <button class="acct" type="button" (click)="enterAs(account.role)">
-            <span class="cell-av acct-av" [class]="account.avatar">{{ account.initials }}</span>
-            <span class="acct-text">
-              <span class="nm">{{ account.name }}</span>
-              <span class="rl">{{ account.detail }}</span>
-            </span>
-            <span class="arr"><bee-icon name="chevron-right" [size]="16" /></span>
-          </button>
-        }
-      </div>
 
       <p class="login-foot">
         Acceso restringido · Conexión cifrada (HTTPS/TLS) · {{ config.org }}

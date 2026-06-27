@@ -79,7 +79,11 @@ export class Shell {
   private readonly routeData = toSignal(
     this.router.events.pipe(
       filter((event) => event instanceof NavigationEnd),
-      map(() => this.deepestData()),
+      map(() => {
+        // Mantiene actualizado el último acceso del usuario al navegar (RF-USR).
+        this.auth.touch();
+        return this.deepestData();
+      }),
       startWith(this.deepestData()),
     ),
     { initialValue: {} as Data },

@@ -43,7 +43,7 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
-# Environment variables (secrets / business parameters) — never commit
+# Secrets de servidor / CLI (service_role, DB) — nunca se versionan.
+# La configuración pública del frontend vive en src/environments/*.ts (sí se versiona).
 .env
 .env.*.local
-src/environments/environment.generated.ts

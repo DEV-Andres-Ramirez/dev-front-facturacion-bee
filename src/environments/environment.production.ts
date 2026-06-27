@@ -1,11 +1,11 @@
-// Entorno de DESARROLLO (usado por `ng serve` y el build de desarrollo).
-// En producción, angular.json reemplaza este archivo por environment.production.ts.
+// Entorno de PRODUCCIÓN (Vercel). Sustituye a environment.ts en el build de prod
+// vía `fileReplacements` en angular.json. La publishable key es pública por diseño.
 import type { AppEnvironment } from './environment.model';
 
 export type { AppEnvironment };
 
 export const environment: AppEnvironment = {
-  production: false,
+  production: true,
   appName: 'Facturación Bee',
   org: 'Bee Consultoría y Negocios',
   tagline: 'The power of creating together',
