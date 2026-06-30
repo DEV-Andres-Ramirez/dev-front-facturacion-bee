@@ -181,7 +181,8 @@ create table if not exists public.documentos_facturacion (
   id_documento_facturacion        bigint generated always as identity primary key,
   periodo_documento_facturacion   text not null,
   tipo_documento_facturacion      text not null,
-  direccion_documento_facturacion text not null
+  direccion_documento_facturacion text not null,
+  nombre_documento_facturacion    text   -- nombre del archivo sin extensión (relaciona pedidos de compra)
 );
 
 -- ── Detalle de la plantilla «Aprobación Prefactura» (25 columnas en orden) ──
@@ -231,8 +232,21 @@ create table if not exists public.registro_facturacion_interna (
   tarifa_hora_facturacion_interna     text,
   monto_facturar_facturacion_interna  text,  -- 2 decimales sin aproximar (texto)
   valor_letras_facturacion_interna    text,
-  email_aprobador_facturacion_interna text
+  email_aprobador_facturacion_interna text,
+  documento_pedido_compra             text,  -- enlace al PDF del pedido de compra (relación por nombre)
+  documento_factura_bee               text,  -- enlace a la Factura BEE cargada en Revisar
+  monto_emitido_factura_bee           text,  -- monto emitido (global por factura, ingresado en Revisar)
+  fecha_factura_bee                   text   -- fecha de la factura física (ingresada en Revisar)
 );
+
+-- Columnas añadidas en módulos posteriores (idempotente para BD ya creadas).
+alter table public.documentos_facturacion
+  add column if not exists nombre_documento_facturacion text;
+alter table public.registro_facturacion_interna
+  add column if not exists documento_pedido_compra   text,
+  add column if not exists documento_factura_bee      text,
+  add column if not exists monto_emitido_factura_bee  text,
+  add column if not exists fecha_factura_bee          text;
 
 -- Índices para filtrar y recargar por periodo (consulta frecuente del módulo).
 create index if not exists ix_documentos_periodo  on public.documentos_facturacion (periodo_documento_facturacion);

@@ -55,6 +55,7 @@
                       <span class="fx fx-pdf">PDF</span>
                       <span class="file-name mono">{{ nombreArchivo(doc.direccion_documento_facturacion) }}</span>
                       <a class="slot-link" [href]="doc.direccion_documento_facturacion" target="_blank" rel="noopener">Ver</a>
+                      <button class="slot-link danger" type="button" (click)="pedirEliminar(doc)">Eliminar</button>
                     </div>
                   }
                 } @else if (isSaved(slot.id)) {
@@ -65,6 +66,7 @@
                       {{ preview() === slot.id ? 'Ocultar' : 'Ver' }}
                     </button>
                     <a class="slot-link" [href]="urlDe(slot.id)" target="_blank" rel="noopener">Archivo</a>
+                    <button class="slot-link danger" type="button" (click)="pedirEliminar(docDe(slot.id))">Eliminar</button>
                   </div>
                 }
 
@@ -274,6 +276,31 @@
       </div>
     }
   </section>
+
+  <!-- Confirmación de eliminación -->
+  @if (confirmDelete(); as doc) {
+    <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="del-title">
+      <div class="modal-card">
+        <div class="modal-h">
+          <span class="ti ic-bad" style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none">
+            <bee-icon name="alert" [size]="18" />
+          </span>
+          <div id="del-title" class="ct">Eliminar archivo</div>
+        </div>
+        <p class="modal-body">
+          ¿Seguro que deseas eliminar <b>{{ nombreArchivo(doc.direccion_documento_facturacion) }}</b>
+          ({{ doc.tipo_documento_facturacion }})? Se borrará del almacenamiento y de los registros del
+          periodo. Esta acción no se puede deshacer.
+        </p>
+        <div class="modal-actions">
+          <button class="btn-sm btn-ghost" type="button" (click)="cancelarEliminar()">Cancelar</button>
+          <button class="btn-sm btn-solid" type="button" [disabled]="deleting()" (click)="confirmarEliminar()">
+            {{ deleting() ? 'Eliminando…' : 'Sí, eliminar' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 
   <!-- Confirmación de reemplazo -->
   @if (confirmOpen()) {

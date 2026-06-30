@@ -39,9 +39,9 @@
           <div class="ms">Monto a facturar no coincide</div>
         </div>
         <div class="mini">
-          <div class="ml">Faltantes</div>
-          <div class="mv" style="color: var(--warn)">{{ resumen().faltantes }}</div>
-          <div class="ms">Solo en una de las dos tablas</div>
+          <div class="ml">Talentos No MOP</div>
+          <div class="mv" style="color: var(--warn)">{{ resumen().noMop }}</div>
+          <div class="ms">En registro interno, sin prefactura</div>
         </div>
       </div>
 
@@ -55,7 +55,7 @@
           <div class="seg">
             <button type="button" [class.on]="filtro() === 'todos'" (click)="setFiltro('todos')">Todos</button>
             <button type="button" [class.on]="filtro() === 'diferencias'" (click)="setFiltro('diferencias')">Diferencias</button>
-            <button type="button" [class.on]="filtro() === 'faltantes'" (click)="setFiltro('faltantes')">Faltantes</button>
+            <button type="button" [class.on]="filtro() === 'nomop'" (click)="setFiltro('nomop')">Talentos No MOP</button>
           </div>
         </div>
         <div class="tbl-wrap">
@@ -105,7 +105,7 @@
                       @case ('identico') { <bee-badge tone="ok" label="Idéntico" /> }
                       @case ('diferencia') { <bee-badge tone="bad" label="Diferencia" /> }
                       @case ('solo_prefactura') { <bee-badge tone="warn" label="Solo prefactura" /> }
-                      @case ('solo_registro') { <bee-badge tone="warn" label="Solo registro" /> }
+                      @case ('solo_registro') { <bee-badge tone="warn" label="Talento No MOP" /> }
                     }
                   </td>
                 </tr>

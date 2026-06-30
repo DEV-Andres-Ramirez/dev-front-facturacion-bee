@@ -1,0 +1,113 @@
+<section class="stagger">
+  @if (draft(); as email) {
+    <div class="grid-2-1">
+      <!-- Compositor del correo -->
+      <div class="compose">
+        <div class="cmp-row">
+          <span class="cl">Para</span>
+          <span class="recip">
+            <span class="ra">{{ email.to.initials }}</span>
+            {{ email.to.email }}
+          </span>
+        </div>
+
+        @if (email.cc.length) {
+          <div class="cmp-row">
+            <span class="cl">CC</span>
+            @for (recipient of email.cc; track recipient.email) {
+              <span class="recip">
+                <span class="ra">{{ recipient.initials }}</span>
+                {{ recipient.email }}
+              </span>
+            }
+          </div>
+        }
+
+        <div class="cmp-row">
+          <span class="cl">Asunto</span>
+          <span style="font-weight: 600; color: var(--ink)">{{ email.subject }}</span>
+        </div>
+
+        <div class="cmp-body">
+          @for (paragraph of email.bodyParagraphs; track $index) {
+            <p style="margin: 0 0 14px">{{ paragraph }}</p>
+          }
+        </div>
+
+        @if (email.attachments.length) {
+          <div
+            class="card-pad"
+            style="display: flex; gap: 9px; flex-wrap: wrap; border-top: 1px solid var(--line-2)"
+          >
+            @for (attachment of email.attachments; track attachment.name) {
+              <span class="attach">
+                <span class="fx" [class]="docKind(attachment.kind).fxClass">
+                  {{ docKind(attachment.kind).label }}
+                </span>
+                {{ attachment.name }} · {{ attachment.sizeLabel }}
+              </span>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Resumen y envío -->
+      <div style="display: flex; flex-direction: column; gap: 16px">
+        <div class="card card-pad">
+          <div class="row" style="margin-bottom: 12px">
+            <span style="font-weight: 700; font-size: 14px">Resumen del envío</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-k">Factura</span>
+            <span class="kv-v mono">{{ email.invoiceId }}</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-k">Destinatario</span>
+            <span class="kv-v">{{ email.client }}</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-k">Copias controladas</span>
+            <span class="kv-v mono">{{ email.cc.length }}</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-k">Adjuntos</span>
+            <span class="kv-v mono">{{ email.attachments.length }}</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-k">Valor</span>
+            <span class="kv-v mono">{{ email.amountUsd | usd }}</span>
+          </div>
+        </div>
+
+        <div
+          class="card card-pad"
+          style="
+            background: linear-gradient(160deg, var(--warn-soft), var(--surface) 70%);
+            border-color: var(--warn-line);
+          "
+        >
+          <div class="row" style="gap: 9px; margin-bottom: 8px">
+            <bee-icon name="alert" [size]="18" />
+            <span style="font-weight: 700; font-size: 13.5px; color: #6e4a06">Acción irreversible</span>
+          </div>
+          <p class="note-line" style="color: #6e4a06; margin-bottom: 14px">
+            El correo se enviará al cliente con las copias indicadas. Esta acción queda registrada en
+            auditoría.
+          </p>
+          <button class="btn-sm btn-honey" type="button" style="width: 100%; justify-content: center">
+            <bee-icon name="send" [size]="16" />
+            Enviar al cliente
+          </button>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <bee-empty-state
+      icon="send"
+      title="Nada por entregar"
+      message="Cuando una factura esté revisada y conforme, podrás prepararla y enviarla al cliente desde aquí."
+      actionLabel="Ir a revisión"
+      [actionRoute]="['/app', 'revisar']"
+    />
+  }
+</section>

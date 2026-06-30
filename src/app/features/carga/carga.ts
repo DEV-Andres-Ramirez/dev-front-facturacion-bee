@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { PeriodStore } from '@core/services/period.store';
-import { TipoDocumento } from '@core/models';
+import { DocumentoFacturacion, TipoDocumento } from '@core/models';
 import { IconComponent, IconName, ProcessStepperComponent } from '@shared/ui';
 import { CargaDemo } from './carga-demo';
 
@@ -66,6 +66,8 @@ export class Carga {
   protected readonly dragging = signal<SlotId | null>(null);
   protected readonly preview = signal<SlotId | null>(null);
   protected readonly confirmOpen = signal(false);
+  protected readonly confirmDelete = signal<DocumentoFacturacion | null>(null);
+  protected readonly deleting = signal(false);
 
   protected readonly maxMb = MAX_MB;
 
@@ -234,6 +236,29 @@ export class Carga {
 
   protected togglePreview(id: SlotId): void {
     this.preview.update((current) => (current === id ? null : id));
+  }
+
+  protected docDe(id: SlotId): DocumentoFacturacion | undefined {
+    return this.documentos.docDe(this.tipoDe(id));
+  }
+
+  protected pedirEliminar(doc: DocumentoFacturacion | undefined): void {
+    if (doc) this.confirmDelete.set(doc);
+  }
+
+  protected cancelarEliminar(): void {
+    this.confirmDelete.set(null);
+  }
+
+  protected async confirmarEliminar(): Promise<void> {
+    const doc = this.confirmDelete();
+    if (!doc) return;
+    this.deleting.set(true);
+    this.saveError.set('');
+    const result = await this.documentos.eliminarDocumento(doc);
+    this.deleting.set(false);
+    this.confirmDelete.set(null);
+    if (!result.ok) this.saveError.set(result.error ?? 'No se pudo eliminar el archivo.');
   }
 
   private stage(slot: SlotConfig, file: File): void {

@@ -1,0 +1,46 @@
+/* ── Tarjetas de agrupación por secuencial ────────────────────────────────── */
+.seq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+  gap: 12px;
+}
+.seq-card {
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  transition: border-color 0.16s, box-shadow 0.16s, background 0.16s;
+}
+.seq-card:hover {
+  border-color: var(--honey-600);
+}
+.seq-card.active {
+  border-color: var(--honey-600);
+  background: var(--honey-tint);
+  box-shadow: inset 0 0 0 1px var(--honey-600);
+}
+.seq-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.seq-amount {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+.seq-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,117 @@
+<section class="stagger">
+  @if (emittedInvoices().length === 0) {
+    <div class="card mt-16">
+      <bee-empty-state
+        icon="review"
+        title="Sin facturas por revisar"
+        message="Aún no se han emitido facturas para este periodo. Agrupa y envía a emisión para revisarlas aquí."
+        actionLabel="Ir a agrupación"
+        [actionRoute]="['/app', 'agrupar']"
+      />
+    </div>
+  } @else {
+    <!-- Conformidad del cotejo -->
+    <div class="alert alert-ok" style="margin-bottom: 16px">
+      <span class="ai"><bee-icon name="check" [size]="19" [strokeWidth]="2.2" /></span>
+      <div>
+        <div class="at">{{ emittedInvoices().length }} facturas emitidas por Stratop · cotejo correcto</div>
+        Se descargaron los PDF y se validó orden, número y monto contra lo agrupado. Confirma para
+        notificar a Dirección Operativa.
+      </div>
+    </div>
+
+    <!-- Facturas emitidas -->
+    <div class="card">
+      <div class="card-h">
+        <div>
+          <div class="ct">Facturas emitidas</div>
+          <div class="cd">Outsourcing Stratop · {{ period().shortLabel }}</div>
+        </div>
+        <div class="sp"></div>
+        <button class="btn-sm btn-ghost" type="button">
+          <bee-icon name="download" [size]="15" [strokeWidth]="2" />
+          Descargar PDF
+        </button>
+      </div>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <caption class="sr-only">Facturas emitidas por el outsourcing y su cotejo</caption>
+          <thead>
+            <tr>
+              <th scope="col">Factura</th>
+              <th scope="col">Orden</th>
+              <th scope="col" style="text-align: right">Monto emitido</th>
+              <th scope="col" style="text-align: right">Monto esperado</th>
+              <th scope="col">Cotejo</th>
+              <th scope="col">PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (invoice of emittedInvoices(); track invoice.id) {
+              <tr>
+                <td>
+                  <div class="cell-main">
+                    <span class="fx fx-pdf" style="width: 30px; height: 36px">PDF</span>
+                    <div>
+                      <div class="strong mono">{{ invoice.id }}</div>
+                      <div class="cell-sub">{{ invoice.client }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="mono dim">{{ invoice.order }}</td>
+                <td class="num">{{ invoice.amountEmitted | usd }}</td>
+                <td class="num dim">{{ invoice.amountExpected | usd }}</td>
+                <td>
+                  @if (invoice.matches) {
+                    <bee-badge tone="ok" label="Coincide" />
+                  } @else {
+                    <bee-badge tone="bad" label="Δ" />
+                  }
+                </td>
+                <td>
+                  <a class="link" [routerLink]="['/app', 'revisar', invoice.id]">Ver</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2-1" style="margin-top: 16px">
+      <!-- Controles de cotejo -->
+      <div class="card card-pad">
+        <div class="row" style="margin-bottom: 14px">
+          <span style="font-weight: 700; font-size: 14px">Controles de cotejo</span>
+        </div>
+        @for (check of reviewChecks(); track check.label) {
+          <div class="stat-line">
+            <span class="sl-k">
+              <bee-badge [tone]="check.passed === check.total ? 'ok' : 'warn'" [label]="''" style="margin-right: 8px" />
+              {{ check.label }}
+            </span>
+            <span class="sl-v" [style.color]="check.passed === check.total ? 'var(--ok)' : 'var(--warn)'">
+              {{ check.passed }}/{{ check.total }}
+            </span>
+          </div>
+        }
+      </div>
+
+      <!-- Confirmar a Dirección Operativa -->
+      <div class="card card-pad" style="display: flex; flex-direction: column">
+        <div class="row" style="margin-bottom: 8px">
+          <span style="font-weight: 700; font-size: 14px">Confirmar a Dirección Operativa</span>
+        </div>
+        <div class="note-line" style="margin-bottom: 14px">
+          Se enviará la confirmación de emisión a
+          <span class="em">viviana.alvarez@beeconsultoria.com</span>.
+        </div>
+        <div class="spacer"></div>
+        <a class="btn-sm btn-solid" style="width: 100%; justify-content: center" [routerLink]="['/app', 'entregar']">
+          <bee-icon name="check" [size]="16" [strokeWidth]="2.2" />
+          Confirmar y continuar a entrega
+        </a>
+      </div>
+    </div>
+  }
+</section>

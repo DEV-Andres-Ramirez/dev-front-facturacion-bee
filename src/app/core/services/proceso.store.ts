@@ -1,36 +1,43 @@
 import { Injectable, signal } from '@angular/core';
 
-const STORAGE_KEY = 'bee.validado';
+const STORAGE_KEY = 'bee.proceso';
+
+/** Pasos del ciclo que actúan como compuerta del siguiente módulo. */
+export type PasoProceso = 'validado' | 'emitido' | 'revisado';
 
 /**
- * Estado del avance del ciclo por periodo. Por ahora persiste en el dispositivo
- * (localStorage) la confirmación de validación, que es la compuerta para habilitar
- * el módulo de Agrupar. Al adoptar backend de proceso, se reemplaza por la BD sin
- * cambiar las pantallas.
+ * Avance del ciclo por periodo. Cada paso confirmado habilita el módulo
+ * siguiente (Validar → Agrupar → Revisar → Entregar). Por ahora persiste en el
+ * dispositivo (localStorage); al adoptar backend de proceso se reemplaza por la
+ * BD sin cambiar las pantallas.
  */
 @Injectable({ providedIn: 'root' })
 export class ProcesoStore {
-  private readonly _validado = signal<Record<string, boolean>>(this.read());
+  private readonly _pasos = signal<Record<string, boolean>>(this.read());
 
-  /** `true` si la información del periodo ya fue validada y confirmada. */
-  validado(periodId: string): boolean {
-    return this._validado()[periodId] === true;
+  /** `true` si el periodo ya completó el paso indicado. */
+  tiene(periodId: string, paso: PasoProceso): boolean {
+    return this._pasos()[this.clave(periodId, paso)] === true;
   }
 
-  /** Marca el periodo como validado (habilita Agrupar). */
-  marcarValidado(periodId: string): void {
-    this._validado.update((map) => ({ ...map, [periodId]: true }));
+  /** Marca un paso como completado (habilita el módulo siguiente). */
+  marcar(periodId: string, paso: PasoProceso): void {
+    this._pasos.update((map) => ({ ...map, [this.clave(periodId, paso)]: true }));
     this.persist();
   }
 
-  /** Revierte la validación de un periodo (p. ej. al recargar documentos). */
-  reiniciar(periodId: string): void {
-    this._validado.update((map) => {
+  /** Revierte un paso (p. ej. al recargar documentos que invalidan el avance). */
+  reiniciar(periodId: string, paso: PasoProceso): void {
+    this._pasos.update((map) => {
       const next = { ...map };
-      delete next[periodId];
+      delete next[this.clave(periodId, paso)];
       return next;
     });
     this.persist();
+  }
+
+  private clave(periodId: string, paso: PasoProceso): string {
+    return `${periodId}:${paso}`;
   }
 
   private read(): Record<string, boolean> {
@@ -42,6 +49,6 @@ export class ProcesoStore {
   }
 
   private persist(): void {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._validado()));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(this._pasos()));
   }
 }

@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { PeriodStore } from '@core/services/period.store';
 import { ProcesoStore } from '@core/services/proceso.store';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
-import { BadgeComponent, EmptyStateComponent } from '@shared/ui';
+import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
 import { AgruparDemo } from './agrupar-demo';
 
 interface LineaAgrupada {
@@ -36,13 +37,15 @@ const SIN_SECUENCIAL = 'Sin secuencial';
 @Component({
   selector: 'app-agrupar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, AgruparDemo],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent, AgruparDemo],
   templateUrl: './agrupar.html',
+  styleUrl: './agrupar.css',
 })
 export class Agrupar {
   private readonly periodStore = inject(PeriodStore);
   private readonly documentos = inject(DocumentosService);
   private readonly proceso = inject(ProcesoStore);
+  private readonly router = inject(Router);
 
   protected readonly isDemo = computed(() => this.periodStore.period() === DEMO_PERIOD);
   protected readonly loading = this.documentos.loading;
@@ -52,7 +55,8 @@ export class Agrupar {
   private readonly prefactura = this.documentos.prefactura;
 
   protected readonly hayDatos = computed(() => this.registro().length > 0);
-  protected readonly validado = computed(() => this.proceso.validado(this.periodStore.period()));
+  protected readonly validado = computed(() => this.proceso.tiene(this.periodStore.period(), 'validado'));
+  protected readonly confirmEmision = signal(false);
 
   /** id_colaborador → nombre, tomado de la prefactura. */
   private readonly nombrePorColaborador = computed(() => {
@@ -138,5 +142,19 @@ export class Agrupar {
 
   protected seleccionar(secuencial: string): void {
     this.seleccion.set(secuencial);
+  }
+
+  protected enviarAEmision(): void {
+    this.confirmEmision.set(true);
+  }
+
+  protected cancelarEmision(): void {
+    this.confirmEmision.set(false);
+  }
+
+  protected confirmarEmision(): void {
+    this.proceso.marcar(this.periodStore.period(), 'emitido');
+    this.confirmEmision.set(false);
+    void this.router.navigate(['/app', 'revisar']);
   }
 }

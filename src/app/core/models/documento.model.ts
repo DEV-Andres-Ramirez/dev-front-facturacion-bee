@@ -24,4 +24,6 @@ export interface DocumentoFacturacion {
   readonly tipo_documento_facturacion: TipoDocumento;
   /** URL pública del archivo en el Storage de Supabase. */
   readonly direccion_documento_facturacion: string;
+  /** Nombre del archivo sin extensión (relaciona pedidos de compra por secuencial). */
+  readonly nombre_documento_facturacion: string | null;
 }

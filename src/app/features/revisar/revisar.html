@@ -1,117 +1,173 @@
-<section class="stagger">
-  @if (emittedInvoices().length === 0) {
-    <div class="card mt-16">
+@if (isDemo()) {
+  <app-revisar-demo />
+} @else {
+  <section class="stagger">
+    @if (!hayDatos()) {
       <bee-empty-state
         icon="review"
         title="Sin facturas por revisar"
-        message="Aún no se han emitido facturas para este periodo. Agrupa y envía a emisión para revisarlas aquí."
+        message="Carga y guarda el registro de facturación interna del periodo para revisar sus facturas aquí."
+        actionLabel="Ir a carga"
+        [actionRoute]="['/app', 'carga']"
+      />
+    } @else if (!emitido()) {
+      <bee-empty-state
+        icon="group"
+        title="Aún no se envía a emisión"
+        message="La revisión se habilita cuando confirmas el envío a emisión desde el módulo de Agrupar."
         actionLabel="Ir a agrupación"
         [actionRoute]="['/app', 'agrupar']"
       />
-    </div>
-  } @else {
-    <!-- Conformidad del cotejo -->
-    <div class="alert alert-ok" style="margin-bottom: 16px">
-      <span class="ai"><bee-icon name="check" [size]="19" [strokeWidth]="2.2" /></span>
-      <div>
-        <div class="at">{{ emittedInvoices().length }} facturas emitidas por Stratop · cotejo correcto</div>
-        Se descargaron los PDF y se validó orden, número y monto contra lo agrupado. Confirma para
-        notificar a Dirección Operativa.
-      </div>
-    </div>
-
-    <!-- Facturas emitidas -->
-    <div class="card">
-      <div class="card-h">
-        <div>
-          <div class="ct">Facturas emitidas</div>
-          <div class="cd">Outsourcing Stratop · {{ period().shortLabel }}</div>
+    } @else {
+      <div class="kpi-grid k4" style="margin-bottom: 16px">
+        <div class="mini">
+          <div class="ml">Facturas</div>
+          <div class="mv">{{ resumen().facturas }}</div>
+          <div class="ms">Por secuencial · registro interno</div>
         </div>
-        <div class="sp"></div>
-        <button class="btn-sm btn-ghost" type="button">
-          <bee-icon name="download" [size]="15" [strokeWidth]="2" />
-          Descargar PDF
-        </button>
-      </div>
-      <div class="tbl-wrap">
-        <table class="dt">
-          <caption class="sr-only">Facturas emitidas por el outsourcing y su cotejo</caption>
-          <thead>
-            <tr>
-              <th scope="col">Factura</th>
-              <th scope="col">Orden</th>
-              <th scope="col" style="text-align: right">Monto emitido</th>
-              <th scope="col" style="text-align: right">Monto esperado</th>
-              <th scope="col">Cotejo</th>
-              <th scope="col">PDF</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (invoice of emittedInvoices(); track invoice.id) {
-              <tr>
-                <td>
-                  <div class="cell-main">
-                    <span class="fx fx-pdf" style="width: 30px; height: 36px">PDF</span>
-                    <div>
-                      <div class="strong mono">{{ invoice.id }}</div>
-                      <div class="cell-sub">{{ invoice.client }}</div>
-                    </div>
-                  </div>
-                </td>
-                <td class="mono dim">{{ invoice.order }}</td>
-                <td class="num">{{ invoice.amountEmitted | usd }}</td>
-                <td class="num dim">{{ invoice.amountExpected | usd }}</td>
-                <td>
-                  @if (invoice.matches) {
-                    <bee-badge tone="ok" label="Coincide" />
-                  } @else {
-                    <bee-badge tone="bad" label="Δ" />
-                  }
-                </td>
-                <td>
-                  <a class="link" [routerLink]="['/app', 'revisar', invoice.id]">Ver</a>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="grid-2-1" style="margin-top: 16px">
-      <!-- Controles de cotejo -->
-      <div class="card card-pad">
-        <div class="row" style="margin-bottom: 14px">
-          <span style="font-weight: 700; font-size: 14px">Controles de cotejo</span>
+        <div class="mini">
+          <div class="ml">Con Factura BEE</div>
+          <div class="mv" style="color: var(--ok)">{{ resumen().conDocumento }}</div>
+          <div class="ms">Documento cargado o pendiente</div>
         </div>
-        @for (check of reviewChecks(); track check.label) {
-          <div class="stat-line">
-            <span class="sl-k">
-              <bee-badge [tone]="check.passed === check.total ? 'ok' : 'warn'" [label]="''" style="margin-right: 8px" />
-              {{ check.label }}
-            </span>
-            <span class="sl-v" [style.color]="check.passed === check.total ? 'var(--ok)' : 'var(--warn)'">
-              {{ check.passed }}/{{ check.total }}
-            </span>
+        <div class="mini">
+          <div class="ml">Monto cuadra</div>
+          <div class="mv" style="color: var(--ok)">{{ resumen().cuadran }}</div>
+          <div class="ms">Emitido = esperado</div>
+        </div>
+        <div class="mini">
+          <div class="ml">Monto esperado total</div>
+          <div class="mv mono">{{ money(resumen().totalEsperado) }}</div>
+          <div class="ms">Suma del registro interno</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h">
+          <div>
+            <div class="ct">Facturas emitidas</div>
+            <div class="cd">Carga la Factura BEE, registra monto emitido y fecha por factura</div>
           </div>
-        }
+          <div class="sp"></div>
+          @if (saveError()) {
+            <span class="slot-error" style="margin: 0 12px 0 0">{{ saveError() }}</span>
+          }
+          <button class="btn-sm btn-solid" type="button" [disabled]="saving() || !hayCambios()" (click)="guardar()">
+            <bee-icon name="check" [size]="15" [strokeWidth]="2.2" />
+            {{ saving() ? 'Guardando…' : 'Actualizar datos' }}
+          </button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="dt">
+            <caption class="sr-only">Facturas por secuencial con su documento, monto emitido y fecha</caption>
+            <thead>
+              <tr>
+                <th scope="col">Factura</th>
+                <th scope="col" style="text-align: center">Talentos</th>
+                <th scope="col" style="text-align: right">Monto esperado</th>
+                <th scope="col">Monto emitido</th>
+                <th scope="col">Fecha factura</th>
+                <th scope="col">Factura BEE</th>
+                <th scope="col">Cotejo</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (f of facturas(); track f.secuencial) {
+                <tr>
+                  <td>
+                    <div class="strong mono">{{ f.secuencial }}</div>
+                    <div class="cell-sub mono">
+                      {{ f.pedido }}
+                      @if (f.pedidoUrl) {
+                        · <a class="link" [href]="f.pedidoUrl" target="_blank" rel="noopener">PDF</a>
+                      }
+                    </div>
+                  </td>
+                  <td style="text-align: center"><span class="chip-soft">{{ f.talentos }}</span></td>
+                  <td class="num mono">{{ f.moneda }} {{ money(f.esperadoCents) }}</td>
+                  <td>
+                    <input
+                      class="cell-input"
+                      type="text"
+                      inputmode="decimal"
+                      placeholder="0.00"
+                      [value]="montoValue(f.secuencial)"
+                      [attr.aria-label]="'Monto emitido ' + f.secuencial"
+                      (input)="setMonto(f.secuencial, $event)"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      class="cell-input"
+                      type="date"
+                      [value]="fechaValue(f.secuencial)"
+                      [attr.aria-label]="'Fecha factura ' + f.secuencial"
+                      (input)="setFecha(f.secuencial, $event)"
+                    />
+                  </td>
+                  <td>
+                    <input #fb type="file" hidden accept=".pdf,.png,.jpg,.jpeg" (change)="onFactura(f.secuencial, $event)" />
+                    @if (stagedNombre(f.secuencial); as nombre) {
+                      <div class="row" style="gap: 8px">
+                        <span class="badge b-warn"><span class="bd"></span>Pendiente</span>
+                        <button class="slot-link" type="button" (click)="fb.click()">Cambiar</button>
+                      </div>
+                    } @else if (f.facturaBeeUrl) {
+                      <div class="row" style="gap: 8px">
+                        <a class="slot-link" [href]="f.facturaBeeUrl" target="_blank" rel="noopener">Ver</a>
+                        <button class="slot-link" type="button" (click)="fb.click()">Reemplazar</button>
+                      </div>
+                    } @else {
+                      <button class="slot-link" type="button" (click)="fb.click()">
+                        <bee-icon name="upload" [size]="13" [strokeWidth]="2" /> Cargar
+                      </button>
+                    }
+                  </td>
+                  <td>
+                    @switch (cotejo(f.secuencial)) {
+                      @case ('coincide') { <bee-badge tone="ok" label="Coincide" /> }
+                      @case ('diferencia') { <bee-badge tone="bad" label="Diferencia" /> }
+                      @case ('pendiente') { <bee-badge tone="neutral" label="Pendiente" /> }
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="card-pad" style="display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--line-2)">
+          <div class="note-line">
+            El monto emitido y la fecha se guardan para todos los talentos de cada factura, junto con el
+            enlace de la Factura BEE.
+          </div>
+          <div class="spacer"></div>
+          <button class="btn-sm btn-solid" type="button" (click)="continuar()">
+            <bee-icon name="check" [size]="16" [strokeWidth]="2.2" />
+            Confirmar y continuar a entrega
+          </button>
+        </div>
       </div>
+    }
+  </section>
 
-      <!-- Confirmar a Dirección Operativa -->
-      <div class="card card-pad" style="display: flex; flex-direction: column">
-        <div class="row" style="margin-bottom: 8px">
-          <span style="font-weight: 700; font-size: 14px">Confirmar a Dirección Operativa</span>
+  @if (confirmContinuar()) {
+    <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="rev-title">
+      <div class="modal-card">
+        <div class="modal-h">
+          <span class="ti ic-primary" style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none">
+            <bee-icon name="check" [size]="18" />
+          </span>
+          <div id="rev-title" class="ct">Continuar a entrega</div>
         </div>
-        <div class="note-line" style="margin-bottom: 14px">
-          Se enviará la confirmación de emisión a
-          <span class="em">viviana.alvarez@beeconsultoria.com</span>.
+        <p class="modal-body">
+          ¿Deseas continuar con el proceso? Se preparará el correo de cada factura para su entrega al
+          cliente. Asegúrate de haber cargado las facturas y registrado los montos y fechas.
+        </p>
+        <div class="modal-actions">
+          <button class="btn-sm btn-ghost" type="button" (click)="cancelarContinuar()">Cancelar</button>
+          <button class="btn-sm btn-solid" type="button" (click)="confirmarContinuar()">Sí, continuar</button>
         </div>
-        <div class="spacer"></div>
-        <a class="btn-sm btn-solid" style="width: 100%; justify-content: center" [routerLink]="['/app', 'entregar']">
-          <bee-icon name="check" [size]="16" [strokeWidth]="2.2" />
-          Confirmar y continuar a entrega
-        </a>
       </div>
     </div>
   }
-</section>
+}
