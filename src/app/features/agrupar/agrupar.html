@@ -1,117 +1,136 @@
-<section class="stagger">
-  @if (groups().length === 0) {
-    <bee-empty-state
-      icon="group"
-      title="Nada que agrupar todavía"
-      message="Valida la información del periodo para poder consolidar las líneas por orden de compra en facturas."
-      actionLabel="Ir a validación"
-      [actionRoute]="['/app', 'validar']"
-    />
-  } @else {
-    <!-- Resumen de agrupación -->
-    <div class="card card-pad mb-16" style="display: flex; align-items: center; gap: 16px">
-      <span
-        class="ti ic-primary"
-        style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex: none"
-      >
-        <bee-icon name="group" [size]="22" [strokeWidth]="2" />
-      </span>
-      <div style="flex: 1">
-        <div style="font-weight: 700; font-size: 15px">Una factura por orden de compra</div>
-        <div class="note-line">
-          El sistema agrupa las líneas validadas por n° de orden y asigna numeración secuencial
-          continuando el registro interno.
+@if (isDemo()) {
+  <app-agrupar-demo />
+} @else {
+  <section class="stagger">
+    @if (!hayDatos()) {
+      <bee-empty-state
+        icon="group"
+        title="Nada que agrupar todavía"
+        message="Carga y guarda el registro de facturación interna del periodo para poder consolidar las líneas por secuencial."
+        actionLabel="Ir a carga"
+        [actionRoute]="['/app', 'carga']"
+      />
+    } @else if (!validado()) {
+      <bee-empty-state
+        icon="validate"
+        title="Primero valida la información"
+        message="La agrupación se habilita cuando confirmas la validación del cotejo entre la prefactura y el registro interno."
+        actionLabel="Ir a validación"
+        [actionRoute]="['/app', 'validar']"
+      />
+    } @else {
+      <div class="kpi-grid k4" style="margin-bottom: 16px">
+        <div class="mini">
+          <div class="ml">Facturas (secuenciales)</div>
+          <div class="mv">{{ resumen().grupos }}</div>
+          <div class="ms">{{ resumen().consolidados }} con más de una línea</div>
+        </div>
+        <div class="mini">
+          <div class="ml">Líneas agrupadas</div>
+          <div class="mv">{{ resumen().lineas }}</div>
+          <div class="ms">Del registro interno</div>
+        </div>
+        <div class="mini">
+          <div class="ml">Monto total</div>
+          <div class="mv mono">{{ money(resumen().total) }}</div>
+          <div class="ms">Suma de las líneas del periodo</div>
+        </div>
+        <div class="mini">
+          <div class="ml">Pedidos de compra</div>
+          <div class="mv">{{ resumen().pedidos }}</div>
+          <div class="ms">Órdenes distintas referenciadas</div>
         </div>
       </div>
-      <bee-badge tone="ok" [label]="totalLines() + ' líneas agrupadas en ' + groups().length + ' facturas'" />
-    </div>
 
-    <!-- Una tarjeta por grupo -->
-    <div class="grid-3 mb-16">
-      @for (group of groups(); track group.id) {
-        <div class="card">
-          <div class="card-pad" style="padding-bottom: 14px">
-            <div class="row">
-              <span class="chip-id">{{ group.id }}</span>
-              @if (group.purchaseType === 'CAPEX') {
-                <bee-badge tone="primary" [label]="group.client + ' · CAPEX'" style="margin-left: auto" />
-              } @else {
-                <bee-badge tone="primary" [label]="group.client" style="margin-left: auto" />
-              }
-            </div>
-            <div class="row" style="margin-top: 12px; align-items: baseline; gap: 7px">
-              <span class="mono" style="font-size: 24px; font-weight: 700; letter-spacing: -1px">
-                {{ group.amountUsd | usd }}
-              </span>
-            </div>
-            <div class="note-line" style="margin-top: 2px">
-              {{ group.order }} · {{ group.lines.length }} talento{{ group.lines.length === 1 ? '' : 's' }} · {{ group.purchaseType }}
-            </div>
-          </div>
-          <div
-            style="border-top: 1px solid var(--line-2); padding: 13px 22px; background: var(--surface-2); border-radius: 0 0 14px 14px"
-          >
-            <div class="note-line" style="font-size: 11.5px">{{ group.amountInWords }}</div>
-          </div>
-        </div>
-      }
-    </div>
-
-    <!-- Detalle del primer grupo -->
-    @if (firstGroup(); as group) {
+      <!-- Facturas por secuencial -->
       <div class="card">
         <div class="card-h">
           <div>
-            <div class="ct">Detalle de agrupación · {{ group.id }}</div>
-            <div class="cd">{{ group.order }} · {{ group.client }} · líneas consolidadas</div>
+            <div class="ct">Agrupación por secuencial</div>
+            <div class="cd">Cada secuencial es una factura · selecciona para ver su detalle</div>
           </div>
-          <div class="sp"></div>
-          <button class="btn-sm btn-ghost" type="button">Ver otras órdenes</button>
         </div>
         <div class="tbl-wrap">
           <table class="dt">
-            <caption class="sr-only">Líneas consolidadas en la factura {{ group.id }}</caption>
+            <caption class="sr-only">Líneas agrupadas por secuencial de factura</caption>
             <thead>
               <tr>
-                <th scope="col">Talento</th>
-                <th scope="col">Rol MOP</th>
-                <th scope="col">Entrega de valor</th>
-                <th scope="col" style="text-align: right">Monto</th>
+                <th scope="col">Secuencial</th>
+                <th scope="col">Pedido de compra</th>
+                <th scope="col">Cliente</th>
+                <th scope="col" style="text-align: center">Líneas</th>
+                <th scope="col" style="text-align: right">Total</th>
+                <th scope="col" style="text-align: right">Detalle</th>
               </tr>
             </thead>
             <tbody>
-              @for (line of group.lines; track line.talent) {
-                <tr>
-                  <td class="strong">{{ line.talent }}</td>
-                  <td>{{ line.roleMop }}</td>
-                  <td class="dim">{{ line.valueDelivery }}</td>
-                  <td class="num">{{ line.amountUsd | usd }}</td>
+              @for (group of grupos(); track group.secuencial) {
+                <tr [style.background]="grupoActivo()?.secuencial === group.secuencial ? 'var(--honey-tint)' : ''">
+                  <td class="strong mono">{{ group.secuencial }}</td>
+                  <td class="mono dim">{{ group.pedido }}</td>
+                  <td class="dim">{{ group.cliente }}</td>
+                  <td style="text-align: center">
+                    <span class="chip-soft">{{ group.lineas.length }}</span>
+                  </td>
+                  <td class="num mono">{{ group.moneda }} {{ money(group.totalCents) }}</td>
+                  <td style="text-align: right">
+                    <button class="slot-link" type="button" (click)="seleccionar(group.secuencial)">
+                      {{ grupoActivo()?.secuencial === group.secuencial ? 'Viendo' : 'Ver' }}
+                    </button>
+                  </td>
                 </tr>
               }
             </tbody>
-            <tfoot>
-              <tr style="background: var(--surface-2)">
-                <td colspan="3" style="padding: 13px 16px; font-weight: 700; color: var(--ink)">
-                  Total factura {{ group.id }}
-                </td>
-                <td class="num" style="padding: 13px 16px; font-size: 14px; color: var(--primary-deep)">
-                  {{ group.amountUsd | usd }}
-                </td>
-              </tr>
-            </tfoot>
           </table>
         </div>
-        <div class="card-pad" style="display: flex; border-top: 1px solid var(--line-2)">
-          <div class="note-line">
-            Las facturas agrupadas se envían al outsourcing (Stratop) para su emisión material.
-          </div>
-          <div class="spacer"></div>
-          <a class="btn-sm btn-solid" [routerLink]="['/app', 'revisar']">
-            Enviar a emisión
-            <bee-icon name="arrow-right" [size]="16" [strokeWidth]="2.2" />
-          </a>
-        </div>
       </div>
+
+      <!-- Detalle del grupo seleccionado -->
+      @if (grupoActivo(); as group) {
+        <div class="card mt-16 fade-up">
+          <div class="card-h">
+            <div>
+              <div class="ct">Detalle · {{ group.secuencial }}</div>
+              <div class="cd">{{ group.pedido }} · {{ group.cliente }} · {{ group.lineas.length }} línea(s)</div>
+            </div>
+            <div class="sp"></div>
+            <bee-badge tone="primary" [label]="group.moneda + ' ' + money(group.totalCents)" />
+          </div>
+          <div class="tbl-wrap">
+            <table class="dt">
+              <caption class="sr-only">Líneas que pertenecen a la factura {{ group.secuencial }}</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Colaborador</th>
+                  <th scope="col">ID</th>
+                  <th scope="col">Descripción</th>
+                  <th scope="col" style="text-align: right">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (linea of group.lineas; track linea.id) {
+                  <tr>
+                    <td class="strong">{{ linea.nombre }}</td>
+                    <td class="mono dim">{{ linea.idColaborador || '—' }}</td>
+                    <td class="dim" style="max-width: 420px">{{ linea.descripcion }}</td>
+                    <td class="num mono">{{ money(linea.montoCents) }}</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr style="background: var(--surface-2)">
+                  <td colspan="3" style="padding: 13px 16px; font-weight: 700; color: var(--ink)">
+                    Total factura {{ group.secuencial }}
+                  </td>
+                  <td class="num mono" style="padding: 13px 16px; font-size: 14px; color: var(--primary-deep)">
+                    {{ group.moneda }} {{ money(group.totalCents) }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      }
     }
-  }
-</section>
+  </section>
+}

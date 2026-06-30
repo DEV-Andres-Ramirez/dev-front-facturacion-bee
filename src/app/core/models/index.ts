@@ -17,3 +17,6 @@ export * from './loading.model';
 export * from './prefactura.model';
 export * from './process.model';
 export * from './period-dataset.model';
+export * from './documento.model';
+export * from './aprobacion-prefactura.model';
+export * from './registro-interna.model';

@@ -183,6 +183,51 @@
   gap: 10px;
 }
 
+/* ── Filas de archivo (guardado / pendiente) ──────────────────────────────── */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.file-row.saved {
+  background: var(--ok-soft);
+  border: 1px solid var(--ok-line);
+}
+.file-row.pending {
+  background: var(--honey-tint);
+  border: 1px dashed var(--honey-line);
+}
+.file-row .sd-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--ok);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.file-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slot-link.danger {
+  color: var(--bad);
+}
+.slot-link.danger:hover {
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+
 @keyframes sp-rotate {
   to {
     transform: rotate(360deg);

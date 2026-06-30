@@ -23,16 +23,13 @@ interface NavGroup {
 const NAV: readonly NavGroup[] = [
   {
     title: 'General',
-    items: [
-      { label: 'Dashboard', icon: 'dashboard', route: 'dashboard' },
-      { label: 'Carga de documentos', icon: 'upload', route: 'carga' },
-    ],
+    items: [{ label: 'Dashboard', icon: 'dashboard', route: 'dashboard' }],
   },
   {
     title: 'Ciclo de facturación',
     items: [
+      { label: 'Carga de documentos', icon: 'upload', route: 'carga' },
       { label: 'Validar información', icon: 'validate', route: 'validar', auto: true },
-      { label: 'Agregar talentos', icon: 'talents', route: 'talentos', auto: true },
       { label: 'Agrupar información', icon: 'group', route: 'agrupar', auto: true },
       { label: 'Revisar facturas', icon: 'review', route: 'revisar', auto: true },
       { label: 'Entregar al cliente', icon: 'send', route: 'entregar', auto: true },
