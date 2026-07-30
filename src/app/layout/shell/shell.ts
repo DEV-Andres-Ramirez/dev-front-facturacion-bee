@@ -44,6 +44,13 @@ const NAV: readonly NavGroup[] = [
       { label: 'Auditoría y logs', icon: 'audit', route: 'auditoria', adminOnly: true },
     ],
   },
+  {
+    title: 'Documentación',
+    items: [
+      { label: 'Manual de Usuario', icon: 'book', route: 'manual-usuario' },
+      { label: 'Manual Técnico', icon: 'code', route: 'manual-tecnico', adminOnly: true },
+    ],
+  },
 ];
 
 /** Estructura de la aplicación: barra lateral + encabezado + área de contenido. */

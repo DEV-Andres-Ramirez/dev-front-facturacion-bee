@@ -35,6 +35,8 @@ export type IconName =
   | 'folder'
   | 'mail'
   | 'shield'
+  | 'book'
+  | 'code'
   | 'x'
   | 'logout';
 

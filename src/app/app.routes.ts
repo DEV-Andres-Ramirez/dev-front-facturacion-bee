@@ -79,6 +79,19 @@ export const routes: Routes = [
         data: { title: 'Auditoría y logs', subtitle: 'Bitácora de acciones del sistema' },
         loadComponent: () => import('@features/auditoria/auditoria').then((m) => m.Auditoria),
       },
+      {
+        path: 'manual-usuario',
+        title: 'Manual de Usuario · Facturación Bee',
+        data: { title: 'Manual de Usuario', subtitle: 'Aprende a usar Facturación Bee paso a paso' },
+        loadComponent: () => import('@features/manuales/manual-usuario').then((m) => m.ManualUsuario),
+      },
+      {
+        path: 'manual-tecnico',
+        canActivate: [adminGuard],
+        title: 'Manual Técnico · Facturación Bee',
+        data: { title: 'Manual Técnico', subtitle: 'Arquitectura, datos e integraciones del sistema' },
+        loadComponent: () => import('@features/manuales/manual-tecnico').then((m) => m.ManualTecnico),
+      },
     ],
   },
 
