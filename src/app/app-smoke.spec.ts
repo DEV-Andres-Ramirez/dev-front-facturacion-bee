@@ -15,6 +15,8 @@ import { Conciliar } from './features/conciliar/conciliar';
 import { Registros } from './features/registros/registros';
 import { Usuarios } from './features/usuarios/usuarios';
 import { Auditoria } from './features/auditoria/auditoria';
+import { ManualUsuario } from './features/manuales/manual-usuario';
+import { ManualTecnico } from './features/manuales/manual-tecnico';
 
 // Mock mínimo del cliente Supabase (sin red) para las pantallas que lo usan.
 function makeQuery(result: unknown) {
@@ -61,6 +63,8 @@ const SCREENS: Array<[string, Type<unknown>]> = [
   ['Registros', Registros],
   ['Usuarios', Usuarios],
   ['Auditoria', Auditoria],
+  ['ManualUsuario', ManualUsuario],
+  ['ManualTecnico', ManualTecnico],
 ];
 
 describe('App smoke render', () => {

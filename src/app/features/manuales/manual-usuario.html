@@ -1,0 +1,323 @@
+<div class="manual-layout">
+  <!-- Índice -->
+  <nav class="toc" aria-label="Índice del manual">
+    <p class="toc-title">Contenido</p>
+    @for (seccion of secciones; track seccion.id) {
+      <a [routerLink]="[]" [fragment]="seccion.id">{{ seccion.label }}</a>
+    }
+  </nav>
+
+  <!-- Contenido -->
+  <div class="prose">
+    <!-- 1 · Bienvenida -->
+    <section id="bienvenida" class="card card-pad mb-16">
+      <h2><span class="sec-n">1</span> Bienvenida a Facturación Bee</h2>
+      <div class="divider"></div>
+      <p>
+        <b>Facturación Bee</b> es el aplicativo de <b>Bee Consultoría y Negocios</b> que automatiza el
+        ciclo mensual de facturación de talentos: desde la carga de los documentos que envía el cliente,
+        pasando por la validación y agrupación de la información, hasta la entrega de las facturas por
+        correo y su archivo. Está dirigido al equipo de Facturación y a la Dirección Operativa.
+      </p>
+      <p>
+        Todo el trabajo gira alrededor de un <b>periodo de facturación</b> (un mes). El sistema te guía
+        por etapas encadenadas — cada una se habilita cuando terminas la anterior, para que nada quede a
+        medias ni fuera de orden:
+      </p>
+      <div class="card-pad" style="background: var(--surface-2); border-radius: 12px; padding: 16px">
+        <bee-process-stepper [current]="0" />
+      </div>
+    </section>
+
+    <!-- 2 · Primeros pasos -->
+    <section id="primeros-pasos" class="card card-pad mb-16">
+      <h2><span class="sec-n">2</span> Primeros pasos</h2>
+      <div class="divider"></div>
+      <h3>Iniciar sesión</h3>
+      <p>
+        Entra con tu <b>correo corporativo</b> y tu contraseña. Si los datos no coinciden, o tu cuenta
+        fue deshabilitada por un administrador, verás el mensaje
+        <code>Correo o contraseña incorrectos</code> y no podrás entrar. Sin sesión activa, cualquier
+        intento de abrir una pantalla interna te redirige al inicio de sesión.
+      </p>
+      <h3>El selector de Periodo</h3>
+      <p>
+        En la parte superior derecha está el combo <b>Periodo</b>. Todo lo que cargues, valides o envíes
+        pertenece al periodo seleccionado; al cambiarlo, cada módulo recarga automáticamente la
+        información de ese mes. El periodo activo actualmente es <b>Agosto 2026</b>.
+      </p>
+      <h3>Navegación</h3>
+      <ul>
+        <li>El <b>menú lateral</b> agrupa las opciones: General, Ciclo de facturación, Administración (solo administradores) y Documentación.</li>
+        <li>La etiqueta <span class="badge b-primary"><span class="bd"></span>AUTO</span> marca las etapas que el sistema resuelve con automatización a partir de lo que cargaste.</li>
+        <li>Tu nombre aparece abajo a la izquierda: al hacer clic <b>cierras sesión</b>.</li>
+        <li>El sistema registra tu <b>último acceso</b> cada vez que entras o navegas: los administradores lo ven en Gestión de usuarios.</li>
+      </ul>
+    </section>
+
+    <!-- 3 · Roles y permisos -->
+    <section id="roles" class="card card-pad mb-16">
+      <h2><span class="sec-n">3</span> Roles y permisos</h2>
+      <div class="divider"></div>
+      <p>Existen dos roles. Ambos operan el ciclo completo; la diferencia está en la administración del sistema:</p>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <caption class="sr-only">Permisos por rol</caption>
+          <thead>
+            <tr>
+              <th scope="col">Módulo / acción</th>
+              <th scope="col" style="text-align: center">Administrador</th>
+              <th scope="col" style="text-align: center">Usuario</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="strong">Ciclo de facturación (Carga → Entregar)</td><td style="text-align: center"><bee-badge tone="ok" label="Sí" /></td><td style="text-align: center"><bee-badge tone="ok" label="Sí" /></td></tr>
+            <tr><td class="strong">Dashboard y consulta del periodo</td><td style="text-align: center"><bee-badge tone="ok" label="Sí" /></td><td style="text-align: center"><bee-badge tone="ok" label="Sí" /></td></tr>
+            <tr><td class="strong">Gestión de usuarios</td><td style="text-align: center"><bee-badge tone="ok" label="Sí" /></td><td style="text-align: center"><bee-badge tone="neutral" label="No" /></td></tr>
+            <tr><td class="strong">Auditoría y logs</td><td style="text-align: center"><bee-badge tone="ok" label="Sí" /></td><td style="text-align: center"><bee-badge tone="neutral" label="No" /></td></tr>
+            <tr><td class="strong">Manual Técnico</td><td style="text-align: center"><bee-badge tone="ok" label="Sí" /></td><td style="text-align: center"><bee-badge tone="neutral" label="No" /></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note-line" style="margin-top: 10px">
+        Si tu rol es Usuario, las opciones de administración simplemente no aparecen en tu menú.
+      </p>
+    </section>
+
+    <!-- 4 · El ciclo -->
+    <section id="ciclo" class="card card-pad mb-16">
+      <h2><span class="sec-n">4</span> El ciclo de facturación</h2>
+      <div class="divider"></div>
+      <p>
+        El ciclo son <b>etapas encadenadas con compuertas</b>: cada módulo se habilita únicamente cuando
+        confirmas el anterior. Así se garantiza que nunca se agrupe información sin validar, ni se envíe
+        un correo sin revisar las facturas.
+      </p>
+      <ol>
+        <li><b>Carga de documentos</b> — subes los soportes del periodo. Con la prefactura aprobada y el registro interno guardados, se habilita Validar.</li>
+        <li><b>Validar información</b> — el sistema coteja las dos fuentes; al confirmar, se habilita Agrupar.</li>
+        <li><b>Agrupar información</b> — revisas las facturas consolidadas y las envías a emisión; se habilita Revisar.</li>
+        <li><b>Revisar facturas</b> — cargas cada Factura BEE con su monto y fecha; al confirmar, se habilita Entregar.</li>
+        <li><b>Entregar al cliente</b> — el sistema genera y envía un correo por factura, con sus adjuntos.</li>
+        <li><b>Conciliar</b> y <b>Guardar registros</b> — cierre del ciclo (módulos en construcción).</li>
+      </ol>
+      <div class="alert alert-warn" style="margin-top: 12px">
+        <span class="ai"><bee-icon name="alert" [size]="18" /></span>
+        <div>
+          <div class="at">Recargar la base reinicia el avance</div>
+          Si reemplazas o eliminas la prefactura aprobada o el registro interno de un periodo, el
+          sistema <b>invalida la validación, la emisión y la revisión</b> de ese periodo: deberás
+          recorrer las etapas de nuevo con los datos actualizados. Es intencional — protege la
+          coherencia de lo que se envía al cliente.
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 · Carga -->
+    <section id="carga" class="card card-pad mb-16">
+      <h2><span class="sec-n">5</span> Carga de documentos</h2>
+      <div class="divider"></div>
+      <p>Es la puerta de entrada del ciclo. Hay <b>cuatro espacios de carga</b>, uno por tipo de soporte:</p>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <caption class="sr-only">Tipos de soporte del periodo</caption>
+          <thead>
+            <tr>
+              <th scope="col">Soporte</th>
+              <th scope="col">Formato</th>
+              <th scope="col">Cantidad por periodo</th>
+              <th scope="col">Obligatorio para validar</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td class="strong">Aprobación de prefactura</td><td class="mono">XLSX</td><td>1 (reemplazable)</td><td><bee-badge tone="ok" label="Sí" /></td></tr>
+            <tr><td class="strong">Registro de facturación interna</td><td class="mono">XLSX</td><td>1 (reemplazable)</td><td><bee-badge tone="ok" label="Sí" /></td></tr>
+            <tr><td class="strong">Pedidos de compra</td><td class="mono">PDF</td><td>Varios</td><td><bee-badge tone="neutral" label="No" /></td></tr>
+            <tr><td class="strong">Novedades del periodo</td><td class="mono">XLSX</td><td>1 (reemplazable)</td><td><bee-badge tone="neutral" label="No" /></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Cómo cargar</h3>
+      <ol class="step-list">
+        <li><span class="n">1</span><span>Arrastra el archivo a su espacio o haz clic en <b>selecciona</b>. Puedes preparar varios a la vez; quedan «Pendientes» hasta guardar. Límite: <b>5 MB</b> por archivo.</span></li>
+        <li><span class="n">2</span><span>Pulsa <b>Guardar documentos (N)</b>. Cada archivo se sube al almacenamiento en la nube y las plantillas Excel se interpretan fila por fila hacia la base de datos.</span></li>
+        <li><span class="n">3</span><span>Verifica el panel <b>Estado del periodo</b>: líneas leídas de cada plantilla, talentos detectados, órdenes de compra, moneda y siguiente secuencial.</span></li>
+      </ol>
+      <h3>Detalles importantes</h3>
+      <ul>
+        <li><b>Nombre de los pedidos de compra:</b> guarda cada PDF con su secuencial exacto, por ejemplo <code>PCC-2026-00745.pdf</code>. Así el sistema lo relaciona automáticamente con las facturas que lo referencian y lo adjunta en el correo de entrega.</li>
+        <li><b>Reemplazar:</b> si ya había un soporte «uno por periodo» guardado, el sistema pide confirmación — el archivo anterior y sus registros se eliminan y se cargan los nuevos.</li>
+        <li><b>Eliminar:</b> cada archivo guardado tiene su botón Eliminar con confirmación; borra el archivo del almacenamiento y sus registros.</li>
+        <li><b>Ver / Archivo:</b> puedes previsualizar el contenido interpretado (solo lectura) o abrir el archivo original guardado.</li>
+        <li>Al volver a entrar al periodo, los soportes ya guardados <b>se cargan automáticamente</b>: nada se pierde entre sesiones ni entre equipos.</li>
+      </ul>
+    </section>
+
+    <!-- 6 · Validar -->
+    <section id="validar" class="card card-pad mb-16">
+      <h2><span class="sec-n">6</span> Validar información</h2>
+      <div class="divider"></div>
+      <p>
+        El sistema compara la <b>prefactura aprobada</b> (lo que el cliente aprobó pagar) contra el
+        <b>registro de facturación interna</b> (lo que Bee planea facturar), <b>colaborador por
+        colaborador</b> usando su número de identificación, y coteja el monto a facturar <b>al centavo
+        exacto</b>, sin redondeos.
+      </p>
+      <h3>Estados del cotejo</h3>
+      <ul>
+        <li><bee-badge tone="ok" label="Idéntico" /> — el monto coincide exactamente en ambas fuentes.</li>
+        <li><bee-badge tone="bad" label="Diferencia" /> — el colaborador está en ambas, pero el monto no coincide; la columna Diferencia muestra cuánto.</li>
+        <li><bee-badge tone="warn" label="Solo prefactura" /> — aprobado por el cliente pero sin línea en el registro interno.</li>
+        <li><bee-badge tone="warn" label="Talento No MOP" /> — está en el registro interno pero <b>no viene en la prefactura</b> (por ejemplo, un ingreso nuevo del mes).</li>
+      </ul>
+      <p>
+        Usa los filtros <b>Todos · Diferencias · Talentos No MOP</b> para concentrarte en lo que requiere
+        atención, y la fila de <b>Totales del periodo</b> para ver la diferencia neta global.
+      </p>
+      <div class="alert alert-info">
+        <span class="ai"><bee-icon name="info" [size]="18" /></span>
+        <div>
+          <div class="at">Continuar con diferencias</div>
+          Si existen diferencias, el botón «Validar y continuar» pide una <b>confirmación explícita</b>.
+          Puedes avanzar (algunas diferencias son novedades legítimas: ingresos, descuentos, ajustes),
+          pero hazlo consciente de cuáles son.
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 · Agrupar -->
+    <section id="agrupar" class="card card-pad mb-16">
+      <h2><span class="sec-n">7</span> Agrupar información</h2>
+      <div class="divider"></div>
+      <p>
+        Aquí las líneas del registro interno se consolidan en <b>facturas</b>: cada
+        <b>secuencial</b> (por ejemplo <code>BEE702</code>) es una factura, y puede contener uno o
+        varios talentos.
+      </p>
+      <ol class="step-list">
+        <li><span class="n">1</span><span>Revisa las <b>tarjetas</b>: cada una muestra el secuencial, cuántas líneas agrupa, el total y su pedido de compra y cliente.</span></li>
+        <li><span class="n">2</span><span>Haz clic en una tarjeta para ver <b>su detalle</b> debajo: los talentos que pertenecen a esa factura, con su descripción y monto.</span></li>
+        <li><span class="n">3</span><span>Cuando confirmes que la agrupación es correcta, pulsa <b>Enviar a Emisión</b>. El sistema pregunta si validaste que cada factura tiene sus talentos correctos; al aceptar se habilita Revisar facturas.</span></li>
+      </ol>
+      <p class="note-line">
+        Los indicadores superiores resumen el periodo: facturas, líneas agrupadas, monto total y pedidos
+        de compra distintos referenciados.
+      </p>
+    </section>
+
+    <!-- 8 · Revisar -->
+    <section id="revisar" class="card card-pad mb-16">
+      <h2><span class="sec-n">8</span> Revisar facturas</h2>
+      <div class="divider"></div>
+      <p>
+        Cuando el outsourcing emite las facturas físicas, aquí registras cada una y el sistema la coteja
+        contra lo esperado:
+      </p>
+      <ol class="step-list">
+        <li><span class="n">1</span><span><b>Carga la Factura BEE</b> (PDF o imagen) en la fila de su secuencial. Es un documento por factura; puedes reemplazarlo si se cargó mal.</span></li>
+        <li><span class="n">2</span><span>Digita el <b>Monto emitido</b> (el valor global de la factura física, ya sumado para todos sus talentos) y la <b>Fecha de la factura</b>.</span></li>
+        <li><span class="n">3</span><span>Pulsa <b>Actualizar datos</b>: el archivo, el monto y la fecha se guardan para <b>todos los talentos</b> de esa factura.</span></li>
+        <li><span class="n">4</span><span>Observa la columna <b>Cotejo</b>: compara el monto emitido contra el <b>Monto esperado</b> (la suma de las líneas del registro interno de ese secuencial), al centavo.</span></li>
+      </ol>
+      <div class="alert alert-warn">
+        <span class="ai"><bee-icon name="alert" [size]="18" /></span>
+        <div>
+          <div class="at">No puedes continuar con cambios sin guardar</div>
+          Si editaste montos, fechas o cargaste archivos y no has pulsado «Actualizar datos», el botón
+          «Confirmar y continuar a entrega» te lo recordará. Evita que lo digitado se pierda o que los
+          correos salgan con datos incompletos.
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 · Entregar -->
+    <section id="entregar" class="card card-pad mb-16">
+      <h2><span class="sec-n">9</span> Entregar al cliente</h2>
+      <div class="divider"></div>
+      <p>
+        El sistema genera <b>un correo por factura</b> y lo envía de verdad al buzón de facturación del
+        cliente, con copia a los aprobadores registrados y con los adjuntos tomados automáticamente del
+        almacenamiento:
+      </p>
+      <ul>
+        <li><b>Para:</b> el buzón de facturación de proveedores del cliente (fijo).</li>
+        <li><b>CC:</b> los correos de aprobador que vinieron en el registro interno para esa factura.</li>
+        <li><b>Cuerpo:</b> número de factura, pedido de compra, monto, número de contrato, fecha de la factura física, validador, entidad y proveedor.</li>
+        <li><b>Adjuntos:</b> la Factura BEE cargada en Revisar y el PDF del pedido de compra, si existen.</li>
+      </ul>
+      <p>
+        Revisa las plantillas en pantalla y pulsa <b>Enviar</b>. Tras confirmar, los correos salen
+        <b>uno por uno</b> con una barra de progreso. Al terminar verás el resultado:
+      </p>
+      <ul>
+        <li><bee-badge tone="ok" label="Enviados" /> — correos entregados correctamente.</li>
+        <li><bee-badge tone="bad" label="Con error" /> — no salieron; el motivo aparece junto a cada factura. Solo los fallos <b>transitorios</b> (servicio ocupado o sin conexión) muestran «Reintentar»; los demás piden corregir datos o avisar a soporte.</li>
+        <li><bee-badge tone="warn" label="Con advertencia" /> — el correo salió, pero el servidor descartó algún destinatario (por ejemplo, un CC mal escrito). No se reenvían para no duplicar la factura en el buzón del cliente.</li>
+      </ul>
+    </section>
+
+    <!-- 10 · Ejemplo completo -->
+    <section id="ejemplo" class="card card-pad mb-16">
+      <h2><span class="sec-n">10</span> Ejemplo completo: facturar Agosto 2026</h2>
+      <div class="divider"></div>
+      <p>Un recorrido típico del mes, de principio a fin:</p>
+      <ol class="step-list">
+        <li><span class="n">1</span><span>Verifica que el <b>Periodo</b> del encabezado diga «Agosto 2026».</span></li>
+        <li><span class="n">2</span><span>En <b>Carga de documentos</b>, sube el Excel de <b>Aprobación de prefactura</b> que envió el cliente y el Excel del <b>Registro de facturación interna</b> de Bee. Añade los PDF de <b>pedidos de compra</b> (nombrados con su secuencial) y las <b>novedades</b> si las hay. Pulsa «Guardar documentos».</span></li>
+        <li><span class="n">3</span><span>Confirma en «Estado del periodo» que las líneas leídas coinciden con tus archivos y que dice <b>Listo para validar: Sí</b>. Pulsa «Continuar a validación».</span></li>
+        <li><span class="n">4</span><span>En <b>Validar</b>, revisa las diferencias y los Talentos No MOP. Si todo está explicado, pulsa «Validar y continuar» (confirma si hay diferencias).</span></li>
+        <li><span class="n">5</span><span>En <b>Agrupar</b>, abre 2 o 3 tarjetas y verifica que los talentos estén en la factura correcta. Pulsa «Enviar a Emisión» y confirma.</span></li>
+        <li><span class="n">6</span><span>Cuando lleguen las facturas emitidas, en <b>Revisar</b> carga cada Factura BEE, digita monto y fecha, y pulsa «Actualizar datos». Verifica que el cotejo diga «Coincide». Pulsa «Confirmar y continuar a entrega».</span></li>
+        <li><span class="n">7</span><span>En <b>Entregar</b>, lee las plantillas de correo, pulsa <b>Enviar</b> y espera el progreso. Con todo en verde, el mes quedó entregado al cliente.</span></li>
+      </ol>
+    </section>
+
+    <!-- 11 · Administración -->
+    <section id="administracion" class="card card-pad mb-16">
+      <h2><span class="sec-n">11</span> Módulos de administración</h2>
+      <div class="divider"></div>
+      <h3>Gestión de usuarios <span class="badge b-primary" style="margin-left: 6px"><span class="bd"></span>Solo admin</span></h3>
+      <ul>
+        <li><b>Crear cuenta:</b> nombre, correo corporativo, contraseña, área, rol (Usuario o Administrador) y estado.</li>
+        <li><b>Editar:</b> al editar, el campo contraseña dice <code>vacía = conservar</code> — solo se cambia si escribes una nueva.</li>
+        <li><b>Habilitar / deshabilitar:</b> una cuenta inactiva no puede iniciar sesión. No puedes deshabilitar tu propia cuenta.</li>
+        <li>Las tarjetas superiores (cuentas activas, administradores, operativos) y el <b>último acceso</b> de cada cuenta se actualizan en tiempo real.</li>
+      </ul>
+      <h3>Auditoría y logs <span class="badge b-primary" style="margin-left: 6px"><span class="bd"></span>Solo admin</span></h3>
+      <p>
+        Bitácora de las acciones del sistema para trazabilidad del ciclo. Este módulo está en proceso de
+        conexión a datos reales.
+      </p>
+    </section>
+
+    <!-- 12 · FAQ -->
+    <section id="faq" class="card card-pad mb-16">
+      <h2><span class="sec-n">12</span> Preguntas frecuentes y solución de problemas</h2>
+      <div class="divider"></div>
+      <h3>«Correo o contraseña incorrectos»</h3>
+      <p>Verifica mayúsculas y dominio del correo. Si persiste, un administrador puede confirmar que tu cuenta exista y esté <b>Activa</b> en Gestión de usuarios.</p>
+      <h3>«El archivo supera el límite de 5 MB» / «Formato no válido»</h3>
+      <p>Cada espacio de carga acepta solo su formato (XLSX o PDF) y máximo 5 MB. Comprime o divide el archivo, y confirma la extensión.</p>
+      <h3>Validación aparece bloqueada («Sin información por validar»)</h3>
+      <p>Faltan los dos soportes obligatorios: la prefactura aprobada <b>y</b> el registro interno deben estar <b>guardados</b> (no solo seleccionados) en el periodo.</p>
+      <h3>Agrupar / Revisar / Entregar aparecen bloqueados</h3>
+      <p>Cada módulo se habilita al confirmar el anterior. Si recargaste la prefactura o el registro interno, el avance se reinicia a propósito: vuelve a Validar.</p>
+      <h3>«Tienes cambios sin guardar» en Revisar</h3>
+      <p>Pulsa <b>Actualizar datos</b> para guardar montos, fechas y facturas cargadas antes de continuar a entrega.</p>
+      <h3>«No se pudo contactar con el servicio de correo»</h3>
+      <p>El servicio de envío no respondió (conexión o arranque del servidor). Espera unos segundos y usa <b>Reintentar transitorias</b>; si persiste, avisa a soporte.</p>
+      <h3>«El servidor descartó destinatarios»</h3>
+      <p>El correo principal salió bien, pero un CC fue rechazado (dirección inexistente o mal escrita). Corrige el correo del aprobador en la plantilla del registro interno para el próximo periodo; no se reenvía automáticamente para no duplicar la factura.</p>
+      <h3>«Ese correo ya está registrado por otra cuenta»</h3>
+      <p>Al crear o editar usuarios, cada correo debe ser único en el sistema.</p>
+      <div class="alert alert-ok" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="check" [size]="18" /></span>
+        <div>
+          <div class="at">¿Necesitas más ayuda?</div>
+          Contacta al administrador del sistema o escribe a
+          <span class="em">facturacion&#64;beeconsultoria.com</span>.
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
