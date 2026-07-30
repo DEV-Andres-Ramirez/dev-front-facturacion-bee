@@ -13,4 +13,13 @@ export interface AppEnvironment {
     readonly url: string;
     readonly publishableKey: string;
   };
+  /**
+   * Backend de correo (dev-back-facturacion-bee). La `key` viaja en el bundle
+   * del navegador y por tanto es pública: protege el uso casual, no es un
+   * secreto. Ver la nota de seguridad en CONSUMO.md.
+   */
+  readonly api: {
+    readonly url: string;
+    readonly key: string;
+  };
 }

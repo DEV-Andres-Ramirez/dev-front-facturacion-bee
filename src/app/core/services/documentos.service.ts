@@ -102,19 +102,31 @@ export class DocumentosService {
 
   /** Sube y persiste el registro de facturación interna (un Excel por periodo). */
   async guardarRegistro(periodId: string, periodo: string, file: File, reemplazar: boolean): Promise<SaveResult> {
-    return this.guardarExcel(periodId, periodo, file, reemplazar, 'Registro Facturación Interna', async () => {
+    const res = await this.guardarExcel(periodId, periodo, file, reemplazar, 'Registro Facturación Interna', async () => {
       const filas = await this.parsearRegistro(periodo, file);
       const { error } = await this.supabase.from('registro_facturacion_interna').insert(filas);
       return error;
     });
+    if (res.ok) {
+      await this.relacionarPedidos(periodo);
+      await this.loadPeriodo(periodo);
+    }
+    return res;
   }
 
-  /** Persiste un pedido de compra (PDF · varios por periodo). */
+  /** Persiste un pedido de compra (PDF · varios por periodo) y lo relaciona. */
   async guardarPedido(periodId: string, periodo: string, file: File): Promise<SaveResult> {
     const subido = await this.subirArchivo(periodId, 'Pedido Compra', file);
     if (!subido.ok) return subido;
-    const error = await this.insertarDocumento(periodo, 'Pedido Compra', subido.url!);
+    const nombre = this.nombreSinExtension(file.name);
+    const error = await this.insertarDocumento(periodo, 'Pedido Compra', subido.url!, nombre);
     if (error) return { ok: false, error: this.friendly(error) };
+    // Relaciona el pedido con los registros cuyo pedido_compra coincide con el nombre.
+    await this.supabase
+      .from('registro_facturacion_interna')
+      .update({ documento_pedido_compra: subido.url })
+      .eq('periodo_facturacion_interna', periodo)
+      .eq('pedido_compra_facturacion_interna', nombre);
     await this.loadPeriodo(periodo);
     return { ok: true };
   }
@@ -124,8 +136,79 @@ export class DocumentosService {
     if (reemplazar) await this.eliminarTipo(periodo, 'Novedades Periodo');
     const subido = await this.subirArchivo(periodId, 'Novedades Periodo', file);
     if (!subido.ok) return subido;
-    const error = await this.insertarDocumento(periodo, 'Novedades Periodo', subido.url!);
+    const error = await this.insertarDocumento(periodo, 'Novedades Periodo', subido.url!, this.nombreSinExtension(file.name));
     if (error) return { ok: false, error: this.friendly(error) };
+    await this.loadPeriodo(periodo);
+    return { ok: true };
+  }
+
+  // ── Factura BEE y datos de emisión (módulo Revisar) ─────────────────────────
+
+  /** Sube la Factura BEE de una factura (secuencial) y la enlaza a sus registros. */
+  async guardarFacturaBee(periodId: string, periodo: string, secuencial: string, file: File): Promise<SaveResult> {
+    const actual = this._registro().find(
+      (r) => (r.secuencial_facturacion_interna ?? '').trim() === secuencial && r.documento_factura_bee,
+    )?.documento_factura_bee;
+    if (actual) await this.eliminarArchivoPorUrl(actual); // reemplazo: borra el anterior
+
+    const subido = await this.subirArchivo(periodId, 'Factura BEE', file);
+    if (!subido.ok) return subido;
+    const errDoc = await this.insertarDocumento(periodo, 'Factura BEE', subido.url!, this.nombreSinExtension(file.name));
+    if (errDoc) return { ok: false, error: this.friendly(errDoc) };
+
+    const { error } = await this.supabase
+      .from('registro_facturacion_interna')
+      .update({ documento_factura_bee: subido.url })
+      .eq('periodo_facturacion_interna', periodo)
+      .eq('secuencial_facturacion_interna', secuencial);
+    if (error) return { ok: false, error: this.friendly(error) };
+    return { ok: true };
+  }
+
+  /** Guarda el monto emitido (global) para todos los registros de una factura. */
+  async guardarMontoEmitido(periodo: string, secuencial: string, monto: string): Promise<SaveResult> {
+    const { error } = await this.supabase
+      .from('registro_facturacion_interna')
+      .update({ monto_emitido_factura_bee: monto })
+      .eq('periodo_facturacion_interna', periodo)
+      .eq('secuencial_facturacion_interna', secuencial);
+    return error ? { ok: false, error: this.friendly(error) } : { ok: true };
+  }
+
+  /** Guarda la fecha de la factura física para todos los registros de una factura. */
+  async guardarFechaFactura(periodo: string, secuencial: string, fecha: string): Promise<SaveResult> {
+    const { error } = await this.supabase
+      .from('registro_facturacion_interna')
+      .update({ fecha_factura_bee: fecha })
+      .eq('periodo_facturacion_interna', periodo)
+      .eq('secuencial_facturacion_interna', secuencial);
+    return error ? { ok: false, error: this.friendly(error) } : { ok: true };
+  }
+
+  /** Elimina un documento puntual (Storage + índice) y limpia sus referencias. */
+  async eliminarDocumento(doc: DocumentoFacturacion): Promise<SaveResult> {
+    const url = doc.direccion_documento_facturacion;
+    const periodo = doc.periodo_documento_facturacion;
+    const path = this.pathDesdeUrl(url);
+    if (path) await this.supabase.storage.from(BUCKET).remove([path]);
+
+    const { error } = await this.supabase
+      .from('documentos_facturacion')
+      .delete()
+      .eq('id_documento_facturacion', doc.id_documento_facturacion);
+    if (error) return { ok: false, error: this.friendly(error) };
+
+    if (doc.tipo_documento_facturacion === 'Aprobación Prefactura') {
+      await this.supabase.from('aprobacion_prefactura').delete().eq('periodo_prefactura', periodo);
+    } else if (doc.tipo_documento_facturacion === 'Registro Facturación Interna') {
+      await this.supabase.from('registro_facturacion_interna').delete().eq('periodo_facturacion_interna', periodo);
+    }
+    // Limpia referencias al archivo borrado en el registro interno.
+    await this.supabase.from('registro_facturacion_interna').update({ documento_pedido_compra: null })
+      .eq('periodo_facturacion_interna', periodo).eq('documento_pedido_compra', url);
+    await this.supabase.from('registro_facturacion_interna').update({ documento_factura_bee: null })
+      .eq('periodo_facturacion_interna', periodo).eq('documento_factura_bee', url);
+
     await this.loadPeriodo(periodo);
     return { ok: true };
   }
@@ -148,7 +231,7 @@ export class DocumentosService {
     const errDetalle = await insertarDetalle();
     if (errDetalle) return { ok: false, error: this.friendly(errDetalle) };
 
-    const errDoc = await this.insertarDocumento(periodo, tipo, subido.url!);
+    const errDoc = await this.insertarDocumento(periodo, tipo, subido.url!, this.nombreSinExtension(file.name));
     if (errDoc) return { ok: false, error: this.friendly(errDoc) };
 
     await this.loadPeriodo(periodo);
@@ -169,11 +252,17 @@ export class DocumentosService {
     return { ok: true, url: data.publicUrl };
   }
 
-  private async insertarDocumento(periodo: string, tipo: TipoDocumento, url: string): Promise<PostgrestError | null> {
+  private async insertarDocumento(
+    periodo: string,
+    tipo: TipoDocumento,
+    url: string,
+    nombre: string,
+  ): Promise<PostgrestError | null> {
     const { error } = await this.supabase.from('documentos_facturacion').insert({
       periodo_documento_facturacion: periodo,
       tipo_documento_facturacion: tipo,
       direccion_documento_facturacion: url,
+      nombre_documento_facturacion: nombre,
     });
     return error;
   }
@@ -260,6 +349,33 @@ export class DocumentosService {
         valor_letras_facturacion_interna: celdaATexto(r[11]),
         email_aprobador_facturacion_interna: celdaATexto(r[12]),
       }));
+  }
+
+  /** Relaciona cada Pedido Compra cargado con los registros que lo referencian. */
+  private async relacionarPedidos(periodo: string): Promise<void> {
+    const pedidos = this._docs().filter(
+      (d) => d.tipo_documento_facturacion === 'Pedido Compra' && d.nombre_documento_facturacion,
+    );
+    for (const pedido of pedidos) {
+      await this.supabase
+        .from('registro_facturacion_interna')
+        .update({ documento_pedido_compra: pedido.direccion_documento_facturacion })
+        .eq('periodo_facturacion_interna', periodo)
+        .eq('pedido_compra_facturacion_interna', pedido.nombre_documento_facturacion!);
+    }
+  }
+
+  /** Borra del Storage y del índice un documento identificado por su URL pública. */
+  private async eliminarArchivoPorUrl(url: string): Promise<void> {
+    const path = this.pathDesdeUrl(url);
+    if (path) await this.supabase.storage.from(BUCKET).remove([path]);
+    await this.supabase.from('documentos_facturacion').delete().eq('direccion_documento_facturacion', url);
+  }
+
+  /** Nombre original del archivo sin la extensión (p. ej. `PCC-2026-00745.pdf` → `PCC-2026-00745`). */
+  private nombreSinExtension(name: string): string {
+    const base = name.split('/').pop() ?? name;
+    return base.replace(/\.[^.]+$/, '').trim();
   }
 
   private nombreSeguro(name: string): string {

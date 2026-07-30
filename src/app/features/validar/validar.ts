@@ -5,10 +5,9 @@ import { PeriodStore } from '@core/services/period.store';
 import { ProcesoStore } from '@core/services/proceso.store';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
-import { ValidarDemo } from './validar-demo';
 
 type EstadoFila = 'identico' | 'diferencia' | 'solo_prefactura' | 'solo_registro';
-type Filtro = 'todos' | 'diferencias' | 'faltantes';
+type Filtro = 'todos' | 'diferencias' | 'nomop';
 
 interface FilaValidacion {
   readonly id: string;
@@ -21,17 +20,16 @@ interface FilaValidacion {
   readonly estado: EstadoFila;
 }
 
-const DEMO_PERIOD = '2026-05';
 
 /**
  * Validar información (RF-VAL). Coteja `aprobacion_prefactura` contra
  * `registro_facturacion_interna` por `id_colaborador`, sumando y comparando el
- * monto a facturar al centavo exacto. Para Mayo 2026 delega en `ValidarDemo`.
+ * monto a facturar al centavo exacto.
  */
 @Component({
   selector: 'app-validar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent, ValidarDemo],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
   templateUrl: './validar.html',
 })
 export class Validar {
@@ -39,8 +37,6 @@ export class Validar {
   private readonly documentos = inject(DocumentosService);
   private readonly proceso = inject(ProcesoStore);
   private readonly router = inject(Router);
-
-  protected readonly isDemo = computed(() => this.periodStore.period() === DEMO_PERIOD);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
 
@@ -97,7 +93,7 @@ export class Validar {
     const f = this.filtro();
     return this.comparacion().filter((fila) => {
       if (f === 'diferencias') return fila.estado === 'diferencia';
-      if (f === 'faltantes') return fila.estado === 'solo_prefactura' || fila.estado === 'solo_registro';
+      if (f === 'nomop') return fila.estado === 'solo_registro';
       return true;
     });
   });
@@ -106,14 +102,16 @@ export class Validar {
     const filas = this.comparacion();
     const coinciden = filas.filter((f) => f.estado === 'identico').length;
     const diferencias = filas.filter((f) => f.estado === 'diferencia').length;
-    const faltantes = filas.filter((f) => f.estado === 'solo_prefactura' || f.estado === 'solo_registro').length;
+    const noMop = filas.filter((f) => f.estado === 'solo_registro').length;
+    const soloPrefactura = filas.filter((f) => f.estado === 'solo_prefactura').length;
     const totalPref = filas.reduce((s, f) => s + f.prefacturaCents, 0);
     const totalReg = filas.reduce((s, f) => s + f.registroCents, 0);
     return {
       comparados: filas.length,
       coinciden,
       diferencias,
-      faltantes,
+      noMop,
+      soloPrefactura,
       totalPref,
       totalReg,
       diferenciaNeta: totalPref - totalReg,
@@ -123,11 +121,10 @@ export class Validar {
 
   constructor() {
     effect(() => {
-      const id = this.periodStore.period();
+      this.periodStore.period();
       const label = this.periodStore.current().label;
       this.filtro.set('todos');
       this.confirmOpen.set(false);
-      if (id === DEMO_PERIOD) return;
       void this.documentos.loadPeriodo(label);
     });
   }
@@ -153,7 +150,7 @@ export class Validar {
   }
 
   private continuar(): void {
-    this.proceso.marcarValidado(this.periodStore.period());
+    this.proceso.marcar(this.periodStore.period(), 'validado');
     this.confirmOpen.set(false);
     void this.router.navigate(['/app', 'agrupar']);
   }

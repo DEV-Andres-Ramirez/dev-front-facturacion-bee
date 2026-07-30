@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { PeriodStore } from '@core/services/period.store';
 import { ProcesoStore } from '@core/services/proceso.store';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
-import { BadgeComponent, EmptyStateComponent } from '@shared/ui';
-import { AgruparDemo } from './agrupar-demo';
+import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
 
 interface LineaAgrupada {
   readonly id: number;
@@ -24,27 +24,25 @@ interface GrupoSecuencial {
   readonly totalCents: number;
 }
 
-const DEMO_PERIOD = '2026-05';
 const SIN_SECUENCIAL = 'Sin secuencial';
 
 /**
  * Agrupar información (RF-AGR). Consolida `registro_facturacion_interna` por
  * `secuencial` (las líneas que van en una misma factura) y enriquece cada línea
- * con el nombre del colaborador desde la prefactura (`id_colaborador`). Para
- * Mayo 2026 delega en `AgruparDemo`.
+ * con el nombre del colaborador desde la prefactura (`id_colaborador`).
  */
 @Component({
   selector: 'app-agrupar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, AgruparDemo],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
   templateUrl: './agrupar.html',
+  styleUrl: './agrupar.css',
 })
 export class Agrupar {
   private readonly periodStore = inject(PeriodStore);
   private readonly documentos = inject(DocumentosService);
   private readonly proceso = inject(ProcesoStore);
-
-  protected readonly isDemo = computed(() => this.periodStore.period() === DEMO_PERIOD);
+  private readonly router = inject(Router);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
 
@@ -52,7 +50,8 @@ export class Agrupar {
   private readonly prefactura = this.documentos.prefactura;
 
   protected readonly hayDatos = computed(() => this.registro().length > 0);
-  protected readonly validado = computed(() => this.proceso.validado(this.periodStore.period()));
+  protected readonly validado = computed(() => this.proceso.tiene(this.periodStore.period(), 'validado'));
+  protected readonly confirmEmision = signal(false);
 
   /** id_colaborador → nombre, tomado de la prefactura. */
   private readonly nombrePorColaborador = computed(() => {
@@ -128,15 +127,28 @@ export class Agrupar {
 
   constructor() {
     effect(() => {
-      const id = this.periodStore.period();
+      this.periodStore.period();
       const label = this.periodStore.current().label;
       this.seleccion.set(null);
-      if (id === DEMO_PERIOD) return;
       void this.documentos.loadPeriodo(label);
     });
   }
 
   protected seleccionar(secuencial: string): void {
     this.seleccion.set(secuencial);
+  }
+
+  protected enviarAEmision(): void {
+    this.confirmEmision.set(true);
+  }
+
+  protected cancelarEmision(): void {
+    this.confirmEmision.set(false);
+  }
+
+  protected confirmarEmision(): void {
+    this.proceso.marcar(this.periodStore.period(), 'emitido');
+    this.confirmEmision.set(false);
+    void this.router.navigate(['/app', 'revisar']);
   }
 }

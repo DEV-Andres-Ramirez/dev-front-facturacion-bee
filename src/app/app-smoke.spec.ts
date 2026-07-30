@@ -78,15 +78,11 @@ describe('App smoke render', () => {
   afterEach(() => localStorage.clear());
 
   for (const [name, component] of SCREENS) {
-    it(`${name} renders in Mayo and Junio without throwing`, () => {
-      TestBed.inject(PeriodStore).setPeriod('2026-05');
+    it(`${name} renders in Agosto without throwing`, () => {
+      TestBed.inject(PeriodStore).setPeriod('2026-08');
       const fixture = TestBed.createComponent(component);
       fixture.detectChanges();
       expect(fixture.nativeElement.textContent.length).toBeGreaterThan(0);
-
-      TestBed.inject(PeriodStore).setPeriod('2026-06');
-      fixture.detectChanges();
-      expect(fixture.nativeElement).toBeTruthy();
     });
   }
 });

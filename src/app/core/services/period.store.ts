@@ -3,11 +3,11 @@ import { PeriodId, PeriodOption, PERIODS } from '../models';
 
 /**
  * Estado global del periodo de facturación seleccionado en el encabezado.
- * Mayo 2026 abre con datos de ejemplo; Junio 2026 inicia el ciclo desde cero.
+ * Todos los periodos operan sobre datos reales persistidos en Supabase.
  */
 @Injectable({ providedIn: 'root' })
 export class PeriodStore {
-  private readonly _period = signal<PeriodId>('2026-05');
+  private readonly _period = signal<PeriodId>('2026-08');
 
   /** Periodo seleccionado (solo lectura). */
   readonly period = this._period.asReadonly();

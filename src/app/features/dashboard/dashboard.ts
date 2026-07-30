@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BillingDataService } from '@core/services/billing-data.service';
+import { PeriodStore } from '@core/services/period.store';
 import { invoiceStatusPresentation } from '@core/utils/invoice-status.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent, KpiCardComponent } from '@shared/ui';
 import { UsdPipe } from '@shared/pipes/usd.pipe';
@@ -14,6 +15,7 @@ import { UsdPipe } from '@shared/pipes/usd.pipe';
 })
 export class Dashboard {
   private readonly billing = inject(BillingDataService);
+  protected readonly period = inject(PeriodStore).current;
 
   protected readonly dashboard = this.billing.dashboard;
   protected readonly invoices = this.billing.invoices;
