@@ -2,9 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { PeriodStore } from '@core/services/period.store';
+import { ProcesoStore } from '@core/services/proceso.store';
 import { DocumentoFacturacion, TipoDocumento } from '@core/models';
 import { IconComponent, IconName, ProcessStepperComponent } from '@shared/ui';
-import { CargaDemo } from './carga-demo';
 
 type SlotId = 'prefactura' | 'pedido' | 'registro' | 'novedades';
 
@@ -29,28 +29,26 @@ interface StagedFiles {
 
 const EMPTY_STAGED: StagedFiles = { prefactura: null, registro: null, novedades: null, pedidos: [] };
 const MAX_MB = 5;
-const DEMO_PERIOD = '2026-05';
 
 /**
- * Carga de documentos. Para el periodo de demostración (Mayo 2026) delega en
- * `CargaDemo`. Para los periodos reales persiste los soportes: sube cada archivo
- * al Storage de Supabase, interpreta las plantillas Excel hacia sus tablas de
+ * Carga de documentos. Persiste los soportes del periodo: sube cada archivo al
+ * Storage de Supabase, interpreta las plantillas Excel hacia sus tablas de
  * detalle y registra el enlace en `documentos_facturacion`. Al volver a un
  * periodo se recuperan los soportes ya guardados.
  */
 @Component({
   selector: 'app-carga',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ProcessStepperComponent, IconComponent, CargaDemo],
+  imports: [RouterLink, ProcessStepperComponent, IconComponent],
   templateUrl: './carga.html',
   styleUrl: './carga.css',
 })
 export class Carga {
   private readonly periodStore = inject(PeriodStore);
+  private readonly proceso = inject(ProcesoStore);
   protected readonly documentos = inject(DocumentosService);
 
   protected readonly period = this.periodStore.current;
-  protected readonly isDemo = computed(() => this.periodStore.period() === DEMO_PERIOD);
 
   protected readonly dataLoading = this.documentos.loading;
   protected readonly loadError = this.documentos.error;
@@ -131,13 +129,12 @@ export class Carga {
   constructor() {
     // Carga (o limpia) el periodo seleccionado al entrar y al cambiar de periodo.
     effect(() => {
-      const id = this.periodStore.period();
+      this.periodStore.period();
       const label = this.periodStore.current().label;
       this.staged.set(EMPTY_STAGED);
       this.preview.set(null);
       this.errorSlot.set(null);
       this.saveError.set('');
-      if (id === DEMO_PERIOD) return;
       void this.documentos.loadPeriodo(label);
     });
   }
@@ -258,7 +255,28 @@ export class Carga {
     const result = await this.documentos.eliminarDocumento(doc);
     this.deleting.set(false);
     this.confirmDelete.set(null);
-    if (!result.ok) this.saveError.set(result.error ?? 'No se pudo eliminar el archivo.');
+    if (!result.ok) {
+      this.saveError.set(result.error ?? 'No se pudo eliminar el archivo.');
+      return;
+    }
+    if (
+      doc.tipo_documento_facturacion === 'Aprobación Prefactura' ||
+      doc.tipo_documento_facturacion === 'Registro Facturación Interna'
+    ) {
+      this.reiniciarProceso();
+    }
+  }
+
+  /**
+   * Cambiar la base del cotejo (prefactura o registro interno) invalida el
+   * avance del ciclo: se reinician las compuertas para forzar una nueva
+   * validación, agrupación y revisión con los datos actuales.
+   */
+  private reiniciarProceso(): void {
+    const id = this.periodStore.period();
+    this.proceso.reiniciar(id, 'validado');
+    this.proceso.reiniciar(id, 'emitido');
+    this.proceso.reiniciar(id, 'revisado');
   }
 
   private stage(slot: SlotConfig, file: File): void {
@@ -321,15 +339,20 @@ export class Carga {
       pedidos: [...s.pedidos] as File[],
     };
 
+    let baseCambiada = false;
     if (s.prefactura) {
       const r = await this.documentos.guardarPrefactura(id, label, s.prefactura, this.isSaved('prefactura'));
-      if (r.ok) next.prefactura = null;
-      else errors.push(`Prefactura: ${r.error}`);
+      if (r.ok) {
+        next.prefactura = null;
+        baseCambiada = true;
+      } else errors.push(`Prefactura: ${r.error}`);
     }
     if (s.registro) {
       const r = await this.documentos.guardarRegistro(id, label, s.registro, this.isSaved('registro'));
-      if (r.ok) next.registro = null;
-      else errors.push(`Registro interno: ${r.error}`);
+      if (r.ok) {
+        next.registro = null;
+        baseCambiada = true;
+      } else errors.push(`Registro interno: ${r.error}`);
     }
     if (s.novedades) {
       const r = await this.documentos.guardarNovedades(id, label, s.novedades, this.isSaved('novedades'));
@@ -351,6 +374,7 @@ export class Carga {
     this.staged.set(next);
     this.confirmOpen.set(false);
     this.saving.set(false);
+    if (baseCambiada) this.reiniciarProceso();
     if (errors.length) this.saveError.set(errors.join(' · '));
   }
 }

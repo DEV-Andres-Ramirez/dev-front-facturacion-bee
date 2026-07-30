@@ -5,7 +5,6 @@ import { PeriodStore } from '@core/services/period.store';
 import { ProcesoStore } from '@core/services/proceso.store';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
-import { RevisarDemo } from './revisar-demo';
 
 interface FacturaRevisar {
   readonly secuencial: string;
@@ -20,19 +19,18 @@ interface FacturaRevisar {
   readonly facturaBeeUrl: string | null;
 }
 
-const DEMO_PERIOD = '2026-05';
 const SIN_SECUENCIAL = 'Sin secuencial';
 
 /**
  * Revisar Facturas (RF-REV). Toma como base `registro_facturacion_interna`
  * agrupado por factura (secuencial). Por cada factura permite cargar la Factura
  * BEE y registrar monto emitido y fecha, que se guardan para todos sus talentos,
- * y compara el monto emitido contra el monto esperado. Mayo 2026 usa el demo.
+ * y compara el monto emitido contra el monto esperado.
  */
 @Component({
   selector: 'app-revisar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent, RevisarDemo],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
   templateUrl: './revisar.html',
 })
 export class Revisar {
@@ -40,8 +38,6 @@ export class Revisar {
   private readonly documentos = inject(DocumentosService);
   private readonly proceso = inject(ProcesoStore);
   private readonly router = inject(Router);
-
-  protected readonly isDemo = computed(() => this.periodStore.period() === DEMO_PERIOD);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
 
@@ -107,13 +103,12 @@ export class Revisar {
 
   constructor() {
     effect(() => {
-      const id = this.periodStore.period();
+      this.periodStore.period();
       const label = this.periodStore.current().label;
       this.ediciones.set({});
       this.staged.set({});
       this.saveError.set('');
       this.confirmContinuar.set(false);
-      if (id === DEMO_PERIOD) return;
       void this.documentos.loadPeriodo(label);
     });
   }
@@ -193,6 +188,11 @@ export class Revisar {
 
   // ── Continuar a entrega ───────────────────────────────────────────────────────
   protected continuar(): void {
+    if (this.saving()) return;
+    if (this.hayCambios()) {
+      this.saveError.set('Tienes cambios sin guardar. Pulsa «Actualizar datos» antes de continuar.');
+      return;
+    }
     this.confirmContinuar.set(true);
   }
 

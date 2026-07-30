@@ -5,7 +5,6 @@ import { PeriodStore } from '@core/services/period.store';
 import { ProcesoStore } from '@core/services/proceso.store';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
-import { AgruparDemo } from './agrupar-demo';
 
 interface LineaAgrupada {
   readonly id: number;
@@ -25,19 +24,17 @@ interface GrupoSecuencial {
   readonly totalCents: number;
 }
 
-const DEMO_PERIOD = '2026-05';
 const SIN_SECUENCIAL = 'Sin secuencial';
 
 /**
  * Agrupar información (RF-AGR). Consolida `registro_facturacion_interna` por
  * `secuencial` (las líneas que van en una misma factura) y enriquece cada línea
- * con el nombre del colaborador desde la prefactura (`id_colaborador`). Para
- * Mayo 2026 delega en `AgruparDemo`.
+ * con el nombre del colaborador desde la prefactura (`id_colaborador`).
  */
 @Component({
   selector: 'app-agrupar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent, AgruparDemo],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
   templateUrl: './agrupar.html',
   styleUrl: './agrupar.css',
 })
@@ -46,8 +43,6 @@ export class Agrupar {
   private readonly documentos = inject(DocumentosService);
   private readonly proceso = inject(ProcesoStore);
   private readonly router = inject(Router);
-
-  protected readonly isDemo = computed(() => this.periodStore.period() === DEMO_PERIOD);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
 
@@ -132,10 +127,9 @@ export class Agrupar {
 
   constructor() {
     effect(() => {
-      const id = this.periodStore.period();
+      this.periodStore.period();
       const label = this.periodStore.current().label;
       this.seleccion.set(null);
-      if (id === DEMO_PERIOD) return;
       void this.documentos.loadPeriodo(label);
     });
   }

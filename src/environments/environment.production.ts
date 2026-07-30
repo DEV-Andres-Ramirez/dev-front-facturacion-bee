@@ -13,4 +13,8 @@ export const environment: AppEnvironment = {
     url: 'https://xatapilakdhlmgfjvdco.supabase.co',
     publishableKey: 'sb_publishable_HZWD8n_MoHC1FgqKCzhL5w_69jMqQf_',
   },
+  api: {
+    url: 'https://dev-back-facturacion-bee.vercel.app',
+    key: '0ba6401d8c62ff41231376d2649f2a71d6bfb154d61a1bb593fd16aabf73908d',
+  },
 };

@@ -5,7 +5,6 @@ import { PeriodStore } from '@core/services/period.store';
 import { ProcesoStore } from '@core/services/proceso.store';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
-import { ValidarDemo } from './validar-demo';
 
 type EstadoFila = 'identico' | 'diferencia' | 'solo_prefactura' | 'solo_registro';
 type Filtro = 'todos' | 'diferencias' | 'nomop';
@@ -21,17 +20,16 @@ interface FilaValidacion {
   readonly estado: EstadoFila;
 }
 
-const DEMO_PERIOD = '2026-05';
 
 /**
  * Validar información (RF-VAL). Coteja `aprobacion_prefactura` contra
  * `registro_facturacion_interna` por `id_colaborador`, sumando y comparando el
- * monto a facturar al centavo exacto. Para Mayo 2026 delega en `ValidarDemo`.
+ * monto a facturar al centavo exacto.
  */
 @Component({
   selector: 'app-validar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent, ValidarDemo],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
   templateUrl: './validar.html',
 })
 export class Validar {
@@ -39,8 +37,6 @@ export class Validar {
   private readonly documentos = inject(DocumentosService);
   private readonly proceso = inject(ProcesoStore);
   private readonly router = inject(Router);
-
-  protected readonly isDemo = computed(() => this.periodStore.period() === DEMO_PERIOD);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
 
@@ -125,11 +121,10 @@ export class Validar {
 
   constructor() {
     effect(() => {
-      const id = this.periodStore.period();
+      this.periodStore.period();
       const label = this.periodStore.current().label;
       this.filtro.set('todos');
       this.confirmOpen.set(false);
-      if (id === DEMO_PERIOD) return;
       void this.documentos.loadPeriodo(label);
     });
   }
