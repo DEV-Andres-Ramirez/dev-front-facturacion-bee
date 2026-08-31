@@ -1,91 +1,347 @@
 <section class="stagger">
-  @if (audit().length === 0) {
-    <div class="card">
+  <div class="alert alert-info" style="margin-bottom: 16px">
+    <span class="ai"><bee-icon name="shield" [size]="19" /></span>
+    <div class="at">
+      Registro inmutable de solo lectura
+      <div class="dim" style="font-weight: 500; margin-top: 2px">
+        La bitácora solo admite inserciones: ni la aplicación ni un administrador pueden
+        modificar o eliminar un evento ya registrado.
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-grid k4" style="margin-bottom: 16px">
+    <div class="mini">
+      <div class="ml">Eventos</div>
+      <div class="mv mono">{{ resumen()?.total_eventos ?? 0 }}</div>
+      <div class="ms">{{ hayFiltroActivo() ? 'Con el filtro aplicado' : 'Historial completo' }}</div>
+    </div>
+    <div class="mini">
+      <div class="ml">Usuarios</div>
+      <div class="mv mono">{{ resumen()?.usuarios_distintos ?? 0 }}</div>
+      <div class="ms">Han registrado actividad</div>
+    </div>
+    <div class="mini">
+      <div class="ml">Acciones fallidas</div>
+      <div class="mv mono" [style.color]="(resumen()?.eventos_error ?? 0) > 0 ? 'var(--bad)' : 'var(--ok)'">
+        {{ resumen()?.eventos_error ?? 0 }}
+      </div>
+      <div class="ms">Requieren revisión</div>
+    </div>
+    <div class="mini">
+      <div class="ml">Módulo más activo</div>
+      <div class="mv">{{ resumen()?.modulo_top ?? '—' }}</div>
+      <div class="ms">Por número de eventos</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h" style="flex-wrap: wrap; gap: 10px">
+      <div>
+        <div class="ct">Bitácora del sistema</div>
+        <div class="cd">Toda la actividad registrada, de la más reciente a la más antigua</div>
+      </div>
+      <div class="sp"></div>
+
+      <label class="sr-only" for="audit-desde">Desde</label>
+      <input
+        id="audit-desde"
+        class="f-input"
+        type="date"
+        style="width: auto; height: 36px"
+        [value]="desde()"
+        (change)="setDesde($event)"
+      />
+      <label class="sr-only" for="audit-hasta">Hasta</label>
+      <input
+        id="audit-hasta"
+        class="f-input"
+        type="date"
+        style="width: auto; height: 36px"
+        [value]="hasta()"
+        (change)="setHasta($event)"
+      />
+
+      <label class="sr-only" for="audit-user">Usuario</label>
+      <select id="audit-user" class="f-input" style="width: auto; height: 36px" (change)="setCorreo($event)">
+        <option value="">Todos los usuarios</option>
+        @for (opcion of usuariosDisponibles(); track opcion.valor) {
+          <option [value]="opcion.valor" [selected]="filtro().correo === opcion.valor">
+            {{ opcion.etiqueta }}
+          </option>
+        }
+      </select>
+
+      <label class="sr-only" for="audit-module">Módulo</label>
+      <select id="audit-module" class="f-input" style="width: auto; height: 36px" (change)="setModulo($event)">
+        <option value="">Todos los módulos</option>
+        @for (opcion of modulosDisponibles(); track opcion.valor) {
+          <option [value]="opcion.valor" [selected]="filtro().modulo === opcion.valor">
+            {{ opcion.etiqueta }}
+          </option>
+        }
+      </select>
+
+      <label class="sr-only" for="audit-action">Acción</label>
+      <select id="audit-action" class="f-input" style="width: auto; height: 36px" (change)="setAccion($event)">
+        <option value="">Todas las acciones</option>
+        @for (opcion of accionesDisponibles(); track opcion.valor) {
+          <option [value]="opcion.valor" [selected]="filtro().accion === opcion.valor">
+            {{ accionLegible(opcion.etiqueta) }}
+          </option>
+        }
+      </select>
+
+      <label class="sr-only" for="audit-result">Resultado</label>
+      <select id="audit-result" class="f-input" style="width: auto; height: 36px" (change)="setResultado($event)">
+        <option value="">Cualquier resultado</option>
+        <option value="exito" [selected]="filtro().resultado === 'exito'">Correcto</option>
+        <option value="advertencia" [selected]="filtro().resultado === 'advertencia'">Con avisos</option>
+        <option value="error" [selected]="filtro().resultado === 'error'">Fallido</option>
+      </select>
+
+      <label class="sr-only" for="audit-search">Buscar en la bitácora</label>
+      <input
+        id="audit-search"
+        class="f-input"
+        type="search"
+        placeholder="Buscar…"
+        style="width: 180px; height: 36px"
+        [value]="filtro().busqueda"
+        (change)="setBusqueda($event)"
+      />
+
+      @if (hayFiltroActivo()) {
+        <button class="btn-sm btn-ghost" type="button" (click)="limpiarFiltros()">
+          <bee-icon name="x" [size]="15" [strokeWidth]="2.2" />
+          Limpiar
+        </button>
+      }
+    </div>
+
+    @if (loadError()) {
+      <div class="card-pad">
+        <div class="alert alert-warn">
+          <span class="ai"><bee-icon name="alert" [size]="18" /></span>
+          <div>{{ loadError() }}</div>
+        </div>
+      </div>
+    }
+
+    @if (avisoExportacion()) {
+      <div class="card-pad">
+        <div class="alert alert-info">
+          <span class="ai"><bee-icon name="info" [size]="18" /></span>
+          <div>{{ avisoExportacion() }}</div>
+        </div>
+      </div>
+    }
+
+    <div class="tbl-wrap">
+      <table class="dt">
+        <caption class="sr-only">
+          Eventos registrados en la bitácora, con usuario, módulo, acción y resultado
+        </caption>
+        <thead>
+          <tr>
+            <th scope="col">Fecha y hora</th>
+            <th scope="col">Usuario</th>
+            <th scope="col">Módulo</th>
+            <th scope="col">Acción</th>
+            <th scope="col">Observación</th>
+            <th scope="col">Resultado</th>
+            <th scope="col"><span class="sr-only">Detalle</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (evento of eventos(); track evento.id_auditoria) {
+            <tr>
+              <td class="mono dim">{{ formatFechaHora(evento.fecha_auditoria) }}</td>
+              <td>
+                <div class="cell-main">
+                  <span
+                    class="cell-av"
+                    [class]="'av-' + (evento.rol_usuario_auditoria === 'ADMIN' ? 'ink' : 'honey')"
+                    style="width: 26px; height: 26px; font-size: 10px"
+                    aria-hidden="true"
+                  >
+                    {{ initialsOf(evento.nombre_usuario_auditoria) }}
+                  </span>
+                  <div>
+                    <div class="strong">{{ evento.nombre_usuario_auditoria }}</div>
+                    <div class="cell-sub">{{ evento.correo_usuario_auditoria }}</div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ evento.modulo_auditoria }}</td>
+              <td class="mono dim">{{ accionLegible(evento.accion_auditoria) }}</td>
+              <td>
+                {{ evento.observacion_auditoria }}
+                @if (evento.referencia_auditoria) {
+                  <div class="cell-sub mono">{{ evento.referencia_auditoria }}</div>
+                }
+              </td>
+              <td>
+                <bee-badge
+                  [tone]="tono(evento.resultado_auditoria)"
+                  [label]="etiquetaResultado(evento.resultado_auditoria)"
+                />
+              </td>
+              <td style="text-align: right">
+                <button
+                  class="link"
+                  type="button"
+                  (click)="verDetalle(evento)"
+                  [attr.aria-label]="'Ver detalle del evento ' + evento.id_auditoria"
+                >
+                  Detalle
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7">
+                <p class="note-line" style="text-align: center; padding: 22px 0">
+                  @if (loading()) {
+                    Cargando la bitácora…
+                  } @else if (hayFiltroActivo()) {
+                    No hay eventos que coincidan con el filtro.
+                  } @else {
+                    Todavía no hay actividad registrada.
+                  }
+                </p>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card-pad audit-foot">
+      <span class="empty-pill">
+        <bee-icon name="lock" [size]="13" />
+        Solo lectura · inmutable
+      </span>
+      <div class="spacer"></div>
+
+      @if (total() > 0) {
+        <span class="note-line">
+          Mostrando {{ rangoVisible().desde }}–{{ rangoVisible().hasta }}
+          de {{ rangoVisible().total }} eventos
+        </span>
+
+        @if (paginas() > 1) {
+          <div class="audit-pager">
+            <button
+              class="btn-sm btn-ghost"
+              type="button"
+              [disabled]="filtro().pagina === 0 || loading()"
+              (click)="paginaAnterior()"
+            >
+              Anterior
+            </button>
+            <span class="note-line mono">{{ filtro().pagina + 1 }} / {{ paginas() }}</span>
+            <button
+              class="btn-sm btn-ghost"
+              type="button"
+              [disabled]="filtro().pagina + 1 >= paginas() || loading()"
+              (click)="paginaSiguiente()"
+            >
+              Siguiente
+            </button>
+          </div>
+        }
+      }
+
+      <button class="btn-sm btn-ghost" type="button" [disabled]="total() === 0" (click)="exportar()">
+        <bee-icon name="download" [size]="15" [strokeWidth]="2.2" />
+        Exportar bitácora
+      </button>
+    </div>
+  </div>
+
+  @if (total() === 0 && !loading() && !hayFiltroActivo()) {
+    <div class="card mt-16">
       <bee-empty-state
         icon="audit"
         title="Sin actividad registrada"
-        message="Aún no hay acciones registradas para este periodo. La bitácora mostrará cada acción con usuario, fecha, módulo y entidad afectada."
+        message="La bitácora se irá llenando a medida que los usuarios trabajen en el aplicativo: inicios de sesión, cargas de documentos, validaciones y envíos al cliente."
       />
-    </div>
-  } @else {
-    <div class="alert alert-info" style="margin-bottom: 16px">
-      <span class="ai"><bee-icon name="shield" [size]="19" /></span>
-      <div>
-        <div class="at">Registro inmutable de solo lectura</div>
-        Cada acción del ciclo queda trazada con usuario, fecha, hora, módulo y entidad afectada. Los
-        registros no se pueden editar ni eliminar.
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-h">
-        <div>
-          <div class="ct">Bitácora del sistema</div>
-          <div class="cd">Acciones de los últimos 7 días</div>
-        </div>
-        <div class="sp"></div>
-        <label class="sr-only" for="audit-user">Filtrar por usuario</label>
-        <select id="audit-user" class="f-input" style="width: auto; height: 36px">
-          <option>Todos los usuarios</option>
-          <option>Viviana Álvarez</option>
-          <option>Carolina Forero</option>
-          <option>Mateo Suárez</option>
-        </select>
-        <label class="sr-only" for="audit-module">Filtrar por módulo</label>
-        <select id="audit-module" class="f-input" style="width: auto; height: 36px">
-          <option>Todos los módulos</option>
-          <option>Validación</option>
-          <option>Agrupación</option>
-          <option>Entrega</option>
-          <option>Conciliación</option>
-        </select>
-      </div>
-      <div class="tbl-wrap">
-        <table class="dt">
-          <caption class="sr-only">Bitácora de auditoría: acciones del sistema por usuario, módulo y entidad</caption>
-          <thead>
-            <tr>
-              <th scope="col">Fecha y hora</th>
-              <th scope="col">Usuario</th>
-              <th scope="col">Acción</th>
-              <th scope="col">Módulo</th>
-              <th scope="col">Entidad</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (event of audit(); track event.timestamp) {
-              <tr>
-                <td class="mono dim">{{ event.timestamp }}</td>
-                <td>
-                  <div class="cell-main">
-                    <span
-                      class="cell-av"
-                      [class]="'av-' + event.userAvatar"
-                      style="width: 26px; height: 26px; font-size: 10px"
-                    >{{ event.userInitials }}</span>
-                    <span class="strong">{{ event.userName }}</span>
-                  </div>
-                </td>
-                <td><bee-badge [tone]="event.actionTone" [label]="event.action" /></td>
-                <td>{{ event.module }}</td>
-                <td class="mono dim">{{ event.entity }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      <div class="card-pad" style="display: flex; align-items: center; border-top: 1px solid var(--line-2)">
-        <span class="empty-pill">
-          <bee-icon name="lock" [size]="13" [strokeWidth]="2" />
-          Solo lectura · inmutable
-        </span>
-        <div class="spacer"></div>
-        <span class="note-line">Mostrando {{ audit().length }} de 248 eventos</span>
-        <button class="btn-sm btn-ghost" type="button" style="margin-left: 14px">
-          <bee-icon name="download" [size]="15" />
-          Exportar bitácora
-        </button>
-      </div>
     </div>
   }
 </section>
+
+@if (detalle(); as evento) {
+  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="audit-detail-title">
+    <div class="modal-card">
+      <div class="modal-h">
+        <span
+          class="ti ic-info"
+          style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none"
+        >
+          <bee-icon name="eye" [size]="18" />
+        </span>
+        <div id="audit-detail-title" class="ct">Detalle del evento</div>
+        <div class="sp"></div>
+        <button class="link" type="button" aria-label="Cerrar el detalle" (click)="cerrarDetalle()">
+          <bee-icon name="x" [size]="16" />
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="kv-row">
+          <span class="kv-k">Fecha y hora</span>
+          <span class="kv-v mono">{{ formatFechaHora(evento.fecha_auditoria) }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-k">Usuario</span>
+          <span class="kv-v">{{ evento.nombre_usuario_auditoria }} · {{ evento.correo_usuario_auditoria }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-k">Rol</span>
+          <span class="kv-v">{{ evento.rol_usuario_auditoria }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-k">Módulo y acción</span>
+          <span class="kv-v">{{ evento.modulo_auditoria }} · {{ accionLegible(evento.accion_auditoria) }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-k">Observación</span>
+          <span class="kv-v">{{ evento.observacion_auditoria }}</span>
+        </div>
+        @if (evento.periodo_auditoria) {
+          <div class="kv-row">
+            <span class="kv-k">Periodo</span>
+            <span class="kv-v">{{ evento.periodo_auditoria }}</span>
+          </div>
+        }
+        @if (evento.entidad_auditoria || evento.referencia_auditoria) {
+          <div class="kv-row">
+            <span class="kv-k">Objeto afectado</span>
+            <span class="kv-v mono">
+              {{ evento.entidad_auditoria }}{{ evento.referencia_auditoria ? ' · ' + evento.referencia_auditoria : '' }}
+            </span>
+          </div>
+        }
+        @for (par of paresDeDetalle(evento); track par.clave) {
+          <div class="kv-row">
+            <span class="kv-k">{{ par.clave }}</span>
+            <span class="kv-v mono">{{ par.valor }}</span>
+          </div>
+        }
+        <div class="kv-row">
+          <span class="kv-k">Dirección IP</span>
+          <span class="kv-v mono">{{ evento.ip_auditoria ?? '—' }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-k">Navegador</span>
+          <span class="kv-v audit-agent">{{ evento.agente_auditoria ?? '—' }}</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-sm btn-solid" type="button" (click)="cerrarDetalle()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

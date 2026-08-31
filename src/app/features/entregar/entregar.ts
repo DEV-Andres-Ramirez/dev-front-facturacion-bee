@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { DocumentosService } from '@core/services/documentos.service';
+import { AuditoriaService } from '@core/services/auditoria.service';
 import { AdjuntoPorUrl, EmailService, esReintentable, mensajeDeError } from '@core/services/email.service';
 import { PeriodStore } from '@core/services/period.store';
-import { ProcesoStore } from '@core/services/proceso.store';
+import { FacturasService } from '@core/services/facturas.service';
+import { ParametrosService } from '@core/services/parametros.service';
 import { RegistroInternaRow } from '@core/models';
 import { escaparHtml } from '@core/utils/html.util';
-import { EmptyStateComponent, IconComponent } from '@shared/ui';
+import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
 
 interface PlantillaCorreo {
   readonly secuencial: string;
@@ -14,6 +16,9 @@ interface PlantillaCorreo {
   readonly subject: string;
   readonly bodyLines: string[];
   readonly adjuntos: AdjuntoPorUrl[];
+  /** Soportes que faltan; se avisa antes de enviar en vez de mandar el correo incompleto. */
+  readonly faltantes: string[];
+  readonly yaEnviada: boolean;
 }
 
 interface ErrorEnvio {
@@ -29,7 +34,18 @@ interface AdvertenciaEnvio {
 }
 
 const SIN_SECUENCIAL = 'Sin secuencial';
-const CORREO_DESTINO = 'facturacion_proveedores@banistmo.com';
+
+/** Formatea un monto guardado como número para el cuerpo del correo. */
+const MONTO_FMT = new Intl.NumberFormat('es-CO', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** `2026-08-14` → `14/08/2026`. El correo lo lee una persona, no una máquina. */
+function formatFecha(iso: string): string {
+  const [anio, mes, dia] = iso.split('-');
+  return dia && mes && anio ? `${dia}/${mes}/${anio}` : iso;
+}
 
 /**
  * Entregar al cliente (RF-ENV). Genera una plantilla de correo por cada factura
@@ -41,37 +57,52 @@ const CORREO_DESTINO = 'facturacion_proveedores@banistmo.com';
 @Component({
   selector: 'app-entregar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmptyStateComponent, IconComponent],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
   templateUrl: './entregar.html',
 })
 export class Entregar {
   private readonly periodStore = inject(PeriodStore);
   private readonly documentos = inject(DocumentosService);
-  private readonly proceso = inject(ProcesoStore);
+  private readonly auditoria = inject(AuditoriaService);
+  private readonly facturas = inject(FacturasService);
+  private readonly parametros = inject(ParametrosService);
   private readonly email = inject(EmailService);
 
-  protected readonly periodLabel = computed(() => this.periodStore.current().label);
+  /** Destinatario configurado (RF-ENV-02): ya no es una constante del código. */
+  protected readonly destinatario = computed(() => this.parametros.texto('correo_cliente'));
+  protected readonly periodLabel = computed(() => this.periodStore.label());
   private readonly registro = this.documentos.registro;
   private readonly prefactura = this.documentos.prefactura;
 
   protected readonly hayDatos = computed(() => this.registro().length > 0);
-  protected readonly revisado = computed(() => this.proceso.tiene(this.periodStore.period(), 'revisado'));
+  /** El ciclo ya pasó de Revisar: el periodo está al menos en Entregar. */
+  protected readonly revisado = computed(() => this.periodStore.alcanzo('entrega'));
 
   /** Datos de la prefactura por id_colaborador (contrato y líder aprobador). */
   private readonly prefacturaPorId = computed(() => {
-    const map = new Map<string, { contrato: string | null; lider: string | null }>();
+    const map = new Map<
+      string,
+      { contrato: string | null; lider: string | null; proyecto: string | null }
+    >();
     for (const p of this.prefactura()) {
       const id = (p.id_colaborador_prefactura ?? '').trim();
       if (id && !map.has(id)) {
-        map.set(id, { contrato: p.numero_contrato_prefactura, lider: p.lider_aprobador_prefactura });
+        map.set(id, {
+          contrato: p.numero_contrato_prefactura,
+          lider: p.lider_aprobador_prefactura,
+          proyecto: p.nombre_proyecto_prefactura,
+        });
       }
     }
     return map;
   });
 
   protected readonly plantillas = computed<PlantillaCorreo[]>(() => {
-    const mes = this.periodStore.current().label.split(' ')[0];
+    const periodo = this.periodStore.label();
+    const mes = periodo.split(' ')[0];
     const pref = this.prefacturaPorId();
+    const facturas = this.facturas.porSecuencial();
+
     const grupos = new Map<string, RegistroInternaRow[]>();
     for (const r of this.registro()) {
       const sec = (r.secuencial_facturacion_interna ?? '').trim() || SIN_SECUENCIAL;
@@ -80,45 +111,105 @@ export class Entregar {
       grupos.set(sec, lista);
     }
 
+    const destinatario = this.parametros.texto('correo_cliente');
+    const copiasFijas = this.parametros.lista('correo_copias');
+    const proveedor = this.parametros.texto('proveedor_nombre');
+    const plantillaAsunto = this.parametros.texto('asunto_entrega');
+
     const plantillas: PlantillaCorreo[] = [];
     for (const [sec, filas] of grupos) {
-      const cc = [...new Set(filas.map((f) => (f.email_aprobador_facturacion_interna ?? '').trim()).filter(Boolean))];
-      const pedido = filas.map((f) => (f.pedido_compra_facturacion_interna ?? '').trim()).find((p) => p && p.toUpperCase() !== 'NO RECIBIDO') ?? '';
-      const monto = filas.find((f) => f.monto_emitido_factura_bee)?.monto_emitido_factura_bee ?? '';
-      const fecha = filas.find((f) => f.fecha_factura_bee)?.fecha_factura_bee ?? '';
-      const entidad = filas.find((f) => f.cliente_facturacion_interna)?.cliente_facturacion_interna ?? '';
+      const factura = facturas.get(sec);
+
+      // Una factura anulada no se entrega: se excluye del lote entero.
+      if (factura?.estado_factura === 'anulada') continue;
+
+      const cc = [
+        ...new Set([
+          ...filas
+            .map((f) => (f.email_aprobador_facturacion_interna ?? '').trim())
+            .filter(Boolean),
+          ...copiasFijas,
+        ]),
+      ];
+
+      // Los datos salen de la factura cuando existe; el registro es el respaldo.
+      const pedido =
+        factura?.pedido_compra_factura ??
+        filas
+          .map((f) => (f.pedido_compra_facturacion_interna ?? '').trim())
+          .find((p) => p && p !== '0' && p.toUpperCase() !== 'NO RECIBIDO') ??
+        '';
+      const moneda = factura?.moneda_factura ?? filas[0]?.tipo_moneda_facturacion_interna ?? 'USD';
+      const montoNum = factura?.monto_emitido_factura ?? factura?.monto_facturado_factura ?? null;
+      const monto =
+        montoNum !== null
+          ? `${moneda} ${MONTO_FMT.format(montoNum)}`
+          : (filas.find((f) => f.monto_emitido_factura_bee)?.monto_emitido_factura_bee ?? '—');
+      const fechaIso = factura?.fecha_emision_factura ?? filas.find((f) => f.fecha_factura_bee)?.fecha_factura_bee ?? '';
+      const fecha = fechaIso ? formatFecha(fechaIso) : '—';
+      const entidad =
+        factura?.cliente_factura ??
+        filas.find((f) => f.cliente_facturacion_interna)?.cliente_facturacion_interna ??
+        '';
 
       let contrato: string | null = null;
       let validador: string | null = null;
+      let proyecto: string | null = null;
       for (const f of filas) {
         const datos = pref.get((f.id_colaborados_facturacion_interna ?? '').trim());
         if (!contrato && datos?.contrato) contrato = datos.contrato;
         if (!validador && datos?.lider) validador = datos.lider;
+        if (!proyecto && datos?.proyecto) proyecto = datos.proyecto;
       }
 
       const body: string[] = [
         `¡Buen Día! adjunto facturación para el mes de ${mes}`,
         `NUMERO DE FACTURA: ${sec}`,
-        `PEDIDO DE COMPRA: ${pedido}`,
+        `PEDIDO DE COMPRA: ${pedido || 'NO RECIBIDO'}`,
         `MONTO: ${monto}`,
       ];
       if (contrato) body.push(`NÚMERO DE CONTRATO: ${contrato}`);
       body.push(`FECHA DE FACTURA FISICA: ${fecha}`);
+      if (proyecto) body.push(`PROYECTO: ${proyecto}`);
       if (validador) body.push(`NOMBRE DE USUARIO VALIDADOR: ${validador}`);
       body.push(`ENTIDAD: ${entidad}`);
-      body.push('NOMBRE DEL PROVEEDOR: BEE CONSULTORIA Y NEGOCIOS SAS');
+      body.push(`NOMBRE DEL PROVEEDOR: ${proveedor}`);
       body.push('ITBMS: N/A');
 
-      // Las URLs vienen de Supabase Storage; el backend las descarga y las adjunta.
+      // Las URL vienen de Supabase Storage; el backend las descarga y las adjunta.
       const adjuntos: AdjuntoPorUrl[] = [];
-      const factura = filas.find((f) => f.documento_factura_bee)?.documento_factura_bee;
-      const pedidoDoc = filas.find((f) => f.documento_pedido_compra)?.documento_pedido_compra;
-      if (factura) adjuntos.push({ url: factura, filename: `FACTURA ${sec}.pdf` });
-      if (pedidoDoc) adjuntos.push({ url: pedidoDoc, filename: `PEDIDO DE COMPRA ${sec}.pdf` });
+      const faltantes: string[] = [];
+      const urlFactura = filas.find((f) => f.documento_factura_bee)?.documento_factura_bee;
+      const urlPedido = filas.find((f) => f.documento_pedido_compra)?.documento_pedido_compra;
 
-      plantillas.push({ secuencial: sec, to: CORREO_DESTINO, cc, subject: 'Emisión Factura', bodyLines: body, adjuntos });
+      if (urlFactura) adjuntos.push({ url: urlFactura, filename: `FACTURA ${sec}.pdf` });
+      else faltantes.push('Factura BEE');
+
+      if (urlPedido) {
+        adjuntos.push({ url: urlPedido, filename: `PEDIDO DE COMPRA ${pedido || sec}.pdf` });
+      } else if (pedido) {
+        // Solo se echa en falta si la factura declara un pedido de compra: hay
+        // facturas que legítimamente no lo tienen.
+        faltantes.push('Pedido de compra');
+      }
+
+      plantillas.push({
+        secuencial: sec,
+        to: destinatario,
+        cc,
+        subject: plantillaAsunto
+          .replace('{secuencial}', sec)
+          .replace('{periodo}', periodo)
+          .replace('{mes}', mes),
+        bodyLines: body,
+        adjuntos,
+        faltantes,
+        yaEnviada: factura?.estado_factura === 'enviada' || factura?.estado_factura === 'pagada',
+      });
     }
-    return plantillas.sort((a, b) => a.secuencial.localeCompare(b.secuencial, undefined, { numeric: true }));
+    return plantillas.sort((a, b) =>
+      a.secuencial.localeCompare(b.secuencial, undefined, { numeric: true }),
+    );
   });
 
   // ── Envío ────────────────────────────────────────────────────────────────────
@@ -156,9 +247,11 @@ export class Entregar {
   constructor() {
     effect(() => {
       this.periodStore.period();
-      const label = this.periodStore.current().label;
+      const label = this.periodStore.label();
+      if (!label) return; // el catálogo de periodos aún no ha cargado
       this.reiniciarEnvio();
       void this.documentos.loadPeriodo(label);
+      void this.facturas.load(label);
     });
     // Detiene el bucle de envío si el usuario abandona la pantalla.
     inject(DestroyRef).onDestroy(() => this.epoch++);
@@ -219,18 +312,53 @@ export class Entregar {
         // aceptados: se cuenta como enviado (reintentarlo duplicaría la
         // factura en el buzón) y se registra la advertencia.
         this.enviados.update((n) => n + 1);
+        // La factura pasa a «enviada» con su fecha: es lo que después
+        // alimenta el cálculo de días para el pago en Conciliar.
+        void this.facturas.marcarEnviada(this.periodStore.label(), plantilla.secuencial);
         if (respuesta.rejected.length) {
           this.advertencias.update((lista) => [
             ...lista,
             { secuencial: plantilla.secuencial, detalle: `El servidor descartó destinatarios: ${respuesta.rejected.join(', ')}` },
           ]);
         }
+        // `registrar` no se espera nunca: un await aquí obligaría a volver a
+        // comprobar la época y podría dejar correos huérfanos de un lote
+        // abandonado. Ver la nota de arriba sobre `miEpoch`.
+        this.auditoria.registrar({
+          modulo: 'Entrega',
+          accion: 'ENVIAR_FACTURA',
+          resultado: respuesta.rejected.length ? 'advertencia' : 'exito',
+          observacion: respuesta.rejected.length
+            ? `Envió la factura ${plantilla.secuencial}, pero el servidor descartó ${respuesta.rejected.length} destinatario(s).`
+            : `Envió la factura ${plantilla.secuencial} al cliente.`,
+          entidad: 'factura',
+          referencia: plantilla.secuencial,
+          detalle: {
+            destinatario: plantilla.to,
+            copias: plantilla.cc.length,
+            adjuntos: respuesta.attachments,
+            rechazados: respuesta.rejected,
+            messageId: respuesta.messageId,
+            duracionMs: respuesta.durationMs,
+          },
+        });
       } catch (error) {
         if (this.epoch !== miEpoch) return;
+        const motivo = mensajeDeError(error);
+        const reintentable = esReintentable(error);
         this.errores.update((lista) => [
           ...lista,
-          { secuencial: plantilla.secuencial, motivo: mensajeDeError(error), reintentable: esReintentable(error) },
+          { secuencial: plantilla.secuencial, motivo, reintentable },
         ]);
+        this.auditoria.registrar({
+          modulo: 'Entrega',
+          accion: 'ENVIAR_FACTURA',
+          resultado: 'error',
+          observacion: `No se pudo enviar la factura ${plantilla.secuencial}: ${motivo}`,
+          entidad: 'factura',
+          referencia: plantilla.secuencial,
+          detalle: { destinatario: plantilla.to, motivo, reintentable },
+        });
       }
       this.procesadosLote.update((n) => n + 1);
     }

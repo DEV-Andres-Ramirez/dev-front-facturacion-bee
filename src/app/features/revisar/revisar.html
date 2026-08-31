@@ -54,7 +54,34 @@
           {{ saving() ? 'Guardando…' : 'Actualizar datos' }}
         </button>
       </div>
-      <div class="tbl-wrap">
+      <div class="card-pad" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line-2)">
+      <span class="note-line" style="font-weight: 600; color: var(--ink-2)">
+        Misma fecha para todas
+      </span>
+      <label class="sr-only" for="fecha-masiva">Fecha de factura para todas</label>
+      <input
+        id="fecha-masiva"
+        class="f-input"
+        type="date"
+        style="width: auto; height: 34px"
+        [value]="fechaMasiva()"
+        (change)="setFechaMasiva($event)"
+      />
+      <button
+        class="btn-sm btn-ghost"
+        type="button"
+        [disabled]="!fechaMasiva()"
+        (click)="aplicarFechaATodas()"
+      >
+        <bee-icon name="check" [size]="15" [strokeWidth]="2.2" />
+        Aplicar a todas
+      </button>
+      <span class="note-line">
+        Rellena la fecha de todas las facturas vigentes. Se guarda al pulsar «Actualizar datos».
+      </span>
+    </div>
+
+    <div class="tbl-wrap">
         <table class="dt">
           <caption class="sr-only">Facturas por secuencial con su documento, monto emitido y fecha</caption>
           <thead>
@@ -66,6 +93,10 @@
               <th scope="col">Fecha factura</th>
               <th scope="col">Factura BEE</th>
               <th scope="col">Cotejo</th>
+            <th scope="col">Estado</th>
+            @if (puedeAnular()) {
+              <th scope="col"><span class="sr-only">Acciones</span></th>
+            }
             </tr>
           </thead>
           <tbody>
@@ -127,6 +158,30 @@
                     @case ('pendiente') { <bee-badge tone="neutral" label="Pendiente" /> }
                   }
                 </td>
+                <td>
+                  @switch (estadoDe(f.secuencial)) {
+                    @case ('anulada') { <bee-badge tone="bad" label="Anulada" /> }
+                    @case ('pagada') { <bee-badge tone="ok" label="Pagada" /> }
+                    @case ('enviada') { <bee-badge tone="info" label="Enviada" /> }
+                    @default { <bee-badge tone="neutral" label="Emitida" /> }
+                  }
+                </td>
+                @if (puedeAnular()) {
+                  <td style="text-align: right">
+                    @if (!estaAnulada(f.secuencial)) {
+                      <button
+                        class="link"
+                        type="button"
+                        [attr.aria-label]="'Anular la factura ' + f.secuencial"
+                        (click)="pedirAnulacion(f.secuencial)"
+                      >
+                        Anular
+                      </button>
+                    } @else {
+                      <span class="note-line">—</span>
+                    }
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -163,6 +218,61 @@
       <div class="modal-actions">
         <button class="btn-sm btn-ghost" type="button" (click)="cancelarContinuar()">Cancelar</button>
         <button class="btn-sm btn-solid" type="button" (click)="confirmarContinuar()">Sí, continuar</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (anulando(); as secuencial) {
+  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="anular-title">
+    <div class="modal-card">
+      <div class="modal-h">
+        <span
+          class="ti ic-bad"
+          style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none"
+        >
+          <bee-icon name="alert" [size]="18" />
+        </span>
+        <div id="anular-title" class="ct">Anular la factura {{ secuencial }}</div>
+      </div>
+
+      <div class="modal-body">
+        <p style="margin-bottom: 14px">
+          La factura dejará de contar para la entrega al cliente y para los totales del periodo.
+          <b>Esta acción no se puede deshacer desde el aplicativo.</b>
+        </p>
+        <label class="f-label" for="motivo-anulacion">Motivo de la anulación</label>
+        <textarea
+          id="motivo-anulacion"
+          class="f-input"
+          rows="3"
+          style="height: auto; padding: 10px 12px; resize: vertical"
+          placeholder="Explica por qué se anula esta factura…"
+          [value]="motivoAnulacion()"
+          (input)="setMotivoAnulacion($event)"
+        ></textarea>
+        <p class="note-line" style="margin-top: 8px">
+          El motivo queda registrado en la bitácora de auditoría junto a tu nombre.
+        </p>
+      </div>
+
+      <div class="modal-actions">
+        <button
+          class="btn-sm btn-ghost"
+          type="button"
+          [disabled]="guardandoAnulacion()"
+          (click)="cancelarAnulacion()"
+        >
+          Cancelar
+        </button>
+        <button
+          class="btn-sm btn-solid"
+          type="button"
+          [disabled]="guardandoAnulacion() || !motivoAnulacion().trim()"
+          (click)="confirmarAnulacion()"
+        >
+          {{ guardandoAnulacion() ? 'Anulando…' : 'Sí, anular la factura' }}
+        </button>
       </div>
     </div>
   </div>

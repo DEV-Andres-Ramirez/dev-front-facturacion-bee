@@ -1,0 +1,27 @@
+/* Solo lo que no cubre el sistema de diseño global. */
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.banner-ic {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+/* `.tnode` es un <button> aquí, así que hay que neutralizar el estilo nativo. */
+.tree .tnode {
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}

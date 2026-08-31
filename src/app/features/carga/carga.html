@@ -1,7 +1,4 @@
 <section class="stagger">
-  <div class="card card-pad mb-16">
-    <bee-process-stepper [current]="0" />
-  </div>
 
   <div class="grid-2-1">
     <!-- Soportes del periodo · 4 tipos de archivo -->
@@ -125,7 +122,7 @@
     <div class="card card-pad">
       <div class="row" style="margin-bottom: 14px">
         <span style="font-weight: 700; font-size: 14px">Estado del periodo</span>
-        <span class="badge b-primary" style="margin-left: auto"><span class="bd"></span>{{ period().label }}</span>
+        <span class="badge b-primary" style="margin-left: auto"><span class="bd"></span>{{ periodLabel() }}</span>
       </div>
 
       <div class="kv-row"><span class="kv-k">Líneas en prefactura</span><span class="kv-v mono" [class.dim]="!lineasPrefactura()">{{ lineasPrefactura() }}</span></div>

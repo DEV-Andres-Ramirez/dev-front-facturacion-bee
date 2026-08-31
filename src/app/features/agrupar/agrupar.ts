@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
+import { AuditoriaService } from '@core/services/auditoria.service';
 import { PeriodStore } from '@core/services/period.store';
-import { ProcesoStore } from '@core/services/proceso.store';
+import { PeriodosService } from '@core/services/periodos.service';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
 
@@ -40,8 +41,9 @@ const SIN_SECUENCIAL = 'Sin secuencial';
 })
 export class Agrupar {
   private readonly periodStore = inject(PeriodStore);
+  private readonly periodos = inject(PeriodosService);
   private readonly documentos = inject(DocumentosService);
-  private readonly proceso = inject(ProcesoStore);
+  private readonly auditoria = inject(AuditoriaService);
   private readonly router = inject(Router);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
@@ -50,7 +52,8 @@ export class Agrupar {
   private readonly prefactura = this.documentos.prefactura;
 
   protected readonly hayDatos = computed(() => this.registro().length > 0);
-  protected readonly validado = computed(() => this.proceso.tiene(this.periodStore.period(), 'validado'));
+  /** El ciclo ya pasó de Validar: el periodo está al menos en Agrupar. */
+  protected readonly validado = computed(() => this.periodStore.alcanzo('agrupacion'));
   protected readonly confirmEmision = signal(false);
 
   /** id_colaborador → nombre, tomado de la prefactura. */
@@ -128,7 +131,8 @@ export class Agrupar {
   constructor() {
     effect(() => {
       this.periodStore.period();
-      const label = this.periodStore.current().label;
+      const label = this.periodStore.label();
+      if (!label) return; // el catálogo de periodos aún no ha cargado
       this.seleccion.set(null);
       void this.documentos.loadPeriodo(label);
     });
@@ -147,7 +151,17 @@ export class Agrupar {
   }
 
   protected confirmarEmision(): void {
-    this.proceso.marcar(this.periodStore.period(), 'emitido');
+    const r = this.resumen();
+    this.auditoria.registrar({
+      modulo: 'Agrupación',
+      accion: 'AGRUPAR_PERIODO',
+      observacion: `Agrupó ${r.grupos} factura(s) a partir de ${r.lineas} línea(s) y las pasó a emisión.`,
+      entidad: 'periodo',
+      referencia: this.periodStore.label(),
+      detalle: { facturas: r.grupos, lineas: r.lineas, pedidos: r.pedidos },
+    });
+
+    void this.periodos.avanzar(this.periodStore.period(), 'revision');
     this.confirmEmision.set(false);
     void this.router.navigate(['/app', 'revisar']);
   }

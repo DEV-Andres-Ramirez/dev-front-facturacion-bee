@@ -4,6 +4,12 @@ import { usuarioRowToUser } from '../utils/usuario.mapper';
 import { SupabaseService } from './supabase.service';
 
 /** Sesión activa del usuario autenticado. */
+/** Desenlace de un intento de inicio de sesión. */
+export interface LoginResult {
+  readonly ok: boolean;
+  readonly motivo?: 'credenciales' | 'servicio';
+}
+
 export interface Session {
   readonly user: User;
 }
@@ -30,20 +36,28 @@ export class AuthService {
   readonly isAuthenticated = computed(() => this._session() !== null);
   readonly isAdmin = computed(() => this.role() === 'ADMIN');
 
-  /** Inicia sesión validando credenciales contra la base de datos. */
-  async login(correo: string, contrasena: string): Promise<boolean> {
+  /**
+   * Inicia sesión validando credenciales contra la base de datos.
+   *
+   * Distingue «credenciales incorrectas» de «el servicio no respondió» porque
+   * la bitácora de auditoría necesita separarlos: contraseñas erróneas
+   * repetidas son un intento de acceso, un fallo de red es solo ruido.
+   */
+  async login(correo: string, contrasena: string): Promise<LoginResult> {
     const { data, error } = await this.supabase.rpc('fn_login', {
       p_correo: correo,
       p_contrasena: contrasena,
     });
+    if (error) return { ok: false, motivo: 'servicio' };
+
     const rows = (data ?? []) as UsuarioRow[];
-    if (error || rows.length === 0) return false;
+    if (rows.length === 0) return { ok: false, motivo: 'credenciales' };
 
     const session: Session = { user: usuarioRowToUser(rows[0]) };
     this._session.set(session);
     this.persist(session);
     this.lastTouch = Date.now();
-    return true;
+    return { ok: true };
   }
 
   logout(): void {

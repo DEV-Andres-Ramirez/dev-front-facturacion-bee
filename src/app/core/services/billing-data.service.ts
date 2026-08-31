@@ -6,10 +6,11 @@ import { PeriodStore } from './period.store';
 
 /**
  * Fuente de datos de los módulos que aún no están conectados a Supabase
- * (dashboard, conciliación, registros, auditoría). Entrega el dataset en blanco
+ * (dashboard, conciliación y registros). Entrega el dataset en blanco
  * del periodo; cada módulo se irá reemplazando por datos reales sin cambiar las
  * pantallas. Los módulos del ciclo (carga → entrega) ya leen de Supabase vía
- * `DocumentosService` y no pasan por aquí.
+ * `DocumentosService` y no pasan por aquí, y la auditoría lee de la tabla
+ * `auditoria` vía `AuditoriaService`.
  */
 @Injectable({ providedIn: 'root' })
 export class BillingDataService {
@@ -28,7 +29,6 @@ export class BillingDataService {
   readonly dashboard = computed(() => this.dataset().dashboard);
   readonly reconciliation = computed(() => this.dataset().reconciliation);
   readonly archive = computed(() => this.dataset().archive);
-  readonly audit = computed(() => this.dataset().audit);
 
   /** `true` cuando el periodo no tiene proceso iniciado (estado en blanco). */
   readonly isBlankPeriod = computed(

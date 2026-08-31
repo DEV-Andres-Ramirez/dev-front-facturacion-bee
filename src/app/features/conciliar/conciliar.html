@@ -1,194 +1,281 @@
 <section class="stagger">
-  @if (reconciliation().rows.length === 0) {
+  @if (!hayDatos() && !loading()) {
     <div class="card">
       <bee-empty-state
         icon="reconcile"
         title="Sin movimientos por conciliar"
-        message="Las facturas entregadas aparecerán aquí para conciliar los pagos recibidos, la retención del 12,5% y la TRM."
+        message="Las facturas entregadas al cliente aparecerán aquí para registrar el pago recibido, aplicar la retención y convertir a pesos con la TRM."
         actionLabel="Ir a entrega"
         [actionRoute]="['/app', 'entregar']"
       />
     </div>
   } @else {
-    @if (reconciliation().totals; as totals) {
-      <div class="kpi-grid k4" style="margin-bottom: 16px">
-        <div class="mini">
-          <div class="ml">Facturado (periodo)</div>
-          <div class="mv">{{ totals.billedUsd | usd }}</div>
-          <div class="ms">{{ reconciliation().rows.length }} facturas emitidas</div>
-        </div>
-        <div class="mini">
-          <div class="ml">Recibido en banco</div>
-          <div class="mv" style="color: var(--ok)">{{ totals.receivedUsd | usd }}</div>
-          <div class="ms">Pagos conciliados</div>
-        </div>
-        <div class="mini">
-          <div class="ml">Retención (12,5%)</div>
-          <div class="mv" style="color: var(--honey-deep)">{{ totals.retentionUsd | usd }}</div>
-          <div class="ms">Descontada en origen</div>
-        </div>
-        <div class="mini">
-          <div class="ml">Equivalente COP</div>
-          <div class="mv">{{ totals.equivalentCopLabel }}</div>
-          <div class="ms">TRM DIAN del pago</div>
-        </div>
+    <div class="kpi-grid k4" style="margin-bottom: 16px">
+      <div class="mini">
+        <div class="ml">Facturado</div>
+        <div class="mv mono">USD {{ usd(totales().facturado) }}</div>
+        <div class="ms">{{ conciliables().length }} factura(s) en conciliación</div>
       </div>
-    }
+      <div class="mini">
+        <div class="ml">Recibido en banco</div>
+        <div class="mv mono" style="color: var(--ok)">USD {{ usd(totales().recibido) }}</div>
+        <div class="ms">Pagos conciliados</div>
+      </div>
+      <div class="mini">
+        <div class="ml">Retención ({{ retencionPct() }}%)</div>
+        <div class="mv mono" style="color: var(--honey-deep)">USD {{ usd(totales().retenido) }}</div>
+        <div class="ms">Descontada en origen</div>
+      </div>
+      <div class="mini">
+        <div class="ml">Equivalente COP</div>
+        <div class="mv mono">{{ cop(totales().cop) }}</div>
+        <div class="ms">Con la TRM de cada pago</div>
+      </div>
+    </div>
 
-    <!-- Consolidado de conciliación -->
     <div class="card">
       <div class="card-h">
         <div>
           <div class="ct">Consolidado de conciliación</div>
-          <div class="cd">Estado de cada factura según el flujo de caja · {{ period().label }}</div>
+          <div class="cd">Estado de cada factura según el flujo de caja · {{ periodLabel() }}</div>
         </div>
         <div class="sp"></div>
-        <div class="legend">
-          <span><span class="ld" style="background: var(--ok)"></span>Pagada</span>
-          <span><span class="ld" style="background: var(--info)"></span>Pendiente</span>
-          <span><span class="ld" style="background: var(--bad)"></span>Anulada</span>
+
+        <div class="seg">
+          <button type="button" [class.on]="filtro() === 'todas'" (click)="setFiltro('todas')">
+            Todas
+          </button>
+          <button type="button" [class.on]="filtro() === 'pendientes'" (click)="setFiltro('pendientes')">
+            Pendientes
+          </button>
+          <button type="button" [class.on]="filtro() === 'pagadas'" (click)="setFiltro('pagadas')">
+            Pagadas
+          </button>
+          <button type="button" [class.on]="filtro() === 'vencidas'" (click)="setFiltro('vencidas')">
+            Vencidas
+          </button>
         </div>
       </div>
+
       <div class="tbl-wrap">
         <table class="dt">
           <caption class="sr-only">
-            Consolidado de conciliación de facturas del periodo con monto, TRM, valor recibido,
-            retención y estado de cobro
+            Consolidado de conciliación con monto facturado, TRM, valor recibido, retención y estado
           </caption>
           <thead>
             <tr>
               <th scope="col">Factura</th>
               <th scope="col" style="text-align: right">Monto USD</th>
-              <th scope="col" style="text-align: right">TRM DIAN</th>
+              <th scope="col" style="text-align: right">TRM</th>
               <th scope="col" style="text-align: right">Recibido COP</th>
               <th scope="col" style="text-align: right">Retención</th>
+              <th scope="col" style="text-align: right">Días</th>
               <th scope="col">Estado</th>
+              <th scope="col"><span class="sr-only">Acciones</span></th>
             </tr>
           </thead>
           <tbody>
-            @for (row of reconciliation().rows; track row.invoiceId) {
-              <tr [style.opacity]="row.status === 'anulada' ? 0.7 : null">
+            @for (factura of filas(); track factura.id_factura) {
+              <tr [style.opacity]="factura.estado_factura === 'anulada' ? 0.65 : null">
                 <td>
                   <div class="cell-main">
                     <span
-                      style="width: 4px; height: 30px; border-radius: 3px"
-                      [style.background]="statusBar(row.status)"
+                      class="barra-estado"
+                      [style.background]="colorEstado(factura)"
+                      aria-hidden="true"
                     ></span>
                     <div>
-                      <div class="strong mono">{{ row.invoiceId }}</div>
-                      <div class="cell-sub">{{ row.client }}</div>
+                      <div class="strong mono">{{ factura.secuencial_factura }}</div>
+                      <div class="cell-sub">{{ factura.cliente_factura ?? '—' }}</div>
                     </div>
                   </div>
                 </td>
-                <td class="num">{{ row.amountUsd | usd: false }}</td>
-                <td class="num dim">{{ row.trm === null ? '—' : (row.trm | usd: false) }}</td>
-                <td class="num" [class.dim]="row.receivedCop === null">{{ copShort(row.receivedCop) }}</td>
-                <td class="num" [class.dim]="row.retentionUsd === null" [style.color]="row.retentionUsd === null ? null : 'var(--honey-deep)'">
-                  {{ row.retentionUsd | usd: false }}
+                <td class="num mono">{{ usd(montoDe(factura)) }}</td>
+                <td class="num mono dim">{{ usd(factura.trm_factura) }}</td>
+                <td class="num mono" [class.dim]="factura.equivalente_cop_factura === null">
+                  {{ copCorto(factura.equivalente_cop_factura) }}
+                </td>
+                <td class="num mono" [style.color]="factura.valor_retenido_factura ? 'var(--honey-deep)' : null">
+                  {{ usd(factura.valor_retenido_factura) }}
+                </td>
+                <td class="num mono" [class.t-bad]="factura.vencida">
+                  {{ factura.dias_transcurridos ?? '—' }}
                 </td>
                 <td>
-                  <bee-badge [tone]="statusOf(row.status).tone" [label]="statusOf(row.status).label" />
+                  @if (factura.vencida) {
+                    <bee-badge tone="bad" label="Vencida" />
+                  } @else {
+                    <bee-badge
+                      [tone]="estadoDe[factura.estado_factura].tone"
+                      [label]="estadoDe[factura.estado_factura].label"
+                    />
+                  }
+                </td>
+                <td style="text-align: right">
+                  @if (factura.estado_factura === 'enviada') {
+                    <button class="link" type="button" (click)="abrirPago(factura)">
+                      Registrar pago
+                    </button>
+                  } @else if (factura.estado_factura === 'pagada') {
+                    <span class="note-line mono">{{ factura.fecha_pago_factura }}</span>
+                  } @else {
+                    <span class="note-line">—</span>
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8">
+                  <p class="note-line" style="text-align: center; padding: 22px 0">
+                    {{ loading() ? 'Cargando conciliación…' : 'No hay facturas en este filtro.' }}
+                  </p>
                 </td>
               </tr>
             }
           </tbody>
-          @if (reconciliation().totals; as totals) {
-            <tfoot>
-              <tr style="background: var(--surface-2)">
-                <td style="padding: 13px 16px; font-weight: 700; color: var(--ink)">Conciliado</td>
-                <td class="num" style="padding: 13px 16px; color: var(--ink)">{{ totals.receivedUsd | usd: false }}</td>
-                <td></td>
-                <td class="num" style="padding: 13px 16px; color: var(--ink); font-size: 14px">{{ totals.equivalentCopLabel }}</td>
-                <td class="num" style="padding: 13px 16px; color: var(--honey-deep)">{{ totals.retentionUsd | usd: false }}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          }
+          <tfoot>
+            <tr style="background: var(--surface-2)">
+              <td class="strong" style="padding: 13px 16px">Conciliado</td>
+              <td class="num mono" style="padding: 13px 16px">{{ usd(totales().recibido) }}</td>
+              <td style="padding: 13px 16px"></td>
+              <td class="num mono" style="padding: 13px 16px">{{ copCorto(totales().cop) }}</td>
+              <td class="num mono" style="padding: 13px 16px; color: var(--honey-deep)">
+                {{ usd(totales().retenido) }}
+              </td>
+              <td colspan="3" style="padding: 13px 16px"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
 
-    <div class="grid-2-1" style="margin-top: 16px">
-      <!-- Detalle de conciliación -->
-      @if (reconciliation().detail; as detail) {
-        <div class="card">
-          <div class="card-h">
-            <div>
-              <div class="ct">Detalle de conciliación · {{ detail.invoiceId }}</div>
-              <div class="cd">Pago verificado contra el extracto bancario</div>
+    @if (vencidas().length) {
+      <div class="card card-pad mt-16 cobro">
+        <div class="row" style="gap: 9px; margin-bottom: 8px">
+          <bee-icon name="clock" [size]="18" [strokeWidth]="2" label="Gestión de cobro" />
+          <span style="font-weight: 700; color: #6e4a06">Gestión de cobro</span>
+        </div>
+        <p class="note-line" style="margin-bottom: 12px">
+          {{ vencidas().length }} factura(s) superaron el plazo de {{ plazoPago() }} días desde su
+          envío sin registrar el pago. Inicia el seguimiento antes de cerrar el periodo.
+        </p>
+
+        @for (factura of vencidas(); track factura.id_factura) {
+          <div class="doc-item" style="background: rgba(255, 255, 255, 0.6)">
+            <span class="ti ic-bad cobro-ic"><bee-icon name="file" [size]="17" /></span>
+            <div style="min-width: 0; flex: 1">
+              <div class="fn">{{ factura.secuencial_factura }} · {{ factura.cliente_factura }}</div>
+              <div class="fm">
+                USD {{ usd(montoDe(factura)) }} · {{ factura.dias_transcurridos }} días desde el envío
+              </div>
             </div>
-            <div class="sp"></div>
-            <bee-badge tone="ok" label="Verde · Pagada" />
+            <button class="link" type="button" (click)="abrirPago(factura)">Registrar pago</button>
           </div>
-          <div class="card-pad">
+        }
+      </div>
+    }
+  }
+</section>
+
+@if (pagando(); as factura) {
+  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="pago-title">
+    <div class="modal-card" style="max-width: 520px">
+      <div class="modal-h">
+        <span class="ti ic-ok modal-ic"><bee-icon name="coins" [size]="18" /></span>
+        <div id="pago-title" class="ct">Registrar el pago de {{ factura.secuencial_factura }}</div>
+      </div>
+
+      <div class="modal-body">
+        <div class="grid-2">
+          <div>
+            <label class="f-label" for="pago-fecha">Fecha de notificación</label>
+            <input
+              id="pago-fecha"
+              class="f-input"
+              type="date"
+              [value]="fechaPago()"
+              (change)="setFechaPago($event)"
+            />
+          </div>
+          <div>
+            <label class="f-label" for="pago-valor">Valor recibido (USD)</label>
+            <input
+              id="pago-valor"
+              class="f-input"
+              type="text"
+              inputmode="decimal"
+              [value]="valorRecibido()"
+              (input)="setValorRecibido($event)"
+            />
+          </div>
+          <div>
+            <label class="f-label" for="pago-trm">TRM aplicada</label>
+            <input
+              id="pago-trm"
+              class="f-input"
+              type="text"
+              inputmode="decimal"
+              [value]="trm()"
+              (input)="setTrm($event)"
+            />
+          </div>
+          <div>
+            <label class="f-label" for="pago-soporte">Soporte (opcional)</label>
+            <input
+              id="pago-soporte"
+              class="f-input"
+              type="text"
+              placeholder="Referencia de la mesa de dinero"
+              [value]="soporte()"
+              (input)="setSoporte($event)"
+            />
+          </div>
+        </div>
+
+        @if (previsualizacion(); as calculo) {
+          <div class="card card-pad" style="margin-top: 14px; background: var(--surface-2)">
             <div class="kv-row">
               <span class="kv-k">Monto facturado</span>
-              <span class="kv-v mono">{{ detail.billedUsd | usd }}</span>
+              <span class="kv-v mono">USD {{ usd(calculo.base) }}</span>
             </div>
             <div class="kv-row">
-              <span class="kv-k">Retención en origen (12,5%)</span>
-              <span class="kv-v mono" style="color: var(--honey-deep)">− {{ detail.retentionUsd | usd }}</span>
+              <span class="kv-k">Retención en origen ({{ retencionPct() }}%)</span>
+              <span class="kv-v mono" style="color: var(--honey-deep)">
+                − USD {{ usd(calculo.retenido) }}
+              </span>
             </div>
             <div class="kv-row">
               <span class="kv-k">Neto esperado</span>
-              <span class="kv-v mono">{{ detail.netExpectedUsd | usd }}</span>
+              <span class="kv-v mono">USD {{ usd(calculo.neto) }}</span>
             </div>
             <div class="kv-row">
-              <span class="kv-k">TRM DIAN (fecha de pago)</span>
-              <span class="kv-v mono">$ {{ detail.trm | usd: false }}</span>
+              <span class="kv-k">Equivalente en pesos</span>
+              <span class="kv-v mono" style="color: var(--ok)">{{ cop(calculo.cop) }}</span>
             </div>
-            <div class="kv-row">
-              <span class="kv-k">Valor recibido en banco</span>
-              <span class="kv-v mono" style="color: var(--ok)">{{ detail.receivedCopLabel }}</span>
-            </div>
-            <div class="kv-row">
-              <span class="kv-k">Días de pago</span>
-              <span class="kv-v mono">{{ detail.paymentDays }} días</span>
-            </div>
-          </div>
-          <div class="card-pad" style="border-top: 1px solid var(--line-2); display: flex; gap: 10px">
-            <button class="btn-sm btn-ghost" type="button">Ver extracto</button>
-            <div class="spacer"></div>
-            <button class="btn-sm btn-solid" type="button">
-              <bee-icon name="check" [size]="15" [strokeWidth]="2.2" />
-              Conciliar y archivar
-            </button>
-          </div>
-        </div>
-      }
-
-      <!-- Gestión de cobro · factura pendiente -->
-      <div
-        class="card card-pad"
-        style="background: linear-gradient(160deg, var(--warn-soft), var(--surface) 70%); border-color: var(--warn-line)"
-      >
-        <div class="row" style="gap: 9px; margin-bottom: 10px">
-          <bee-icon name="clock" [size]="18" [strokeWidth]="2" label="Gestión de cobro" />
-          <span style="font-weight: 700; font-size: 14px; color: #6e4a06">Gestión de cobro</span>
-        </div>
-        <div class="note-line" style="color: #6e4a06; margin-bottom: 16px">
-          1 factura no fue pagada dentro del plazo acordado (30 días). Inicia el seguimiento antes de
-          cerrar el periodo.
-        </div>
-        @for (row of reconciliation().rows; track row.invoiceId) {
-          @if (row.status === 'pendiente') {
-            <div class="doc-item" style="background: rgba(255, 255, 255, 0.6); margin-bottom: 10px">
-              <span class="ti ic-info" style="width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center">
-                <bee-icon name="file" [size]="17" [strokeWidth]="2" />
-              </span>
-              <div style="flex: 1">
-                <div class="fn">{{ row.invoiceId }} · {{ row.client }}</div>
-                <div class="fm">{{ row.amountUsd | usd }} · vence en 4 días</div>
+            @if (calculo.diferencia !== 0) {
+              <div class="kv-row">
+                <span class="kv-k">Diferencia contra lo esperado</span>
+                <span class="kv-v mono" [style.color]="calculo.diferencia < 0 ? 'var(--bad)' : 'var(--ok)'">
+                  {{ calculo.diferencia > 0 ? '+' : '' }}USD {{ usd(calculo.diferencia) }}
+                </span>
               </div>
-              <bee-badge [tone]="statusOf(row.status).tone" [label]="statusOf(row.status).label" />
-            </div>
-          }
+            }
+          </div>
         }
-        <button class="btn-sm btn-honey" type="button" style="width: 100%; justify-content: center">
-          <bee-icon name="mail" [size]="16" [strokeWidth]="2" />
-          Enviar recordatorio de cobro
+
+        @if (errorPago()) {
+          <p class="form-msg" role="alert" style="margin-top: 12px">{{ errorPago() }}</p>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-sm btn-ghost" type="button" [disabled]="guardando()" (click)="cerrarPago()">
+          Cancelar
+        </button>
+        <button class="btn-sm btn-solid" type="button" [disabled]="guardando()" (click)="confirmarPago()">
+          {{ guardando() ? 'Registrando…' : 'Registrar el pago' }}
         </button>
       </div>
     </div>
-  }
-</section>
+  </div>
+}

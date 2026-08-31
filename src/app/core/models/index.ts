@@ -1,6 +1,5 @@
 /** Barrel del modelo de dominio de Facturación Bee. */
 export * from './common.model';
-export * from './period.model';
 export * from './user.model';
 export * from './usuario.model';
 export * from './invoice.model';
@@ -11,7 +10,6 @@ export * from './review.model';
 export * from './delivery.model';
 export * from './reconciliation.model';
 export * from './document.model';
-export * from './audit.model';
 export * from './dashboard.model';
 export * from './loading.model';
 export * from './prefactura.model';
@@ -20,3 +18,8 @@ export * from './period-dataset.model';
 export * from './documento.model';
 export * from './aprobacion-prefactura.model';
 export * from './registro-interna.model';
+export * from './auditoria.model';
+export * from './periodo.model';
+export * from './parametro.model';
+export * from './notificacion.model';
+export * from './factura.model';

@@ -88,7 +88,7 @@
       </p>
       <div class="kv-row"><span class="kv-k">AuthService</span><span class="kv-v">Sesión, rol, login/logout, touch de último acceso</span></div>
       <div class="kv-row"><span class="kv-k">PeriodStore</span><span class="kv-v">Periodo activo del encabezado (catálogo en <code>period.model.ts</code>)</span></div>
-      <div class="kv-row"><span class="kv-k">ProcesoStore</span><span class="kv-v">Compuertas del ciclo por periodo: <code>validado → emitido → revisado</code>; se reinician al recargar la base del cotejo</span></div>
+      <div class="kv-row"><span class="kv-k">PeriodosService</span><span class="kv-v">Catálogo de periodos y etapa del ciclo (<code>carga → validacion → agrupacion → revision → entrega → conciliacion → archivo</code>), persistida en la tabla <code>periodos</code></span></div>
       <div class="kv-row"><span class="kv-k">DocumentosService</span><span class="kv-v">Corazón del ciclo: Storage + tablas de detalle + relaciones (pedido↔registro, Factura BEE, monto/fecha emitidos)</span></div>
       <div class="kv-row"><span class="kv-k">UsuariosService</span><span class="kv-v">CRUD de cuentas vía RPC (nunca toca la tabla directamente)</span></div>
       <div class="kv-row"><span class="kv-k">EmailService</span><span class="kv-v">POST al backend de correo con manejo tipado de errores</span></div>
@@ -245,8 +245,8 @@
       <ul>
         <li><bee-badge tone="warn" label="Pendiente" /> Conectar Dashboard, Conciliar cuentas, Guardar registros y Auditoría a datos reales de Supabase (hoy muestran el estado en blanco de <code>BillingDataService</code>).</li>
         <li><bee-badge tone="warn" label="Pendiente" /> Migrar a Supabase Auth (JWT) y cerrar RLS por rol; hash de contraseñas.</li>
-        <li><bee-badge tone="warn" label="Pendiente" /> Persistir las compuertas del ciclo (<code>ProcesoStore</code>) en base de datos — hoy viven en el dispositivo (localStorage).</li>
-        <li><bee-badge tone="warn" label="Pendiente" /> Bitácora de auditoría real (tabla de eventos por acción).</li>
+        <li><bee-badge tone="ok" label="Hecho" /> Las compuertas del ciclo se persisten en la tabla <code>periodos</code>: son compartidas, auditables y no se pueden saltar desde el navegador.</li>
+        <li><bee-badge tone="ok" label="Hecho" /> Bitácora de auditoría real e inmutable (tabla <code>auditoria</code> con acceso solo por funciones).</li>
       </ul>
     </section>
   </div>

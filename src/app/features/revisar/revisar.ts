@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
+import { AuditoriaService } from '@core/services/auditoria.service';
 import { PeriodStore } from '@core/services/period.store';
-import { ProcesoStore } from '@core/services/proceso.store';
+import { PeriodosService } from '@core/services/periodos.service';
+import { FacturasService } from '@core/services/facturas.service';
+import { AuthService } from '@core/services/auth.service';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
 
@@ -35,8 +38,11 @@ const SIN_SECUENCIAL = 'Sin secuencial';
 })
 export class Revisar {
   private readonly periodStore = inject(PeriodStore);
+  private readonly periodos = inject(PeriodosService);
+  private readonly facturasService = inject(FacturasService);
+  private readonly auth = inject(AuthService);
   private readonly documentos = inject(DocumentosService);
-  private readonly proceso = inject(ProcesoStore);
+  private readonly auditoria = inject(AuditoriaService);
   private readonly router = inject(Router);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
@@ -44,13 +50,40 @@ export class Revisar {
   private readonly registro = this.documentos.registro;
 
   protected readonly hayDatos = computed(() => this.registro().length > 0);
-  protected readonly emitido = computed(() => this.proceso.tiene(this.periodStore.period(), 'emitido'));
+  /** El ciclo ya pasó de Agrupar: el periodo está al menos en Revisar. */
+  protected readonly emitido = computed(() => this.periodStore.alcanzo('revision'));
 
   protected readonly ediciones = signal<Record<string, { monto?: string; fecha?: string }>>({});
   protected readonly staged = signal<Record<string, File>>({});
   protected readonly saving = signal(false);
   protected readonly saveError = signal('');
   protected readonly confirmContinuar = signal(false);
+
+  // ── Anulación (solo administradores, y solo antes de pasar a Entrega) ───────
+
+  protected readonly esAdmin = this.auth.isAdmin;
+  /**
+   * Una vez confirmado el paso a Entrega ya no se puede anular: las facturas
+   * están camino del cliente y anularlas allí sería incoherente.
+   */
+  protected readonly puedeAnular = computed(
+    () => this.esAdmin() && !this.periodStore.supero('revision'),
+  );
+  protected readonly anulando = signal<string | null>(null);
+  protected readonly motivoAnulacion = signal('');
+  protected readonly guardandoAnulacion = signal(false);
+
+  /** Estado de cada factura, para pintarlo y excluir las anuladas. */
+  protected readonly estados = computed(
+    () =>
+      new Map(
+        this.facturasService.rows().map((f) => [f.secuencial_factura, f.estado_factura]),
+      ),
+  );
+
+  // ── Fecha aplicable a todas las facturas ───────────────────────────────────
+
+  protected readonly fechaMasiva = signal('');
 
   protected readonly facturas = computed<FacturaRevisar[]>(() => {
     const grupos = new Map<string, FacturaRevisar>();
@@ -104,12 +137,14 @@ export class Revisar {
   constructor() {
     effect(() => {
       this.periodStore.period();
-      const label = this.periodStore.current().label;
+      const label = this.periodStore.label();
+      if (!label) return; // el catálogo de periodos aún no ha cargado
       this.ediciones.set({});
       this.staged.set({});
       this.saveError.set('');
       this.confirmContinuar.set(false);
       void this.documentos.loadPeriodo(label);
+      void this.facturasService.load(label);
     });
   }
 
@@ -152,18 +187,104 @@ export class Revisar {
   }
 
   // ── Guardado ─────────────────────────────────────────────────────────────────
+  /** Estado persistido de una factura; «emitida» mientras no exista la fila. */
+  protected estadoDe(sec: string): string {
+    return this.estados().get(sec) ?? 'emitida';
+  }
+
+  protected estaAnulada(sec: string): boolean {
+    return this.estadoDe(sec) === 'anulada';
+  }
+
+  // ── Fecha para todas ───────────────────────────────────────────────────────
+
+  protected setFechaMasiva(event: Event): void {
+    this.fechaMasiva.set((event.target as HTMLInputElement).value);
+  }
+
+  /**
+   * Copia la fecha a todas las facturas que no estén anuladas. No guarda: deja
+   * los cambios pendientes para que el usuario los revise y pulse «Actualizar»,
+   * igual que si los hubiera escrito uno a uno.
+   */
+  protected aplicarFechaATodas(): void {
+    const fecha = this.fechaMasiva();
+    if (!fecha) return;
+    this.ediciones.update((actual) => {
+      const siguiente = { ...actual };
+      for (const f of this.facturas()) {
+        if (this.estaAnulada(f.secuencial)) continue;
+        siguiente[f.secuencial] = { ...siguiente[f.secuencial], fecha };
+      }
+      return siguiente;
+    });
+  }
+
+  // ── Anulación ──────────────────────────────────────────────────────────────
+
+  protected pedirAnulacion(sec: string): void {
+    this.motivoAnulacion.set('');
+    this.anulando.set(sec);
+  }
+
+  protected cancelarAnulacion(): void {
+    this.anulando.set(null);
+    this.motivoAnulacion.set('');
+  }
+
+  protected setMotivoAnulacion(event: Event): void {
+    this.motivoAnulacion.set((event.target as HTMLTextAreaElement).value);
+  }
+
+  protected async confirmarAnulacion(): Promise<void> {
+    const sec = this.anulando();
+    const motivo = this.motivoAnulacion().trim();
+    if (!sec || !motivo) return;
+
+    this.guardandoAnulacion.set(true);
+    const periodo = this.periodStore.label();
+    const resultado = await this.facturasService.anular(
+      periodo,
+      sec,
+      motivo,
+      this.auth.user()?.email,
+    );
+    this.guardandoAnulacion.set(false);
+
+    this.auditoria.registrar({
+      modulo: 'Revisión',
+      accion: 'ANULAR_FACTURA',
+      resultado: resultado.ok ? 'exito' : 'error',
+      observacion: resultado.ok
+        ? `Anuló la factura ${sec}: ${motivo}`
+        : `No se pudo anular la factura ${sec}.`,
+      entidad: 'factura',
+      referencia: sec,
+      detalle: { motivo },
+    });
+
+    if (!resultado.ok) {
+      this.saveError.set(resultado.error ?? 'No se pudo anular la factura.');
+      return;
+    }
+    this.cancelarAnulacion();
+  }
+
   protected async guardar(): Promise<void> {
     if (this.saving() || !this.hayCambios()) return;
     this.saving.set(true);
     this.saveError.set('');
     const periodId = this.periodStore.period();
-    const periodo = this.periodStore.current().label;
+    const periodo = this.periodStore.label();
     const errors: string[] = [];
+
+    const tocadas: string[] = [];
 
     for (const f of this.facturas()) {
       const sec = f.secuencial;
       const ed = this.ediciones()[sec];
       const file = this.staged()[sec];
+      if (ed?.monto !== undefined || ed?.fecha !== undefined || file) tocadas.push(sec);
 
       if (ed?.monto !== undefined && ed.monto !== f.montoEmitido) {
         const r = await this.documentos.guardarMontoEmitido(periodo, sec, ed.monto.trim());
@@ -180,10 +301,23 @@ export class Revisar {
     }
 
     await this.documentos.loadPeriodo(periodo);
+    await this.facturasService.sincronizar(periodo);
     this.ediciones.set({});
     this.staged.set({});
     this.saving.set(false);
     if (errors.length) this.saveError.set(errors.join(' · '));
+
+    if (tocadas.length) {
+      this.auditoria.registrar({
+        modulo: 'Revisión',
+        accion: 'ACTUALIZAR_FACTURA',
+        resultado: errors.length ? 'advertencia' : 'exito',
+        observacion: `Actualizó los datos de emisión de ${tocadas.length} factura(s): ${tocadas.join(', ')}.`,
+        entidad: 'factura',
+        referencia: tocadas.join(', '),
+        detalle: { facturas: tocadas, fallidas: errors.length },
+      });
+    }
   }
 
   // ── Continuar a entrega ───────────────────────────────────────────────────────
@@ -191,6 +325,14 @@ export class Revisar {
     if (this.saving()) return;
     if (this.hayCambios()) {
       this.saveError.set('Tienes cambios sin guardar. Pulsa «Actualizar datos» antes de continuar.');
+      this.auditoria.registrar({
+        modulo: 'Revisión',
+        accion: 'BLOQUEAR_AVANCE',
+        resultado: 'advertencia',
+        observacion: 'Intentó avanzar a Entrega con cambios sin guardar; el sistema lo impidió.',
+        entidad: 'periodo',
+        referencia: this.periodStore.label(),
+      });
       return;
     }
     this.confirmContinuar.set(true);
@@ -201,7 +343,17 @@ export class Revisar {
   }
 
   protected confirmarContinuar(): void {
-    this.proceso.marcar(this.periodStore.period(), 'revisado');
+    const r = this.resumen();
+    this.auditoria.registrar({
+      modulo: 'Revisión',
+      accion: 'REVISAR_PERIODO',
+      observacion: `Dio por revisadas ${r.facturas} factura(s) y avanzó a Entrega.`,
+      entidad: 'periodo',
+      referencia: this.periodStore.label(),
+      detalle: { facturas: r.facturas, conDocumento: r.conDocumento, cuadran: r.cuadran },
+    });
+
+    void this.periodos.avanzar(this.periodStore.period(), 'entrega');
     this.confirmContinuar.set(false);
     void this.router.navigate(['/app', 'entregar']);
   }

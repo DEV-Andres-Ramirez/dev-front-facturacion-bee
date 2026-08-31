@@ -121,12 +121,8 @@ export class DocumentosService {
     const nombre = this.nombreSinExtension(file.name);
     const error = await this.insertarDocumento(periodo, 'Pedido Compra', subido.url!, nombre);
     if (error) return { ok: false, error: this.friendly(error) };
-    // Relaciona el pedido con los registros cuyo pedido_compra coincide con el nombre.
-    await this.supabase
-      .from('registro_facturacion_interna')
-      .update({ documento_pedido_compra: subido.url })
-      .eq('periodo_facturacion_interna', periodo)
-      .eq('pedido_compra_facturacion_interna', nombre);
+    // Relaciona el pedido con los registros que lo referencian.
+    await this.relacionarPedidos(periodo);
     await this.loadPeriodo(periodo);
     return { ok: true };
   }
@@ -352,18 +348,40 @@ export class DocumentosService {
   }
 
   /** Relaciona cada Pedido Compra cargado con los registros que lo referencian. */
+  /**
+   * Relaciona cada Pedido de Compra cargado con los registros que lo citan.
+   *
+   * El emparejamiento es por **contención** y no por igualdad: el archivo se
+   * guarda con nombres como «Pedido compra PCC-2026-02797» mientras el registro
+   * interno dice «PCC-2026-02797». Compararlos con `=` no casaba nunca, y por
+   * eso ninguna factura llegaba a tener su pedido adjunto en el correo.
+   */
   private async relacionarPedidos(periodo: string): Promise<void> {
     const pedidos = this._docs().filter(
       (d) => d.tipo_documento_facturacion === 'Pedido Compra' && d.nombre_documento_facturacion,
     );
-    for (const pedido of pedidos) {
+    if (pedidos.length === 0) return;
+
+    const normalizar = (texto: string): string => texto.toUpperCase().replace(/\s+/g, '');
+
+    for (const registro of this._registro()) {
+      const codigo = (registro.pedido_compra_facturacion_interna ?? '').trim();
+      // «0» es el valor que usa el Excel para «esta factura no tiene pedido».
+      if (!codigo || codigo === '0' || codigo.toUpperCase() === 'NO RECIBIDO') continue;
+
+      const coincidencia = pedidos.find((d) =>
+        normalizar(d.nombre_documento_facturacion ?? '').includes(normalizar(codigo)),
+      );
+      if (!coincidencia) continue;
+      if (registro.documento_pedido_compra === coincidencia.direccion_documento_facturacion) continue;
+
       await this.supabase
         .from('registro_facturacion_interna')
-        .update({ documento_pedido_compra: pedido.direccion_documento_facturacion })
-        .eq('periodo_facturacion_interna', periodo)
-        .eq('pedido_compra_facturacion_interna', pedido.nombre_documento_facturacion!);
+        .update({ documento_pedido_compra: coincidencia.direccion_documento_facturacion })
+        .eq('id_facturacion_interna', registro.id_facturacion_interna);
     }
   }
+
 
   /** Borra del Storage y del índice un documento identificado por su URL pública. */
   private async eliminarArchivoPorUrl(url: string): Promise<void> {
