@@ -85,6 +85,33 @@ como leídos porque desaparecen solos en cuanto se resuelve lo que los originó.
 
 ---
 
+### Entrega al cliente
+
+Con las facturas revisadas, la aplicación arma **un correo por factura** con su
+asunto, sus copias controladas y los PDF de soporte adjuntos.
+
+Antes de que nadie envíe nada, la pantalla **pregunta al servicio de correo si su
+buzón puede enviar**. Si no puede, lo dice arriba con el buzón concreto que falla
+y abre un aviso con la causa —por ejemplo, que el tenant de Microsoft 365 tiene
+apagada la autenticación SMTP—, qué hay que hacer para resolverlo y el mensaje
+exacto del servidor para soporte. Mientras tanto el botón de enviar queda
+bloqueado, así que nadie pierde el tiempo preparando envíos que iban a fallar.
+Si el servicio no responde a la comprobación, se avisa pero **no se bloquea**: no
+haber podido preguntar no es lo mismo que un buzón caído.
+
+Cada correo se puede **editar antes de enviarlo** —destinatarios, copias, asunto
+y cuerpo—, y los cambios se recuerdan en el navegador aunque se recargue la
+página; «Restablecer» devuelve el correo al generado. Se marca cuáles enviar
+(por defecto, los que quedan por entregar), y al confirmar se avisa si alguno ya
+se había enviado, porque el cliente lo recibiría dos veces.
+
+Los correos salen de uno en uno, con su progreso, y se puede detener el envío a
+medias. Al terminar quedan clasificados en tres grupos: **enviados**, **con
+error** —con el motivo y la opción de reintentar los que lo merecen— y **sin
+enviar**, que son los que no se marcaron.
+
+---
+
 ## Estructura
 
 ```
@@ -198,4 +225,5 @@ Vercel, con la configuración ya incluida en `vercel.json`: build con
 todas las rutas a `index.html` para que funcione el enrutado del lado del cliente.
 
 El servicio de correo es un backend aparte (`dev-back-facturacion-bee`); su
-contrato está documentado en el `CONSUMO.md` de ese repositorio.
+contrato —incluida la comprobación del buzón— está documentado en el
+`CONSUMO.md` de ese repositorio.

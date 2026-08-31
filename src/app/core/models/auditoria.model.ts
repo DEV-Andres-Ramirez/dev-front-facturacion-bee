@@ -45,6 +45,8 @@ export type AccionAuditoria =
   | 'BLOQUEAR_AVANCE'
   | 'ANULAR_FACTURA'
   | 'ENVIAR_FACTURA'
+  | 'VERIFICAR_CORREO'
+  | 'EDITAR_CORREO'
   // Conciliación y registros
   | 'REGISTRAR_PAGO'
   | 'DESCARGAR_SOPORTE'

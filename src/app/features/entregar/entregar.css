@@ -1,0 +1,264 @@
+/*
+ * Estilos propios de «Entregar al cliente».
+ *
+ * Aquí solo vive lo que es de esta pantalla: la franja de estado del buzón, el
+ * compositor editable y el resumen del envío. Lo demás (tarjetas, alertas,
+ * modales, badges) sale del sistema de diseño de `src/styles.css`.
+ *
+ * Dos reglas repiten a propósito lo que ya existe en global —`.modal-ic` y
+ * `.fx`—: sus definiciones globales son descendientes (`.tile .ti`,
+ * `.doc-item .fx`) y aquí no hay ese ancestro, así que sin esto se quedarían a
+ * medio pintar.
+ */
+
+/* ── Estado del buzón de envío ─────────────────────────────────────────────── */
+.servicio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.servicio-ok {
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+  color: #0b4e37;
+}
+.servicio-neutro {
+  background: var(--surface-2);
+}
+.spinner-sm {
+  width: 15px;
+  height: 15px;
+  border-width: 2px;
+}
+
+/* ── Resumen del último envío ──────────────────────────────────────────────── */
+.grupos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 12px;
+  min-width: 0;
+}
+.grupo .gt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  font-size: 12.5px;
+}
+.grupo-ok {
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+}
+.grupo-ok .gt {
+  color: var(--ok);
+}
+.grupo-bad {
+  background: var(--bad-soft);
+  border-color: var(--bad-line);
+}
+.grupo-bad .gt {
+  color: var(--bad);
+}
+.grupo-warn {
+  background: var(--honey-tint);
+  border-color: var(--honey-line);
+}
+.grupo-warn .gt {
+  color: var(--honey-deep);
+}
+.fallo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* ── Barra de acción ───────────────────────────────────────────────────────── */
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Tarjeta de correo ─────────────────────────────────────────────────────── */
+.correo {
+  border-color: var(--line);
+  transition: border-color 0.16s, box-shadow 0.16s;
+}
+/* La marca de selección se ve de un vistazo: es lo que decide qué sale. */
+.correo.marcado {
+  border-color: var(--honey-line);
+  box-shadow: inset 3px 0 0 var(--honey-600);
+}
+.sel-box {
+  width: 17px;
+  height: 17px;
+  flex: none;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+.sel-box:focus-visible {
+  outline: 2px solid var(--honey-600);
+  outline-offset: 2px;
+}
+
+/* ── Compositor editable ───────────────────────────────────────────────────── */
+.cmp-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: transparent;
+  transition: border-color 0.14s, background 0.14s;
+}
+.cmp-input.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.cmp-asunto {
+  font-weight: 600;
+  color: var(--ink);
+}
+.cmp-input:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+.cmp-input:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--honey-600);
+  box-shadow: var(--ring);
+}
+.cmp-area {
+  display: block;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 14px 16px;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  background: transparent;
+  resize: vertical;
+  transition: border-color 0.14s, background 0.14s;
+}
+.cmp-area:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+.cmp-area:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--honey-600);
+  box-shadow: var(--ring);
+}
+.adjuntos {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line-2);
+  padding: 12px 16px 0;
+  margin-top: 4px;
+}
+/* `.doc-item .fx` es descendiente y aquí no hay `.doc-item`: se replica el tamaño. */
+.fx {
+  position: relative;
+  width: 30px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 800;
+  color: #fff;
+  padding-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Modales ───────────────────────────────────────────────────────────────── */
+/* `.tile .ti` es descendiente y aquí no hay `.tile`: se replica la caja. */
+.modal-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.modal-ancho {
+  max-width: 620px;
+}
+.diag-parrafo {
+  margin-top: 14px;
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+.diag-solucion {
+  margin-top: 14px;
+  padding: 13px 15px;
+  border-radius: var(--radius-sm);
+  background: var(--honey-tint);
+  border: 1px solid var(--honey-line);
+  color: #6e4d06;
+  line-height: 1.6;
+}
+.diag-tecnico {
+  margin-top: 14px;
+  font-size: 12px;
+}
+.diag-tecnico summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--muted);
+}
+.diag-tecnico pre {
+  margin-top: 9px;
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+}
+
+@media (max-width: 900px) {
+  .grupos {
+    grid-template-columns: 1fr;
+  }
+}

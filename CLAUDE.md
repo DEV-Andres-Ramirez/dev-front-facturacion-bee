@@ -50,7 +50,7 @@ datos. Esto es lo que hay:
 | `validar` | `/app/validar` | **REAL** (cálculo) | Supabase (lectura) |
 | `agrupar` | `/app/agrupar` | **REAL** (cálculo) | Supabase (lectura) |
 | `revisar` | `/app/revisar` | **REAL** (escribe) | Supabase + Storage |
-| `entregar` | `/app/entregar` | **REAL** | Supabase + backend NestJS |
+| `entregar` | `/app/entregar` | **REAL** (§7) | Supabase + backend NestJS |
 | `usuarios` | `/app/usuarios` | **REAL** (CRUD) | RPC |
 | **`auditoria`** | `/app/auditoria` | **REAL** (§5) | Tabla `auditoria` vía RPC |
 | `dashboard` | `/app/dashboard` | **REAL** | `facturas` + prefactura |
@@ -96,7 +96,7 @@ repinta nada.
 | `NotificacionesService` | Avisos **derivados** del estado real; sin tabla detrás |
 | `PeriodStore` | Periodo activo. `period()` = id, `label()` = etiqueta |
 | `BillingDataService` | Resto del andamiaje: solo la matriz de permisos |
-| `EmailService` | Llama al backend `dev-back-facturacion-bee` |
+| `EmailService` | Envía correos y **comprueba el buzón** del backend `dev-back-facturacion-bee` (§7) |
 
 ---
 
@@ -194,6 +194,10 @@ filtrable.
    detalle se elimina en cascada y el servicio no devuelve el conteo.
 3. **Nunca dentro de un `effect()`**: se ejecutan al montar y en cada cambio de
    periodo, así que generarían una fila cada vez que alguien abre la pantalla.
+   Por eso `entregar.comprobarServicio()` recibe un `auditar`: la comprobación
+   automática al abrir no deja rastro, y la que nace de pulsar «Enviar» o
+   «Volver a comprobar», sí. Con el buzón caído, la primera habría escrito una
+   fila por cada visita.
 4. **Nunca registres** contraseñas (solo `contrasenaCambiada: true|false`), las
    URL públicas de Storage (son enlaces abiertos: meterlos en el log los expone a
    quien lo lea) ni la clave del backend de correo.
@@ -292,7 +296,99 @@ es la diferencia.
 
 ---
 
-## 7. Convenciones del código
+## 7. Entrega al cliente: diagnóstico del buzón y correos editables
+
+La pantalla `/app/entregar` compone un correo por factura, deja **editarlo** y
+lo envía a través del backend. Tres piezas y una regla.
+
+### El código vive repartido a propósito
+
+| Pieza | Dónde | Qué hace |
+| --- | --- | --- |
+| Composición | `core/utils/correo.util.ts` | Función pura: entra el periodo con sus datos, sale el correo. Se prueba sin Angular (`correo.util.spec.ts`) |
+| Formas | `core/models/correo.model.ts` | `PlantillaCorreo`, `EdicionCorreo`, `CorreoPreparado`, `DiagnosticoCorreo`, `EstadoEnvio` |
+| Transporte | `core/services/email.service.ts` | `enviar()` y `verificarServicio()` |
+| Pantalla | `features/entregar/` | Señales, selección, estado del lote y pintado |
+
+El componente no compone correos: los pide. Es lo que permitió bajarlo de 890 a
+620 líneas y probar la parte que de verdad tiene reglas.
+
+### El estado del buzón: `verificarServicio()`
+
+El backend expone `GET /api/email/verify`, que autentica por SMTP **sin enviar
+nada** y devuelve por qué no puede enviar y **desde qué buzón** lo intenta. El
+contrato completo está en el `CONSUMO.md` del backend.
+
+`EmailService.verificarServicio()` nunca lanza y devuelve tres estados:
+
+| Estado | Cuándo | Qué hace la pantalla |
+| --- | --- | --- |
+| `operativo` | `operativo: true` | Franja verde con el remitente. Se puede enviar |
+| `caido` | `operativo: false` | Alerta con el titular y el buzón + modal con el detalle, la solución y el mensaje técnico. **Botón de enviar deshabilitado** |
+| `indeterminado` | 404, 401, red caída | Aviso neutro. **No bloquea**: no se pudo preguntar, que no es lo mismo que un buzón caído |
+
+**La regla que no se debe invertir:** se bloquea el envío por un diagnóstico
+negativo, nunca por la ausencia de diagnóstico. Un backend desplegado sin el
+endpoint devuelve 404, y bloquear ahí dejaría la aplicación inservible por una
+causa que ni siquiera se ha confirmado.
+
+Se comprueba al abrir la pantalla y **otra vez al pulsar Enviar**: entre una cosa
+y otra el buzón puede haberse caído, y es peor descubrirlo factura a factura.
+
+### Los correos editables
+
+Destinatarios, copias, asunto y cuerpo se editan en la propia tarjeta. El patrón
+es el mismo de `revisar.ts`: una señal de **sobrescrituras encima del computed
+base**, no una copia del correo. Lo que no se toca sigue derivándose de los
+datos, así que un cambio en la factura se refleja en los campos intactos y
+respeta los editados.
+
+- Se guardan en `localStorage` bajo **`bee.correos.<periodId>`** — el id
+  (`2026-08`), no la etiqueta. Sobreviven a un F5, se limpian con «Restablecer».
+- Toda lectura y escritura del almacenamiento va en `try/catch`: en modo privado
+  lanza, y una pantalla de envío no puede caerse por eso.
+- Las direcciones se parten por coma, punto y coma o salto de línea, y se validan
+  **por tarjeta**: un correo mal escrito se señala donde está, no al final del lote.
+
+### La selección y los tres desenlaces
+
+`seleccionManual` es `ReadonlySet<string> | null`. El `null` significa «el usuario
+aún no ha elegido» y entonces se proponen las que quedan por entregar. Así la
+propuesta se recalcula sola mientras cargan los datos, **sin un `effect()` que
+escriba señales**.
+
+Las ya enviadas quedan fuera de «Marcar pendientes», pero se pueden marcar a
+mano: la confirmación avisa entonces de que el cliente recibiría la factura dos
+veces.
+
+Al terminar, cada factura queda en uno de estos estados, y el resumen los agrupa:
+
+`pendiente` · `enviando` · `enviado` · `error` (con motivo y si merece reintento)
+· `omitido` (seleccionada no, luego **sin enviar**)
+
+`omitido` es la tercera respuesta que el usuario necesita. Sin marcarla, las que
+no se intentaron serían indistinguibles de las que nadie ha tocado.
+
+### El mecanismo de `epoch`
+
+`private epoch` se incrementa al cambiar de periodo, al pulsar «Detener el envío»
+y al destruir el componente. El bucle lo comprueba **justo después de cada
+`await`**. Es lo que impide que sigan saliendo correos de un lote abandonado, y
+por eso `auditoria.registrar()` nunca se espera con `await` dentro de él (§5,
+regla 1).
+
+Un correo ya entregado al servidor no se puede retirar: «Detener» corta los
+siguientes, no el que está en vuelo. El texto de la interfaz lo dice.
+
+### Un 200 con `rejected` cuenta como enviado
+
+El servidor puede aceptar el mensaje y descartar algún destinatario. El correo
+**salió** hacia los aceptados: reintentarlo duplicaría la factura en el buzón del
+cliente. Se cuenta como enviado y se registra la advertencia aparte.
+
+---
+
+## 8. Convenciones del código
 
 **Idioma — regla mixta y consistente**: español para el dominio nuevo conectado a
 Supabase (`DocumentosService`, `guardarPrefactura`, `AuditoriaRow`), todas las
@@ -337,7 +433,7 @@ Los `.css` de componente son solo para lo que no tiene equivalente global.
 
 ---
 
-## 8. Trampas conocidas
+## 9. Trampas conocidas
 
 1. **Doble clave de periodo.** En la BD el periodo es la etiqueta
    `"Agosto 2026"` (`periodStore.current().label`); en las rutas de Storage es el
@@ -361,12 +457,17 @@ Los `.css` de componente son solo para lo que no tiene equivalente global.
    módulos nuevos trabajan con `FacturaRow` y `DocumentoFacturacion`.
 7. **`.slot-error` y `.slot-link` solo existen en `carga.css`**: usarlas en otra
    pantalla las deja sin estilo (ya pasa en `revisar.html`).
-8. **`xlsx@0.18.5` solo lee** y arrastra vulnerabilidades conocidas. Para
+8. **Varias clases globales son selectores descendientes.** `.ti` solo existe
+   como `.tile .ti` y `.fx` como `.doc-item .fx`: fuera de ese ancestro se
+   quedan a medio pintar, sin error ni aviso. `entregar.css` las redefine en
+   local (`.modal-ic`, `.fx`) y explica por qué. Antes de reutilizar una clase
+   de `styles.css`, comprueba si su regla tiene ancestro.
+9. **`xlsx@0.18.5` solo lee** y arrastra vulnerabilidades conocidas. Para
    exportar, usa `core/utils/csv.util.ts`.
 
 ---
 
-## 9. Trabajar en local
+## 10. Trabajar en local
 
 ```bash
 pnpm install
@@ -383,7 +484,7 @@ menciona el README antiguo no existe.
 
 **Antes de dar por terminado un cambio**: `pnpm build && pnpm test`.
 
-## 10. Deuda pendiente (por gravedad)
+## 11. Deuda pendiente (por gravedad)
 
 1. **Seguridad**: las 3 tablas del ciclo tienen políticas RLS `using (true)` para
    `anon` y la clave publicable viaja en el bundle → la facturación es legible y

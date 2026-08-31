@@ -23,3 +23,4 @@ export * from './periodo.model';
 export * from './parametro.model';
 export * from './notificacion.model';
 export * from './factura.model';
+export * from './correo.model';
