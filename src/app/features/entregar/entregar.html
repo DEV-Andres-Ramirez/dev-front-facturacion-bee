@@ -15,89 +15,137 @@
       actionLabel="Ir a revisión"
       [actionRoute]="['/app', 'revisar']"
     />
-  } @else if (completado()) {
-    @if (errores().length === 0) {
-      <div class="card card-pad" style="text-align: center; padding: 48px 24px">
-        <span class="ti ic-ok" style="width: 56px; height: 56px; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px">
-          <bee-icon name="check" [size]="28" [strokeWidth]="2.4" />
-        </span>
-        <div style="font-weight: 700; font-size: 18px; margin-bottom: 6px">Correos enviados</div>
-        <p class="note-line" style="max-width: 460px; margin: 0 auto">
-          Se enviaron {{ enviados() }} correo(s) de factura a
-          <span class="em mono">facturacion_proveedores&#64;banistmo.com</span> con sus copias controladas
-          y adjuntos.
-        </p>
-      </div>
-    } @else {
-      <div class="alert alert-warn" style="margin-bottom: 16px">
-        <span class="ai"><bee-icon name="alert" [size]="19" /></span>
-        <div>
-          <div class="at">{{ enviados() }} enviado(s) · {{ errores().length }} con error</div>
-          Algunas facturas no se pudieron enviar. Revisa el motivo de cada una.
+  } @else {
+    <!-- ── Estado del buzón desde el que se envía ────────────────────────── -->
+    @switch (estadoServicio()) {
+      @case ('comprobando') {
+        <div class="servicio servicio-neutro mb-16">
+          <span class="spinner spinner-sm"></span>
+          <span>Comprobando el buzón de envío…</span>
         </div>
-      </div>
-      <div class="card mb-16">
-        <div class="card-h">
-          <div>
-            <div class="ct">Facturas con error</div>
-            <div class="cd">El resto de correos sí se envió correctamente</div>
+      }
+      @case ('operativo') {
+        <div class="servicio servicio-ok mb-16">
+          <bee-icon name="shield" [size]="15" />
+          <span>
+            Buzón listo para enviar:
+            <span class="mono em">{{ diagnostico()?.remitente }}</span>
+          </span>
+          <div class="spacer"></div>
+          <button class="link" type="button" (click)="recomprobar()">
+            Volver a comprobar
+          </button>
+        </div>
+      }
+      @case ('caido') {
+        <div class="alert alert-warn mb-16" role="alert">
+          <span class="ai"><bee-icon name="alert" [size]="17" /></span>
+          <div style="flex: 1">
+            <div class="at">No se pueden enviar los correos</div>
+            <div>
+              {{ diagnostico()?.titulo }} · Buzón configurado en el servicio:
+              <span class="mono em">{{ diagnostico()?.remitente }}</span>
+            </div>
+            <button class="link" type="button" (click)="abrirDiagnostico()">
+              Ver el detalle y cómo resolverlo
+            </button>
           </div>
-          <div class="sp"></div>
-          @if (erroresReintentables().length) {
+        </div>
+      }
+      @case ('indeterminado') {
+        <div class="alert alert-info mb-16">
+          <span class="ai"><bee-icon name="info" [size]="17" /></span>
+          <div>
+            <div class="at">No se pudo comprobar el buzón</div>
+            <div>{{ motivoSinDiagnostico() }}</div>
+            <button class="link" type="button" (click)="recomprobar()">
+              Reintentar la comprobación
+            </button>
+          </div>
+        </div>
+      }
+    }
+
+    <!-- ── Resultado del último envío ────────────────────────────────────── -->
+    @if (hayResultado()) {
+      <div class="card card-pad mb-16">
+        <div class="row" style="margin-bottom: 14px">
+          <div>
+            <div class="ct">Resultado del último envío</div>
+            <div class="note-line">
+              {{ resumen().enviados.length }} enviado(s) ·
+              {{ resumen().conError.length }} con error ·
+              {{ resumen().sinEnviar.length }} sin enviar
+            </div>
+          </div>
+          <div class="spacer"></div>
+          @if (reintentables().length) {
             <button class="btn-sm btn-solid" type="button" (click)="reintentarFallidas()">
               <bee-icon name="send" [size]="15" />
-              Reintentar transitorias ({{ erroresReintentables().length }})
+              Reintentar {{ reintentables().length }}
             </button>
           }
         </div>
-        <div class="card-pad" style="display: flex; flex-direction: column; gap: 10px">
-          @for (error of errores(); track error.secuencial) {
-            <div class="file-row" style="background: var(--warn-soft); border: 1px solid var(--warn-line); margin: 0">
-              <span class="chip-id">{{ error.secuencial }}</span>
-              <span class="file-name" style="white-space: normal">{{ error.motivo }}</span>
-              @if (!error.reintentable) {
-                <span class="badge b-neutral"><span class="bd"></span>No reintentable automáticamente</span>
-              }
-            </div>
-          }
-          @if (!erroresReintentables().length) {
-            <p class="note-line">
-              Estos errores no se resuelven reintentando: corrige los datos o avisa a soporte según el
-              motivo indicado.
-            </p>
-          }
-        </div>
-      </div>
-    }
-    @if (advertencias().length) {
-      <div class="card mb-16">
-        <div class="card-h">
-          <div>
-            <div class="ct">Entregados con advertencia</div>
-            <div class="cd">El correo salió, pero el servidor descartó algunos destinatarios</div>
+
+        <div class="grupos">
+          <div class="grupo grupo-ok">
+            <div class="gt"><bee-icon name="check" [size]="14" /> Enviados</div>
+            @for (correo of resumen().enviados; track correo.secuencial) {
+              <span class="chip-id">{{ correo.secuencial }}</span>
+            } @empty {
+              <span class="note-line">Ninguno.</span>
+            }
+          </div>
+
+          <div class="grupo grupo-bad">
+            <div class="gt"><bee-icon name="alert-circle" [size]="14" /> Con error</div>
+            @for (correo of resumen().conError; track correo.secuencial) {
+              <div class="fallo">
+                <span class="chip-id">{{ correo.secuencial }}</span>
+                <span>{{ motivoDe(correo.secuencial) }}</span>
+              </div>
+            } @empty {
+              <span class="note-line">Ninguno.</span>
+            }
+          </div>
+
+          <div class="grupo grupo-warn">
+            <div class="gt"><bee-icon name="clock" [size]="14" /> Sin enviar</div>
+            @for (correo of resumen().sinEnviar; track correo.secuencial) {
+              <span class="chip-id">{{ correo.secuencial }}</span>
+            } @empty {
+              <span class="note-line">Ninguno.</span>
+            }
           </div>
         </div>
-        <div class="card-pad" style="display: flex; flex-direction: column; gap: 10px">
-          @for (adv of advertencias(); track adv.secuencial) {
-            <div class="file-row" style="background: var(--honey-tint); border: 1px solid var(--honey-line); margin: 0">
-              <span class="chip-id">{{ adv.secuencial }}</span>
-              <span class="file-name" style="white-space: normal">{{ adv.detalle }}</span>
+
+        @if (advertencias().length) {
+          <div class="alert alert-warn" style="margin-top: 14px">
+            <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+            <div>
+              <div class="at">Destinatarios descartados por el servidor</div>
+              @for (aviso of advertencias(); track aviso.secuencial) {
+                <div>
+                  <span class="mono">{{ aviso.secuencial }}</span> · {{ aviso.detalle }}
+                </div>
+              }
             </div>
-          }
-        </div>
+          </div>
+        }
       </div>
     }
-  } @else {
+
+    <!-- ── Panorama del periodo ──────────────────────────────────────────── -->
     <div class="kpi-grid k3" style="margin-bottom: 16px">
       <div class="mini">
-        <div class="ml">Correos por enviar</div>
-        <div class="mv">{{ total() }}</div>
-        <div class="ms">Una plantilla por factura</div>
+        <div class="ml">Correos preparados</div>
+        <div class="mv">{{ correos().length }}</div>
+        <div class="ms">{{ numPendientes() }} por entregar</div>
       </div>
       <div class="mini">
-        <div class="ml">Destinatario</div>
-        <div class="mv" style="font-size: 14px">Banistmo</div>
-        <div class="ms mono">facturacion_proveedores&#64;banistmo.com</div>
+        <div class="ml">Destinatario del cliente</div>
+        <div class="mv" style="font-size: 14px">{{ numSeleccionados() }} marcada(s)</div>
+        <div class="ms mono">{{ cliente() || 'Sin configurar' }}</div>
       </div>
       <div class="mini">
         <div class="ml">Periodo</div>
@@ -106,45 +154,149 @@
       </div>
     </div>
 
-    <div class="card card-pad mb-16" style="display: flex; align-items: center; gap: 14px">
+    <!-- ── Barra de acción ───────────────────────────────────────────────── -->
+    <div class="card card-pad mb-16 barra">
       <div>
-        <div style="font-weight: 700; font-size: 14px">Plantillas de correo listas</div>
+        <div style="font-weight: 700; font-size: 14px">
+          Correos listos para revisar y enviar
+        </div>
         <div class="note-line">
-          Revisa cada correo. Al enviar se procesan una por una con sus adjuntos desde Storage.
+          Puedes cambiar destinatarios, copias, asunto y cuerpo antes de enviar. Marca
+          los que quieras enviar; los demás quedarán como «sin enviar».
         </div>
       </div>
       <div class="spacer"></div>
-      <button class="btn-sm btn-honey" type="button" (click)="enviar()">
-        <bee-icon name="send" [size]="16" />
-        Enviar
-      </button>
+      <div class="acciones">
+        @if (hayEdiciones()) {
+          <button class="btn-sm btn-ghost" type="button" (click)="restablecerTodos()">
+            Restablecer ediciones
+          </button>
+        }
+        <button class="btn-sm btn-ghost" type="button" (click)="marcarPendientes()">
+          Marcar pendientes
+        </button>
+        <button class="btn-sm btn-ghost" type="button" (click)="desmarcarTodas()">
+          Quitar todas
+        </button>
+        <button
+          class="btn-sm btn-honey"
+          type="button"
+          [disabled]="enviando() || estadoServicio() === 'caido'"
+          (click)="enviar()"
+        >
+          <bee-icon name="send" [size]="16" />
+          Enviar {{ numSeleccionados() }}
+        </button>
+      </div>
     </div>
 
-    @for (plantilla of plantillas(); track plantilla.secuencial) {
-      <div class="card mb-16">
+    @if (errorAccion()) {
+      <p class="form-msg mb-16" role="alert">{{ errorAccion() }}</p>
+    }
+
+    <!-- ── Un correo por factura ─────────────────────────────────────────── -->
+    @for (correo of correos(); track correo.secuencial) {
+      <div class="card mb-16 correo" [class.marcado]="marcada(correo.secuencial)">
         <div class="card-h">
+          <input
+            class="sel-box"
+            type="checkbox"
+            [checked]="marcada(correo.secuencial)"
+            [attr.aria-label]="'Incluir la factura ' + correo.secuencial + ' en el envío'"
+            (change)="alternar(correo.secuencial)"
+          />
           <div>
-            <div class="ct">Factura {{ plantilla.secuencial }}</div>
+            <div class="ct">Factura {{ correo.secuencial }}</div>
             <div class="cd">
-              {{ plantilla.cc.length }} copia(s) controlada(s) · {{ plantilla.adjuntos.length }} adjunto(s)
+              {{ correo.copias.length }} copia(s) · {{ correo.adjuntos.length }} adjunto(s)
             </div>
           </div>
+          <div class="sp"></div>
+          @if (correo.editado) {
+            <button class="link" type="button" (click)="restablecer(correo.secuencial)">
+              Restablecer
+            </button>
+            <bee-badge tone="info" label="Editado" />
+          }
+          @if (correo.yaEnviada) {
+            <bee-badge tone="ok" label="Ya enviada" />
+          }
+          @if (correo.faltantes.length) {
+            <bee-badge tone="warn" [label]="'Falta ' + correo.faltantes.join(' y ')" />
+          }
+          <bee-badge
+            [tone]="tonoEstado(estadoDe(correo.secuencial))"
+            [label]="etiquetaEstado(estadoDe(correo.secuencial))"
+          />
         </div>
-        <div class="card-pad">
-          <div class="cmp-row"><span class="cl">Para</span><span class="mono">{{ plantilla.to }}</span></div>
+
+        <div class="card-pad compose">
           <div class="cmp-row">
-            <span class="cl">CC</span>
-            <span class="mono">{{ plantilla.cc.length ? plantilla.cc.join(', ') : '—' }}</span>
+            <label class="cl" [attr.for]="'to-' + correo.secuencial">Para</label>
+            <input
+              class="cmp-input mono"
+              type="text"
+              [id]="'to-' + correo.secuencial"
+              [value]="correo.to"
+              placeholder="destinatario@cliente.com, otro@cliente.com"
+              (input)="editar(correo.secuencial, 'to', $event)"
+              (blur)="auditarEdicion(correo.secuencial, 'to')"
+            />
           </div>
-          <div class="cmp-row"><span class="cl">Asunto</span><span style="font-weight: 600; color: var(--ink)">{{ plantilla.subject }}</span></div>
-          <div class="cmp-body">
-            @for (linea of plantilla.bodyLines; track $index) {
-              <p style="margin: 0 0 6px">{{ linea }}</p>
-            }
+          <div class="cmp-row">
+            <label class="cl" [attr.for]="'cc-' + correo.secuencial">CC</label>
+            <input
+              class="cmp-input mono"
+              type="text"
+              [id]="'cc-' + correo.secuencial"
+              [value]="correo.cc"
+              placeholder="Sin copias"
+              (input)="editar(correo.secuencial, 'cc', $event)"
+              (blur)="auditarEdicion(correo.secuencial, 'cc')"
+            />
           </div>
-          @if (plantilla.adjuntos.length) {
-            <div style="display: flex; gap: 9px; flex-wrap: wrap; border-top: 1px solid var(--line-2); padding-top: 12px">
-              @for (adjunto of plantilla.adjuntos; track adjunto.url) {
+          <div class="cmp-row">
+            <label class="cl" [attr.for]="'as-' + correo.secuencial">Asunto</label>
+            <input
+              class="cmp-input cmp-asunto"
+              type="text"
+              [id]="'as-' + correo.secuencial"
+              [value]="correo.subject"
+              (input)="editar(correo.secuencial, 'subject', $event)"
+              (blur)="auditarEdicion(correo.secuencial, 'subject')"
+            />
+          </div>
+
+          <label class="sr-only" [attr.for]="'cu-' + correo.secuencial">
+            Cuerpo del correo de la factura {{ correo.secuencial }}
+          </label>
+          <textarea
+            class="cmp-area"
+            rows="11"
+            [id]="'cu-' + correo.secuencial"
+            [value]="correo.cuerpo"
+            (input)="editar(correo.secuencial, 'cuerpo', $event)"
+            (blur)="auditarEdicion(correo.secuencial, 'cuerpo')"
+          ></textarea>
+
+          @if (correo.invalidas.length) {
+            <p class="form-msg" role="alert">
+              Direcciones que no parecen correos:
+              <span class="mono">{{ correo.invalidas.join(', ') }}</span>
+            </p>
+          } @else if (!correo.listo) {
+            <p class="form-msg" role="alert">
+              Hace falta al menos un destinatario y un asunto para poder enviar.
+            </p>
+          }
+
+          @if (estadoDe(correo.secuencial) === 'error') {
+            <p class="form-msg" role="alert">{{ motivoDe(correo.secuencial) }}</p>
+          }
+
+          @if (correo.adjuntos.length) {
+            <div class="adjuntos">
+              @for (adjunto of correo.adjuntos; track adjunto.url) {
                 <a class="attach" [href]="adjunto.url" target="_blank" rel="noopener">
                   <span class="fx fx-pdf">PDF</span>
                   {{ adjunto.filename }}
@@ -152,7 +304,7 @@
               }
             </div>
           } @else {
-            <p class="note-line" style="border-top: 1px solid var(--line-2); padding-top: 12px">
+            <p class="note-line adjuntos">
               Sin adjuntos: esta factura no tiene Factura BEE ni pedido de compra cargados.
             </p>
           }
@@ -162,36 +314,112 @@
   }
 </section>
 
+<!-- ── Confirmación del envío ──────────────────────────────────────────────── -->
 @if (confirmEnviar()) {
   <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="env-title">
     <div class="modal-card">
       <div class="modal-h">
-        <span class="ti ic-honey" style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none">
-          <bee-icon name="send" [size]="18" />
-        </span>
+        <span class="ti ic-honey modal-ic"><bee-icon name="send" [size]="18" /></span>
         <div id="env-title" class="ct">Enviar correos</div>
       </div>
-      <p class="modal-body">
-        ¿Seguro que deseas continuar con el proceso? Se enviarán <b>{{ total() }}</b> correo(s) de
-        factura al proveedor con sus copias controladas y adjuntos.
-      </p>
+      <div class="modal-body">
+        <p>
+          Se enviarán <b>{{ numSeleccionados() }}</b> correo(s) de factura desde
+          <span class="mono em">{{ diagnostico()?.remitente || 'el buzón del servicio' }}</span>
+          con sus copias y adjuntos.
+        </p>
+        @if (numReenvios()) {
+          <div class="alert alert-warn" style="margin-top: 12px">
+            <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+            <div>
+              <div class="at">{{ numReenvios() }} factura(s) ya se habían enviado</div>
+              El cliente las recibiría por segunda vez.
+            </div>
+          </div>
+        }
+        @if (numSinEnviar()) {
+          <p class="note-line" style="margin-top: 12px">
+            {{ numSinEnviar() }} factura(s) quedarán como «sin enviar».
+          </p>
+        }
+      </div>
       <div class="modal-actions">
-        <button class="btn-sm btn-ghost" type="button" (click)="cancelarEnviar()">Cancelar</button>
-        <button class="btn-sm btn-honey" type="button" (click)="confirmarEnviar()">Sí, enviar</button>
+        <button class="btn-sm btn-ghost" type="button" (click)="cancelarEnviar()">
+          Cancelar
+        </button>
+        <button class="btn-sm btn-honey" type="button" (click)="confirmarEnviar()">
+          Sí, enviar
+        </button>
       </div>
     </div>
   </div>
 }
 
+<!-- ── Detalle del fallo del buzón ─────────────────────────────────────────── -->
+@if (verDiagnostico() && diagnostico(); as info) {
+  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="diag-title">
+    <div class="modal-card modal-ancho">
+      <div class="modal-h">
+        <span class="ti ic-warn modal-ic"><bee-icon name="alert" [size]="18" /></span>
+        <div id="diag-title" class="ct">{{ info.titulo }}</div>
+      </div>
+      <div class="modal-body">
+        <div class="kv-row">
+          <span class="kv-k">Buzón del servicio</span>
+          <span class="kv-v mono">{{ info.remitente }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-k">Servidor</span>
+          <span class="kv-v mono">{{ info.servidor }}</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-k">Código</span>
+          <span class="kv-v mono">{{ info.codigo }}</span>
+        </div>
+
+        <p class="diag-parrafo">{{ info.detalle }}</p>
+
+        <div class="diag-solucion">
+          <div class="at">Cómo se resuelve</div>
+          <p>{{ info.solucion }}</p>
+        </div>
+
+        @if (info.tecnico) {
+          <details class="diag-tecnico">
+            <summary>Detalle técnico para soporte</summary>
+            <pre class="mono">{{ info.tecnico }}</pre>
+          </details>
+        }
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm btn-ghost" type="button" (click)="cerrarDiagnostico()">
+          Cerrar
+        </button>
+        <button class="btn-sm btn-solid" type="button" (click)="recomprobar()">
+          Volver a comprobar
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Progreso del envío ──────────────────────────────────────────────────── -->
 @if (enviando()) {
   <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="snd-title">
     <div class="modal-card" style="text-align: center">
       <span class="spinner" style="margin: 4px auto 14px"></span>
       <div id="snd-title" class="ct" style="margin-bottom: 6px">Enviando correos…</div>
-      <p class="note-line" style="margin-bottom: 16px">
-        Factura {{ enviandoSecuencial() }} · {{ indice() + 1 }} de {{ loteTotal() }} · {{ enviados() }} enviado(s)
+      <p class="note-line" style="margin-bottom: 16px" aria-live="polite">
+        Factura {{ enviandoSecuencial() }} · {{ progreso() }}% de {{ loteTotal() }} correo(s)
       </p>
-      <div class="progress-track"><div class="progress-fill" [style.width.%]="progreso()"></div></div>
+      <div class="progress-track">
+        <div class="progress-fill" [style.width.%]="progreso()"></div>
+      </div>
+      <div class="modal-actions" style="justify-content: center">
+        <button class="btn-sm btn-ghost" type="button" (click)="cancelarEnvio()">
+          Detener el envío
+        </button>
+      </div>
     </div>
   </div>
 }

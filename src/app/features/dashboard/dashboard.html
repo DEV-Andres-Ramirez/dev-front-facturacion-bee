@@ -1,23 +1,53 @@
 <section class="stagger">
-  <div class="kpi-grid k4">
-    @for (kpi of dashboard().kpis; track kpi.label) {
-      <bee-kpi-card [kpi]="kpi" />
-    }
-  </div>
-
-  @if (isBlank()) {
-    <div class="card mt-16">
+  @if (sinIniciar()) {
+    <div class="card">
       <bee-empty-state
         icon="upload"
         title="Periodo sin iniciar"
-        message="Aún no hay facturación para este periodo. Comienza importando la prefactura aprobada del cliente para iniciar el ciclo desde cero."
-        actionLabel="Cargar prefactura"
+        message="Todavía no hay documentos cargados para este periodo. Empieza por subir la prefactura aprobada y el registro de facturación interna."
+        actionLabel="Cargar documentos"
         [actionRoute]="['/app', 'carga']"
       />
     </div>
   } @else {
-    <div class="grid-2-1 mt-16">
-      <!-- Facturas del periodo -->
+    <div class="kpi-grid k4" style="margin-bottom: 16px">
+      @for (kpi of kpis(); track kpi.label) {
+        <bee-kpi-card [kpi]="kpi" />
+      }
+    </div>
+
+    <div class="card card-pad mb-16">
+      <div class="row" style="margin-bottom: 12px">
+        <span style="font-weight: 700; font-size: 14px">Avance del ciclo</span>
+        <bee-badge tone="neutral" [label]="periodShort()" [dot]="false" style="margin-left: auto" />
+      </div>
+
+      <div class="progress" style="margin-bottom: 14px">
+        <div class="bar ok" [style.width.%]="avanceCiclo()"></div>
+      </div>
+
+      <div class="ciclo-grid">
+        @for (etapa of etapas; track etapa; let i = $index) {
+          <a
+            class="ciclo-tile"
+            [class.done]="i < indiceEtapa()"
+            [class.cur]="i === indiceEtapa()"
+            [routerLink]="['/app', rutaEtapa[etapa]]"
+          >
+            <span class="ct-n">
+              @if (i < indiceEtapa()) {
+                <bee-icon name="check" [size]="12" [strokeWidth]="3" />
+              } @else {
+                {{ i + 1 }}
+              }
+            </span>
+            <span class="ct-l">{{ etiquetaEtapa[etapa] }}</span>
+          </a>
+        }
+      </div>
+    </div>
+
+    <div class="grid-2-1">
       <div class="card">
         <div class="card-h">
           <div>
@@ -27,13 +57,17 @@
           <div class="sp"></div>
           <div class="legend">
             <span><span class="ld" style="background: var(--ok)"></span>Pagada</span>
-            <span><span class="ld" style="background: var(--info)"></span>Pendiente</span>
+            <span><span class="ld" style="background: var(--info)"></span>Enviada</span>
+            <span><span class="ld" style="background: var(--honey)"></span>Emitida</span>
             <span><span class="ld" style="background: var(--bad)"></span>Anulada</span>
           </div>
         </div>
+
         <div class="tbl-wrap">
           <table class="dt">
-            <caption class="sr-only">Facturas del periodo y su estado de cobro</caption>
+            <caption class="sr-only">
+              Facturas del periodo con su cliente, orden de compra, monto, estado y días de cobro
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Factura</th>
@@ -45,84 +79,161 @@
               </tr>
             </thead>
             <tbody>
-              @for (invoice of invoices(); track invoice.id) {
-                <tr>
+              @for (factura of facturasVisibles(); track factura.id_factura) {
+                <tr [style.opacity]="factura.estado_factura === 'anulada' ? 0.6 : null">
                   <td>
                     <div class="cell-main">
-                      <span class="cell-av av-ink">B</span>
+                      <span class="cell-av av-ink" aria-hidden="true">B</span>
                       <div>
-                        <div class="strong mono">{{ invoice.id }}</div>
-                        <div class="cell-sub">{{ invoice.note }}</div>
+                        <div class="strong mono">{{ factura.secuencial_factura }}</div>
+                        <div class="cell-sub">
+                          {{ factura.fecha_emision_factura ?? 'Sin fecha de emisión' }}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td class="strong">{{ invoice.client }}</td>
-                  <td class="mono dim">{{ invoice.order }}</td>
-                  <td class="num">{{ invoice.amountUsd | usd }}</td>
+                  <td class="strong">{{ factura.cliente_factura ?? '—' }}</td>
+                  <td class="mono dim">{{ factura.pedido_compra_factura ?? '—' }}</td>
+                  <td class="num mono">{{ usd(montoDe(factura)) }}</td>
                   <td>
-                    <bee-badge [tone]="statusOf(invoice.status).tone" [label]="statusOf(invoice.status).label" />
+                    <bee-badge
+                      [tone]="estadoDe[factura.estado_factura].tone"
+                      [label]="estadoDe[factura.estado_factura].label"
+                    />
                   </td>
-                  <td class="num">{{ invoice.days }}</td>
+                  <td class="num mono" [class.t-bad]="factura.vencida">
+                    {{ factura.dias_transcurridos ?? '—' }}
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="6">
+                    <p class="note-line" style="text-align: center; padding: 22px 0">
+                      {{ loading() ? 'Cargando facturas…' : 'Aún no hay facturas en este periodo.' }}
+                    </p>
+                  </td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
+
+        @if (todasLasFacturas().length > 8) {
+          <div class="card-pad" style="border-top: 1px solid var(--line-2); text-align: center">
+            <button class="link" type="button" (click)="alternarVerTodas()">
+              {{ verTodas() ? 'Ver solo las primeras 8' : 'Ver las ' + todasLasFacturas().length + ' facturas' }}
+            </button>
+          </div>
+        }
       </div>
 
-      <!-- Resumen financiero -->
-      @if (dashboard().financial; as fin) {
-        <div class="col">
-          <div class="card card-pad">
-            <div class="row" style="margin-bottom: 16px">
-              <span style="font-weight: 700; font-size: 14px">Resumen financiero</span>
-              <bee-badge tone="neutral" [label]="period().shortLabel" [dot]="false" style="margin-left: auto" />
-            </div>
-            <div class="stat-line">
-              <span class="sl-k">Total cobrado</span>
-              <span class="sl-v t-ok">{{ fin.totalCollectedUsd | usd }}</span>
-            </div>
-            <div class="stat-line">
-              <span class="sl-k">Por cobrar</span>
-              <span class="sl-v t-honey">{{ fin.receivableUsd | usd }}</span>
-            </div>
-            <div class="stat-line">
-              <span class="sl-k">Retención (12,5%)</span>
-              <span class="sl-v">{{ fin.retentionUsd | usd }}</span>
-            </div>
-            <div class="stat-line">
-              <span class="sl-k">Equivalente COP</span>
-              <span class="sl-v">{{ fin.equivalentCopLabel }}</span>
-            </div>
-            <div style="margin-top: 14px">
-              <div class="row" style="justify-content: space-between; margin-bottom: 7px">
-                <span class="note-line">Avance de cobro</span>
-                <span class="mono t-ok" style="font-size: 12px; font-weight: 700">{{ fin.collectionProgress }}%</span>
-              </div>
-              <div class="progress">
-                <div class="bar ok" [style.width.%]="fin.collectionProgress"></div>
-              </div>
-            </div>
+      <div class="col">
+        <div class="card card-pad">
+          <div class="row" style="margin-bottom: 4px">
+            <span style="font-weight: 700; font-size: 14px">Resumen financiero</span>
+            <bee-badge tone="neutral" [label]="periodShort()" [dot]="false" style="margin-left: auto" />
           </div>
 
-          <div class="card card-pad">
-            <div class="row" style="margin-bottom: 13px">
-              <span style="font-weight: 700; font-size: 14px">Tiempo prom. de cobro</span>
-            </div>
-            <div class="row" style="align-items: baseline; gap: 8px">
-              <span class="mono" style="font-size: 34px; font-weight: 700; letter-spacing: -1.5px; color: var(--ink)">
-                {{ fin.avgCollectionDays }}
-              </span>
-              <span class="dim" style="font-size: 14px; font-weight: 600">días</span>
-            </div>
-            <div class="note-line" style="margin-top: 4px">De la generación al pago · meta 30 días</div>
+          <div class="stat-line">
+            <span class="sl-k">Total cobrado</span>
+            <span class="sl-v t-ok">{{ usd(totalCobradoVista()) }}</span>
+          </div>
+          <div class="stat-line">
+            <span class="sl-k">Por cobrar</span>
+            <span class="sl-v t-honey">{{ usd(porCobrar()) }}</span>
+          </div>
+          <div class="stat-line">
+            <span class="sl-k">Retención ({{ retencionPct() }}%)</span>
+            <span class="sl-v">{{ usd(retencion()) }}</span>
+          </div>
+          <div class="stat-line">
+            <span class="sl-k">Equivalente COP</span>
+            <span class="sl-v">{{ cop(equivalenteCop()) }}</span>
+          </div>
+
+          <div class="row" style="margin: 14px 0 6px">
+            <span class="note-line">Avance de cobro</span>
+            <span class="mono t-ok" style="margin-left: auto; font-weight: 700">
+              {{ avanceCobro() }}%
+            </span>
+          </div>
+          <div class="progress">
+            <div class="bar ok" [style.width.%]="avanceCobro()"></div>
           </div>
         </div>
-      }
+
+        @if (reparto().length) {
+          <div class="card card-pad mt-16">
+            <span style="font-weight: 700; font-size: 14px">Reparto por estado</span>
+
+            <div class="barra-apilada" role="img" aria-label="Reparto de facturas por estado">
+              @for (porcion of reparto(); track porcion.etiqueta) {
+                <span
+                  class="ba-seg"
+                  [style.width.%]="porcion.porcentaje"
+                  [style.background]="porcion.color"
+                  [title]="porcion.etiqueta + ': ' + porcion.valor"
+                ></span>
+              }
+            </div>
+
+            @for (porcion of reparto(); track porcion.etiqueta) {
+              <div class="stat-line">
+                <span class="sl-k">
+                  <span class="ld" [style.background]="porcion.color"></span>
+                  {{ porcion.etiqueta }}
+                </span>
+                <span class="sl-v mono">{{ porcion.valor }} · {{ porcion.porcentaje }}%</span>
+              </div>
+            }
+          </div>
+        }
+
+        <div class="card card-pad mt-16">
+          <span style="font-weight: 700; font-size: 14px">Tiempo prom. de cobro</span>
+          <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 8px">
+            <span
+              class="mono"
+              style="font-size: 34px; font-weight: 700; letter-spacing: -1.5px; color: var(--ink)"
+            >
+              {{ diasPromedio() ?? '—' }}
+            </span>
+            <span class="dim">días</span>
+          </div>
+          <div class="note-line" style="margin-top: 4px">
+            De la generación al pago · meta {{ plazoPago() }} días
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Acciones pendientes -->
-    @if (dashboard().pendingActions.length) {
+    @if (topProyectos().length) {
+      <div class="card mt-16">
+        <div class="card-h">
+          <div>
+            <div class="ct">Proyectos que más facturan</div>
+            <div class="cd">
+              {{ totalColaboradores() }} colaboradores facturados en el periodo
+            </div>
+          </div>
+        </div>
+        <div class="card-pad">
+          @for (proyecto of topProyectos(); track proyecto.nombre) {
+            <div class="proyecto-fila">
+              <div class="pf-cab">
+                <span class="pf-nombre">{{ proyecto.nombre }}</span>
+                <span class="mono dim">{{ usd(proyecto.monto) }}</span>
+              </div>
+              <div class="progress">
+                <div class="bar info" [style.width.%]="proyecto.porcentaje"></div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    @if (alertas().length) {
       <div class="card mt-16">
         <div class="card-h">
           <div>
@@ -130,16 +241,14 @@
             <div class="cd">Tareas del ciclo pendientes de acción</div>
           </div>
         </div>
-        <div class="card-pad" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding-top: 16px">
-          @for (action of dashboard().pendingActions; track action.title) {
-            <a class="tile" [routerLink]="['/app', action.target]">
-              <span class="ti" [class]="'ic-' + (action.tone === 'warn' ? 'honey' : action.tone)">
-                <bee-icon [name]="$any(action.icon)" [size]="20" />
+        <div class="card-pad alertas-grid">
+          @for (alerta of alertas(); track alerta.titulo) {
+            <a class="tile" [routerLink]="['/app', alerta.ruta]">
+              <span class="ti" [class]="tonoIcono(alerta.tono)">
+                <bee-icon [name]="$any(alerta.icono)" [size]="20" />
               </span>
-              <div>
-                <div class="tt">{{ action.title }}</div>
-                <div class="ts">{{ action.description }}</div>
-              </div>
+              <div class="tt">{{ alerta.titulo }}</div>
+              <div class="ts">{{ alerta.detalle }}</div>
               <span class="tc"><bee-icon name="chevron-right" [size]="18" /></span>
             </a>
           }

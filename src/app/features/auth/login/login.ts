@@ -3,6 +3,7 @@ import { NgOptimizedImage } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '@core/services/auth.service';
+import { AuditoriaService } from '@core/services/auditoria.service';
 import { AppConfigService } from '@core/services/app-config.service';
 import { BeeMarkComponent, IconComponent } from '@shared/ui';
 
@@ -18,6 +19,7 @@ export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly auditoria = inject(AuditoriaService);
   protected readonly config = inject(AppConfigService).config;
 
   protected readonly showPassword = signal(false);
@@ -43,12 +45,41 @@ export class Login {
     this.loading.set(true);
     this.error.set('');
     const { email, password } = this.form.getRawValue();
-    const ok = await this.auth.login(email, password);
+    const resultado = await this.auth.login(email, password);
     this.loading.set(false);
-    if (ok) {
+
+    if (resultado.ok) {
+      this.auditoria.registrar({
+        modulo: 'Autenticación',
+        accion: 'INICIO_SESION',
+        observacion: 'Inició sesión en el aplicativo.',
+        entidad: 'usuario',
+        referencia: email,
+      });
       void this.router.navigate(['/app', 'dashboard']);
-    } else {
-      this.error.set('Correo o contraseña incorrectos. Verifica tus credenciales.');
+      return;
     }
+
+    // No hay sesión, así que el actor se indica a mano. La contraseña tecleada
+    // nunca se registra: solo el correo con el que se intentó entrar.
+    this.auditoria.registrar({
+      modulo: 'Autenticación',
+      accion: 'INICIO_SESION_FALLIDO',
+      resultado: 'error',
+      observacion:
+        resultado.motivo === 'servicio'
+          ? 'Intento de inicio de sesión fallido: el servicio de autenticación no respondió.'
+          : 'Intento de inicio de sesión fallido: credenciales incorrectas.',
+      entidad: 'usuario',
+      referencia: email,
+      detalle: { motivo: resultado.motivo ?? 'credenciales' },
+      actor: { nombre: 'Intento no identificado', correo: email },
+    });
+
+    this.error.set(
+      resultado.motivo === 'servicio'
+        ? 'No se pudo contactar con el servicio de autenticación. Intenta de nuevo.'
+        : 'Correo o contraseña incorrectos. Verifica tus credenciales.',
+    );
   }
 }

@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
+import { AuditoriaService } from '@core/services/auditoria.service';
 import { PeriodStore } from '@core/services/period.store';
-import { ProcesoStore } from '@core/services/proceso.store';
+import { PeriodosService } from '@core/services/periodos.service';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
 import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
 
@@ -34,8 +35,9 @@ interface FilaValidacion {
 })
 export class Validar {
   private readonly periodStore = inject(PeriodStore);
+  private readonly periodos = inject(PeriodosService);
   private readonly documentos = inject(DocumentosService);
-  private readonly proceso = inject(ProcesoStore);
+  private readonly auditoria = inject(AuditoriaService);
   private readonly router = inject(Router);
   protected readonly loading = this.documentos.loading;
   protected readonly money = formatCentavos;
@@ -122,7 +124,8 @@ export class Validar {
   constructor() {
     effect(() => {
       this.periodStore.period();
-      const label = this.periodStore.current().label;
+      const label = this.periodStore.label();
+      if (!label) return; // el catálogo de periodos aún no ha cargado
       this.filtro.set('todos');
       this.confirmOpen.set(false);
       void this.documentos.loadPeriodo(label);
@@ -150,7 +153,31 @@ export class Validar {
   }
 
   private continuar(): void {
-    this.proceso.marcar(this.periodStore.period(), 'validado');
+    const r = this.resumen();
+
+    // Esto es lo que la pantalla promete al usuario cuando avanza con
+    // diferencias («quedará registrado»): hasta ahora no se registraba nada.
+    this.auditoria.registrar({
+      modulo: 'Validación',
+      accion: 'VALIDAR_PERIODO',
+      resultado: r.diferencias > 0 ? 'advertencia' : 'exito',
+      observacion:
+        r.diferencias > 0
+          ? `Validó el periodo y avanzó con ${r.diferencias} discrepancia(s) sin resolver.`
+          : `Validó el periodo: los ${r.comparados} colaboradores cotejados coinciden.`,
+      entidad: 'periodo',
+      referencia: this.periodStore.label(),
+      detalle: {
+        comparados: r.comparados,
+        coinciden: r.coinciden,
+        discrepancias: r.diferencias,
+        noMop: r.noMop,
+        soloPrefactura: r.soloPrefactura,
+      },
+    });
+
+    // El avance del ciclo queda en la base de datos, compartido y auditable.
+    void this.periodos.avanzar(this.periodStore.period(), 'agrupacion');
     this.confirmOpen.set(false);
     void this.router.navigate(['/app', 'agrupar']);
   }

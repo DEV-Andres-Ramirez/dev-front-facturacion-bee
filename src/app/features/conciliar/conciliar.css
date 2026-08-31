@@ -1,0 +1,35 @@
+/* Solo lo que no cubre el sistema de diseño global. */
+
+/* Barrita de color a la izquierda del número de factura: es el código de
+   color de RF-CON-03 aplicado a la fila. */
+.barra-estado {
+  width: 4px;
+  height: 30px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.cobro {
+  background: linear-gradient(160deg, var(--warn-soft), var(--surface) 70%);
+  border-color: var(--warn-line);
+}
+
+.cobro-ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.modal-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}

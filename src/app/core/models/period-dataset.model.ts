@@ -13,7 +13,6 @@ import {
   ReconciliationDetail,
 } from './reconciliation.model';
 import { DocumentArchive } from './document.model';
-import { AuditEvent } from './audit.model';
 
 /** Cotejo de validación del periodo. */
 export interface ValidationData {
@@ -53,5 +52,4 @@ export interface PeriodDataset {
   readonly emailDraft: EmailDraft | null;
   readonly reconciliation: ReconciliationData;
   readonly archive: DocumentArchive | null;
-  readonly audit: readonly AuditEvent[];
 }

@@ -30,5 +30,4 @@ export const EMPTY_DATASET: PeriodDataset = {
   emailDraft: null,
   reconciliation: { rows: [], totals: null, detail: null },
   archive: null,
-  audit: [],
 };

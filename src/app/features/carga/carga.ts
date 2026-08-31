@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
+import { AuditoriaService } from '@core/services/auditoria.service';
 import { PeriodStore } from '@core/services/period.store';
-import { ProcesoStore } from '@core/services/proceso.store';
+import { PeriodosService } from '@core/services/periodos.service';
+import { FacturasService } from '@core/services/facturas.service';
 import { DocumentoFacturacion, TipoDocumento } from '@core/models';
-import { IconComponent, IconName, ProcessStepperComponent } from '@shared/ui';
+import { IconComponent, IconName } from '@shared/ui';
 
 type SlotId = 'prefactura' | 'pedido' | 'registro' | 'novedades';
 
@@ -39,16 +41,18 @@ const MAX_MB = 5;
 @Component({
   selector: 'app-carga',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ProcessStepperComponent, IconComponent],
+  imports: [RouterLink, IconComponent],
   templateUrl: './carga.html',
   styleUrl: './carga.css',
 })
 export class Carga {
   private readonly periodStore = inject(PeriodStore);
-  private readonly proceso = inject(ProcesoStore);
+  private readonly periodos = inject(PeriodosService);
+  private readonly facturas = inject(FacturasService);
   protected readonly documentos = inject(DocumentosService);
+  private readonly auditoria = inject(AuditoriaService);
 
-  protected readonly period = this.periodStore.current;
+  protected readonly periodLabel = this.periodStore.label;
 
   protected readonly dataLoading = this.documentos.loading;
   protected readonly loadError = this.documentos.error;
@@ -130,7 +134,8 @@ export class Carga {
     // Carga (o limpia) el periodo seleccionado al entrar y al cambiar de periodo.
     effect(() => {
       this.periodStore.period();
-      const label = this.periodStore.current().label;
+      const label = this.periodStore.label();
+      if (!label) return; // el catálogo de periodos aún no ha cargado
       this.staged.set(EMPTY_STAGED);
       this.preview.set(null);
       this.errorSlot.set(null);
@@ -252,9 +257,31 @@ export class Carga {
     if (!doc) return;
     this.deleting.set(true);
     this.saveError.set('');
+
+    // El detalle se borra en cascada y el servicio no devuelve el conteo: hay
+    // que leerlo antes de eliminar o se pierde para siempre.
+    const lineasAntes =
+      doc.tipo_documento_facturacion === 'Aprobación Prefactura'
+        ? this.lineasPrefactura()
+        : doc.tipo_documento_facturacion === 'Registro Facturación Interna'
+          ? this.lineasRegistro()
+          : 0;
+
     const result = await this.documentos.eliminarDocumento(doc);
     this.deleting.set(false);
     this.confirmDelete.set(null);
+    this.auditoria.registrar({
+      modulo: 'Carga',
+      accion: 'ELIMINAR_DOCUMENTO',
+      resultado: result.ok ? 'exito' : 'error',
+      observacion: result.ok
+        ? `Eliminó el documento «${doc.tipo_documento_facturacion}» del periodo ${doc.periodo_documento_facturacion}.`
+        : `No se pudo eliminar el documento «${doc.tipo_documento_facturacion}».`,
+      entidad: 'documento',
+      referencia: doc.nombre_documento_facturacion ?? doc.tipo_documento_facturacion,
+      detalle: { tipo: doc.tipo_documento_facturacion, lineasEliminadas: lineasAntes },
+    });
+
     if (!result.ok) {
       this.saveError.set(result.error ?? 'No se pudo eliminar el archivo.');
       return;
@@ -272,20 +299,43 @@ export class Carga {
    * avance del ciclo: se reinician las compuertas para forzar una nueva
    * validación, agrupación y revisión con los datos actuales.
    */
+  /**
+   * Cambiar la prefactura o el registro interno invalida todo lo que se calculó
+   * después, así que el ciclo vuelve a Carga. Antes esto solo limpiaba tres
+   * banderas del navegador; ahora reabre la etapa en la base de datos, así que
+   * el resto del equipo también lo ve.
+   */
   private reiniciarProceso(): void {
-    const id = this.periodStore.period();
-    this.proceso.reiniciar(id, 'validado');
-    this.proceso.reiniciar(id, 'emitido');
-    this.proceso.reiniciar(id, 'revisado');
+    void this.periodos.reabrir(
+      this.periodStore.period(),
+      'carga',
+      'Se recargó la base documental del periodo (prefactura o registro interno).',
+    );
+  }
+
+
+  /** Deja constancia de un archivo que la aplicación rechazó antes de subirlo. */
+  private registrarRechazo(slot: SlotConfig, file: File, motivo: string): void {
+    this.auditoria.registrar({
+      modulo: 'Carga',
+      accion: 'RECHAZAR_ARCHIVO',
+      resultado: 'advertencia',
+      observacion: `Se rechazó el archivo «${file.name}» para ${slot.title}: ${motivo}.`,
+      entidad: 'documento',
+      referencia: file.name,
+      detalle: { slot: slot.id, bytes: file.size, motivo },
+    });
   }
 
   private stage(slot: SlotConfig, file: File): void {
     if (file.size > MAX_MB * 1024 * 1024) {
       this.fail(slot.id, `El archivo supera el límite de ${MAX_MB} MB.`);
+      this.registrarRechazo(slot, file, `supera el límite de ${MAX_MB} MB`);
       return;
     }
     if (!this.extensionValida(slot, file)) {
       this.fail(slot.id, `Formato no válido. Se espera ${slot.formats}.`);
+      this.registrarRechazo(slot, file, `formato no válido, se esperaba ${slot.formats}`);
       return;
     }
     this.errorSlot.set(null);
@@ -330,7 +380,7 @@ export class Carga {
     this.saveError.set('');
     const s = this.staged();
     const id = this.periodStore.period();
-    const label = this.periodStore.current().label;
+    const label = this.periodStore.label();
     const errors: string[] = [];
     const next = {
       prefactura: s.prefactura,
@@ -371,10 +421,42 @@ export class Carga {
       next.pedidos = remaining;
     }
 
+    // El registro interno define qué facturas existen: se sincronizan aquí
+    // para que Revisar, Entregar y Conciliar trabajen sobre la misma lista.
+    if (baseCambiada) await this.facturas.sincronizar(label);
+
     this.staged.set(next);
     this.confirmOpen.set(false);
     this.saving.set(false);
     if (baseCambiada) this.reiniciarProceso();
     if (errors.length) this.saveError.set(errors.join(' · '));
+
+    const guardados = [
+      s.prefactura && !next.prefactura ? 'Aprobación Prefactura' : null,
+      s.registro && !next.registro ? 'Registro Facturación Interna' : null,
+      s.novedades && !next.novedades ? 'Novedades Periodo' : null,
+      s.pedidos.length - next.pedidos.length > 0
+        ? `${s.pedidos.length - next.pedidos.length} Pedido(s) de Compra`
+        : null,
+    ].filter((x): x is string => x !== null);
+
+    if (guardados.length || errors.length) {
+      this.auditoria.registrar({
+        modulo: 'Carga',
+        accion: 'CARGAR_DOCUMENTO',
+        resultado: errors.length ? (guardados.length ? 'advertencia' : 'error') : 'exito',
+        observacion: guardados.length
+          ? `Cargó documentos del periodo ${label}: ${guardados.join(', ')}.`
+          : `No se pudo cargar ningún documento del periodo ${label}.`,
+        entidad: 'documento',
+        referencia: label,
+        detalle: {
+          guardados,
+          fallidos: errors.length,
+          lineasPrefactura: this.lineasPrefactura(),
+          lineasRegistro: this.lineasRegistro(),
+        },
+      });
+    }
   }
 }

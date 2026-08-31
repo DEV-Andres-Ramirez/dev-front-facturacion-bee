@@ -3,6 +3,7 @@ import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { BillingDataService } from '@core/services/billing-data.service';
 import { UsuariosService } from '@core/services/usuarios.service';
 import { AuthService } from '@core/services/auth.service';
+import { AuditoriaService } from '@core/services/auditoria.service';
 import { EdicionUsuario, NuevoUsuario, User } from '@core/models';
 import { BadgeComponent, IconComponent } from '@shared/ui';
 
@@ -26,6 +27,7 @@ export class Usuarios implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly usuarios = inject(UsuariosService);
   private readonly auth = inject(AuthService);
+  private readonly auditoria = inject(AuditoriaService);
   protected readonly permissions = inject(BillingDataService).permissions;
 
   protected readonly users = this.usuarios.users;
@@ -43,6 +45,13 @@ export class Usuarios implements OnInit {
   protected readonly formError = signal('');
   protected readonly actionError = signal('');
   protected readonly isEdit = computed(() => this.editingId() !== null);
+
+  /**
+   * Estado de la cuenta antes de editarla. Se guarda al abrir el formulario
+   * porque en `save()` el formulario ya contiene solo los valores nuevos y no
+   * habría con qué comparar para registrar qué cambió realmente.
+   */
+  private readonly estadoPrevio = signal<Record<string, string> | null>(null);
 
   protected readonly form = this.fb.nonNullable.group({
     nombre_usuario: ['', [Validators.required]],
@@ -86,6 +95,13 @@ export class Usuarios implements OnInit {
       estado: row.estado_usuario ? 'activa' : 'inactiva',
     });
     this.setPasswordRequired(false);
+    this.estadoPrevio.set({
+      nombre: row.nombre_usuario,
+      correo: row.correo_usuario,
+      area: row.area_usuario,
+      rol: row.admin_usuario ? 'ADMIN' : 'USUARIO',
+      estado: row.estado_usuario ? 'activa' : 'inactiva',
+    });
     this.formOpen.set(true);
   }
 
@@ -110,17 +126,79 @@ export class Usuarios implements OnInit {
       : await this.usuarios.create(this.buildNew(v));
 
     this.saving.set(false);
+
+    const previo = this.estadoPrevio();
+    const nuevo = {
+      nombre: v.nombre_usuario,
+      correo: v.correo_usuario,
+      area: v.area_usuario,
+      rol: v.rol,
+      estado: v.estado,
+    };
+    const cambios = previo
+      ? Object.keys(nuevo).filter((k) => previo[k] !== nuevo[k as keyof typeof nuevo])
+      : [];
+
+    this.auditoria.registrar({
+      modulo: 'Usuarios',
+      accion: editId ? 'ACTUALIZAR_USUARIO' : 'CREAR_USUARIO',
+      resultado: result.ok ? 'exito' : 'error',
+      observacion: result.ok
+        ? editId
+          ? `Actualizó la cuenta de ${v.nombre_usuario}${cambios.length ? ` (cambió: ${cambios.join(', ')})` : ''}.`
+          : `Creó la cuenta de ${v.nombre_usuario} con rol ${v.rol}.`
+        : `No se pudo ${editId ? 'actualizar' : 'crear'} la cuenta de ${v.nombre_usuario}.`,
+      entidad: 'usuario',
+      referencia: v.correo_usuario,
+      // La contraseña nunca se registra: solo si se cambió o no.
+      detalle: {
+        rol: v.rol,
+        area: v.area_usuario,
+        estado: v.estado,
+        contrasenaCambiada: Boolean(v.contrasena_usuario),
+        ...(editId ? { cambios } : {}),
+      },
+    });
+
     if (result.ok) {
       this.formOpen.set(false);
+      this.estadoPrevio.set(null);
     } else {
       this.formError.set(result.error ?? 'No se pudo guardar.');
     }
   }
 
   protected async toggleEstado(user: User): Promise<void> {
-    if (user.id === this.currentUserId()) return; // no deshabilitar la propia cuenta
+    if (user.id === this.currentUserId()) {
+      // Hasta ahora este rechazo era mudo; en una bitácora es justo el tipo de
+      // intento que interesa poder revisar después.
+      this.auditoria.registrar({
+        modulo: 'Usuarios',
+        accion: 'DESHABILITAR_USUARIO',
+        resultado: 'advertencia',
+        observacion: 'Intentó deshabilitar su propia cuenta; el sistema lo impidió.',
+        entidad: 'usuario',
+        referencia: user.email,
+      });
+      return;
+    }
+
     this.actionError.set('');
-    const result = await this.usuarios.setEstado(user.id, user.status !== 'Activa');
+    const habilitar = user.status !== 'Activa';
+    const result = await this.usuarios.setEstado(user.id, habilitar);
+
+    this.auditoria.registrar({
+      modulo: 'Usuarios',
+      accion: habilitar ? 'HABILITAR_USUARIO' : 'DESHABILITAR_USUARIO',
+      resultado: result.ok ? 'exito' : 'error',
+      observacion: result.ok
+        ? `${habilitar ? 'Habilitó' : 'Deshabilitó'} la cuenta de ${user.name}.`
+        : `No se pudo ${habilitar ? 'habilitar' : 'deshabilitar'} la cuenta de ${user.name}.`,
+      entidad: 'usuario',
+      referencia: user.email,
+      detalle: { estadoAnterior: user.status, estadoNuevo: habilitar ? 'Activa' : 'Inactiva' },
+    });
+
     if (!result.ok) this.actionError.set(result.error ?? 'No se pudo cambiar el estado.');
   }
 

@@ -1,0 +1,30 @@
+/*
+ * Estilos propios del módulo de auditoría.
+ *
+ * Solo lo que no existe en el sistema de diseño global: el pie con la
+ * paginación (ninguna otra pantalla pagina todavía) y el ajuste del texto largo
+ * del navegador en el detalle. Todo lo demás usa clases de `src/styles.css`.
+ */
+
+.audit-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line-2);
+}
+
+.audit-pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* La cadena del user-agent es larga y no tiene espacios donde partir. */
+.audit-agent {
+  font-family: var(--mono);
+  font-size: 11px;
+  word-break: break-all;
+  text-align: right;
+  max-width: 60%;
+}
