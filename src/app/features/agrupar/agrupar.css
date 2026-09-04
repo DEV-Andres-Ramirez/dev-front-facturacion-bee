@@ -15,7 +15,10 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
-  transition: border-color 0.16s, box-shadow 0.16s, background 0.16s;
+  transition:
+    border-color 0.16s,
+    box-shadow 0.16s,
+    background 0.16s;
 }
 .seq-card:hover {
   border-color: var(--honey-600);

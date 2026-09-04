@@ -4,6 +4,7 @@ import {
   EtapaCiclo,
   PeriodoId,
   PeriodoRow,
+  ResumenPeriodo,
   etiquetaDePeriodo,
   ordenEtapa,
 } from '../models';
@@ -49,6 +50,20 @@ export class PeriodosService {
       this._rows.set((data ?? []) as PeriodoRow[]);
     }
     this._loading.set(false);
+  }
+
+  private readonly _resumen = signal<ResumenPeriodo[]>([]);
+  /** Totales por periodo, para la evolución del tablero. */
+  readonly resumen = this._resumen.asReadonly();
+
+  /**
+   * Carga los totales de **todos** los periodos. Es la única consulta que cruza
+   * meses, así que va aparte de `load()`: el encabezado no la necesita y la
+   * pide solo el tablero.
+   */
+  async cargarResumen(): Promise<void> {
+    const { data, error } = await this.supabase.rpc('fn_resumen_periodos');
+    if (!error) this._resumen.set((data ?? []) as ResumenPeriodo[]);
   }
 
   byId(id: PeriodoId): PeriodoRow | undefined {

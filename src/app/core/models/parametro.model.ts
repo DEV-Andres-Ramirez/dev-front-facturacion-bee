@@ -14,7 +14,8 @@ export type ClaveParametro =
   | 'correo_cliente'
   | 'correo_copias'
   | 'asunto_entrega'
-  | 'proveedor_nombre';
+  | 'proveedor_nombre'
+  | 'prefijo_secuencial';
 
 export interface ParametroRow {
   readonly clave: ClaveParametro;
@@ -34,6 +35,7 @@ export const PARAMETROS_POR_DEFECTO: Record<ClaveParametro, string> = {
   plazo_pago_dias: '30',
   correo_cliente: '',
   correo_copias: '',
-  asunto_entrega: 'Emisión Factura {secuencial} · {periodo}',
+  asunto_entrega: 'EMISION DE FACTURA',
   proveedor_nombre: 'BEE CONSULTORIA Y NEGOCIOS SAS',
+  prefijo_secuencial: 'BEE',
 };

@@ -1,11 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { AuditoriaService } from '@core/services/auditoria.service';
 import { PeriodStore } from '@core/services/period.store';
 import { PeriodosService } from '@core/services/periodos.service';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
-import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
+import { BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent } from '@shared/ui';
 
 interface LineaAgrupada {
   readonly id: number;
@@ -35,7 +42,7 @@ const SIN_SECUENCIAL = 'Sin secuencial';
 @Component({
   selector: 'app-agrupar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent],
   templateUrl: './agrupar.html',
   styleUrl: './agrupar.css',
 })
@@ -61,7 +68,8 @@ export class Agrupar {
     const map = new Map<string, string>();
     for (const r of this.prefactura()) {
       const id = (r.id_colaborador_prefactura ?? '').trim();
-      if (id && r.nombre_colaborador_prefactura && !map.has(id)) map.set(id, r.nombre_colaborador_prefactura);
+      if (id && r.nombre_colaborador_prefactura && !map.has(id))
+        map.set(id, r.nombre_colaborador_prefactura);
     }
     return map;
   });

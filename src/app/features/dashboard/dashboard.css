@@ -1,119 +1,9 @@
 /*
  * Estilos propios del tablero: solo lo que no existe en el sistema de diseño.
- * Los gráficos se dibujan con CSS y no con una librería: para un reparto y unas
- * barras de progreso, añadir una dependencia no compensa.
+ * Los gráficos los dibujan `bee-donut`, `bee-barras` y `bee-serie` con SVG
+ * propio: para un reparto, unas barras y una serie mensual, una librería de
+ * 150-400 kB no compensa, y traería su propia superficie de vulnerabilidades.
  */
-
-.ciclo-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
-}
-
-.ciclo-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 6px;
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  text-decoration: none;
-  transition:
-    border-color 0.16s,
-    transform 0.16s;
-}
-
-.ciclo-tile:hover {
-  border-color: var(--ink-3);
-  transform: translateY(-2px);
-}
-
-.ciclo-tile .ct-n {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--line-2);
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ciclo-tile .ct-l {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--muted);
-  text-align: center;
-}
-
-.ciclo-tile.done .ct-n {
-  background: var(--ok);
-  color: #fff;
-}
-
-.ciclo-tile.done .ct-l {
-  color: var(--ink-2);
-}
-
-.ciclo-tile.cur {
-  border-color: var(--honey-600);
-  background: var(--honey-tint);
-}
-
-.ciclo-tile.cur .ct-n {
-  background: var(--honey);
-  color: var(--ink);
-}
-
-.ciclo-tile.cur .ct-l {
-  color: var(--ink);
-  font-weight: 700;
-}
-
-/* Barra apilada del reparto por estado. */
-.barra-apilada {
-  display: flex;
-  height: 12px;
-  border-radius: 6px;
-  overflow: hidden;
-  margin: 14px 0 10px;
-  background: var(--line-2);
-}
-
-.ba-seg {
-  height: 100%;
-  transition: width 0.3s;
-}
-
-.proyecto-fila {
-  margin-bottom: 14px;
-}
-
-.proyecto-fila:last-child {
-  margin-bottom: 0;
-}
-
-.pf-cab {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-  font-size: 12.5px;
-}
-
-.pf-nombre {
-  font-weight: 600;
-  color: var(--ink-2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .alertas-grid {
   display: grid;
@@ -122,14 +12,10 @@
   padding-top: 16px;
 }
 
-@media (max-width: 1080px) {
-  .ciclo-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .ciclo-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.bloque-tit {
+  display: block;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: var(--sp-3);
 }

@@ -88,7 +88,13 @@ como leídos porque desaparecen solos en cuanto se resuelve lo que los originó.
 ### Entrega al cliente
 
 Con las facturas revisadas, la aplicación arma **un correo por factura** con su
-asunto, sus copias controladas y los PDF de soporte adjuntos.
+asunto, sus copias controladas y **tres adjuntos**: la Factura BEE, el Pedido de
+Compra cuando la factura declara uno, y el Excel de Aprobación de Prefactura del
+periodo, que acompaña a todas.
+
+Las copias reúnen a los **aprobadores de esa factura concreta** más las copias
+fijas de la empresa, sin repetir a nadie. Tanto el destinatario como las copias
+fijas y el asunto son parámetros de negocio: se cambian sin tocar código.
 
 Antes de que nadie envíe nada, la pantalla **pregunta al servicio de correo si su
 buzón puede enviar**. Si no puede, lo dice arriba con el buzón concreto que falla
@@ -101,14 +107,21 @@ haber podido preguntar no es lo mismo que un buzón caído.
 
 Cada correo se puede **editar antes de enviarlo** —destinatarios, copias, asunto
 y cuerpo—, y los cambios se recuerdan en el navegador aunque se recargue la
-página; «Restablecer» devuelve el correo al generado. Se marca cuáles enviar
-(por defecto, los que quedan por entregar), y al confirmar se avisa si alguno ya
-se había enviado, porque el cliente lo recibiría dos veces.
+página; «Restablecer» devuelve el correo al generado. Los destinatarios y las
+copias son **etiquetas independientes**: cada dirección se ve por separado, se
+quita con su aspa y, si está mal escrita, se marca ella misma en rojo. Para pegar
+una lista entera hay un modo texto.
+
+**Distinguir lo que ya salió es lo que evita el error caro.** Un filtro separa
+«Por enviar» de «Ya enviadas»; las enviadas llevan raíl verde y la fecha real del
+envío, y no se marcan solas. Si se marca una a mano, su tarjeta pasa a rojo y
+avisa. Y la confirmación final **enumera qué facturas se reenviarían y cuándo
+salieron la primera vez**, y exige marcar una casilla antes de dejar continuar.
 
 Los correos salen de uno en uno, con su progreso, y se puede detener el envío a
-medias. Al terminar quedan clasificados en tres grupos: **enviados**, **con
-error** —con el motivo y la opción de reintentar los que lo merecen— y **sin
-enviar**, que son los que no se marcaron.
+medias. Al terminar, el resultado se resume en una barra proporcional y se
+detalla en tres grupos: **enviados**, **con error** —con el motivo y la opción de
+reintentar los que lo merecen— y **sin enviar**, que son los que no se marcaron.
 
 ---
 
@@ -123,7 +136,9 @@ src/app/
     guards/      authGuard y adminGuard
     utils/       cotejo de montos, fechas, CSV, ZIP, lectura de Excel
   shared/
-    ui/          sistema de diseño: icon, badge, kpi-card, empty-state, stepper
+    ui/          sistema de diseño sin dominio: icon, badge, kpi-card,
+                 empty-state, modal, ciclo, direcciones, toc y gráficos SVG
+    facturas/    widgets de dominio que comparten varias pantallas
     pipes/       formato de moneda
   layout/shell/  barra lateral, encabezado y selector de periodo
   features/      una carpeta por módulo, con carga diferida
@@ -136,6 +151,41 @@ supabase/
   **dominio** (modelos y utilidades de cotejo, moneda y fecha) aislado y testeable.
 - Identidad de marca centralizada en `src/styles.css` (tokens carbón y miel) con
   las tipografías embebidas localmente.
+
+---
+
+## Interfaz
+
+La identidad es carbón y miel, con tipografía Jakarta para el texto y JBMono para
+todo lo que sea una cifra o un código —el dinero y los números de factura se leen
+mejor con anchos fijos—.
+
+- **Un solo panel se desplaza.** El documento nunca hace scroll: el encabezado y
+  la barra lateral quedan fijos y solo se mueve el contenido.
+- **Los gráficos son SVG propio**, sin librería: el reparto por estado, la
+  antigüedad de cobro y la evolución entre periodos.
+- **Los diálogos son de verdad modales**: atrapan el foco, cierran con `Escape` y
+  bloquean el fondo mientras están abiertos.
+- **Móvil de primera clase.** Por debajo de 640 px las tablas se convierten en
+  tarjetas con sus rótulos, la barra lateral pasa a cajón y la línea del ciclo se
+  resume en «Paso 5 de 7» desplegable.
+- Todo respeta `prefers-reduced-motion`.
+
+---
+
+## Manuales
+
+El aplicativo lleva su propia documentación dentro, en
+**Documentación → Manual de Usuario** y **Manual Técnico** (este último solo para
+administradores). Ambos tienen índice fijo con buscador que marca el apartado que
+se está leyendo.
+
+- El **Manual de Usuario** cubre los siete módulos del ciclo, el tablero, la
+  administración, la regla de numeración de facturas, un ejemplo completo de mes
+  y las preguntas frecuentes.
+- El **Manual Técnico** documenta el stack, la estructura, las ocho tablas, las
+  funciones RPC, el contrato del servicio de correo, el sistema de diseño y la
+  deuda pendiente.
 
 ---
 
@@ -153,7 +203,7 @@ Ocho tablas en Supabase. Las columnas siguen la convención
 | `auditoria` | Bitácora inmutable de acciones |
 | `periodos` | Periodos de facturación y etapa del ciclo de cada uno |
 | `facturas` | Una fila por factura: estado, entrega y conciliación |
-| `parametros` | Retención, TRM, destinatarios y plazos configurables |
+| `parametros` | Retención, TRM, destinatarios, asunto, plazos y prefijo de factura, todos configurables |
 
 Los archivos se guardan en el bucket **`facturacion-bee`** de Supabase Storage,
 en la ruta `{periodo}/{tipo}/{archivo}`.
@@ -173,6 +223,21 @@ Las facturas se distinguen por el código de color del proceso: verde pagada, az
 pendiente y rojo anulada o vencida. El consolidado del periodo separa lo
 facturado, lo recibido, lo retenido y lo pendiente, y señala las facturas que
 superaron el plazo acordado para activar la gestión de cobro.
+
+Desde aquí un administrador también puede **anular una factura ya enviada**, que
+es el caso real de una que el cliente rechaza al momento de pagarla. Se pide un
+motivo, queda en la bitácora, y una factura ya pagada no se puede anular.
+
+### Numeración de facturas
+
+Un número de factura identifica **una sola factura en toda la historia de la
+empresa**, no dentro de su mes. Anularla **no libera** el número: ni en ese
+periodo ni en ninguno posterior.
+
+Al cargar el registro interno, el aplicativo comprueba los números del Excel y
+avisa —antes de guardar nada— si alguno ya está usado, diciendo a qué periodo
+pertenece y en qué estado está. Esas líneas no se convierten en facturas. Y
+siempre muestra cuál es el **siguiente número libre**, contando toda la historia.
 
 ### Conservación de registros
 
@@ -227,3 +292,10 @@ todas las rutas a `index.html` para que funcione el enrutado del lado del client
 El servicio de correo es un backend aparte (`dev-back-facturacion-bee`); su
 contrato —incluida la comprobación del buzón— está documentado en el
 `CONSUMO.md` de ese repositorio.
+
+> **El front no lee variables de entorno.** En el navegador no existe
+> `process.env`: la configuración pública (URL de Supabase, clave publicable, URL
+> y clave del backend) se compila dentro del JavaScript desde
+> `src/environments/environment.production.ts`. No hace falta crear variables en
+> Vercel para el front, y crearlas no tendría efecto. El `.env` de la raíz es
+> residuo de un prototipo: ninguna de sus variables se usa.

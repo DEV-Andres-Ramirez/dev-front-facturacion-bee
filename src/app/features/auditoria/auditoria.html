@@ -4,8 +4,8 @@
     <div class="at">
       Registro inmutable de solo lectura
       <div class="dim" style="font-weight: 500; margin-top: 2px">
-        La bitácora solo admite inserciones: ni la aplicación ni un administrador pueden
-        modificar o eliminar un evento ya registrado.
+        La bitácora solo admite inserciones: ni la aplicación ni un administrador pueden modificar o
+        eliminar un evento ya registrado.
       </div>
     </div>
   </div>
@@ -14,7 +14,9 @@
     <div class="mini">
       <div class="ml">Eventos</div>
       <div class="mv mono">{{ resumen()?.total_eventos ?? 0 }}</div>
-      <div class="ms">{{ hayFiltroActivo() ? 'Con el filtro aplicado' : 'Historial completo' }}</div>
+      <div class="ms">
+        {{ hayFiltroActivo() ? 'Con el filtro aplicado' : 'Historial completo' }}
+      </div>
     </div>
     <div class="mini">
       <div class="ml">Usuarios</div>
@@ -23,7 +25,10 @@
     </div>
     <div class="mini">
       <div class="ml">Acciones fallidas</div>
-      <div class="mv mono" [style.color]="(resumen()?.eventos_error ?? 0) > 0 ? 'var(--bad)' : 'var(--ok)'">
+      <div
+        class="mv mono"
+        [style.color]="(resumen()?.eventos_error ?? 0) > 0 ? 'var(--bad)' : 'var(--ok)'"
+      >
         {{ resumen()?.eventos_error ?? 0 }}
       </div>
       <div class="ms">Requieren revisión</div>
@@ -63,7 +68,12 @@
       />
 
       <label class="sr-only" for="audit-user">Usuario</label>
-      <select id="audit-user" class="f-input" style="width: auto; height: 36px" (change)="setCorreo($event)">
+      <select
+        id="audit-user"
+        class="f-input"
+        style="width: auto; height: 36px"
+        (change)="setCorreo($event)"
+      >
         <option value="">Todos los usuarios</option>
         @for (opcion of usuariosDisponibles(); track opcion.valor) {
           <option [value]="opcion.valor" [selected]="filtro().correo === opcion.valor">
@@ -73,7 +83,12 @@
       </select>
 
       <label class="sr-only" for="audit-module">Módulo</label>
-      <select id="audit-module" class="f-input" style="width: auto; height: 36px" (change)="setModulo($event)">
+      <select
+        id="audit-module"
+        class="f-input"
+        style="width: auto; height: 36px"
+        (change)="setModulo($event)"
+      >
         <option value="">Todos los módulos</option>
         @for (opcion of modulosDisponibles(); track opcion.valor) {
           <option [value]="opcion.valor" [selected]="filtro().modulo === opcion.valor">
@@ -83,7 +98,12 @@
       </select>
 
       <label class="sr-only" for="audit-action">Acción</label>
-      <select id="audit-action" class="f-input" style="width: auto; height: 36px" (change)="setAccion($event)">
+      <select
+        id="audit-action"
+        class="f-input"
+        style="width: auto; height: 36px"
+        (change)="setAccion($event)"
+      >
         <option value="">Todas las acciones</option>
         @for (opcion of accionesDisponibles(); track opcion.valor) {
           <option [value]="opcion.valor" [selected]="filtro().accion === opcion.valor">
@@ -93,10 +113,17 @@
       </select>
 
       <label class="sr-only" for="audit-result">Resultado</label>
-      <select id="audit-result" class="f-input" style="width: auto; height: 36px" (change)="setResultado($event)">
+      <select
+        id="audit-result"
+        class="f-input"
+        style="width: auto; height: 36px"
+        (change)="setResultado($event)"
+      >
         <option value="">Cualquier resultado</option>
         <option value="exito" [selected]="filtro().resultado === 'exito'">Correcto</option>
-        <option value="advertencia" [selected]="filtro().resultado === 'advertencia'">Con avisos</option>
+        <option value="advertencia" [selected]="filtro().resultado === 'advertencia'">
+          Con avisos
+        </option>
         <option value="error" [selected]="filtro().resultado === 'error'">Fallido</option>
       </select>
 
@@ -138,7 +165,7 @@
     }
 
     <div class="tbl-wrap">
-      <table class="dt">
+      <table class="dt dt-stack">
         <caption class="sr-only">
           Eventos registrados en la bitácora, con usuario, módulo, acción y resultado
         </caption>
@@ -156,8 +183,10 @@
         <tbody>
           @for (evento of eventos(); track evento.id_auditoria) {
             <tr>
-              <td class="mono dim">{{ formatFechaHora(evento.fecha_auditoria) }}</td>
-              <td>
+              <td class="dt-head" class="mono dim">
+                {{ formatFechaHora(evento.fecha_auditoria) }}
+              </td>
+              <td data-label="Usuario">
                 <div class="cell-main">
                   <span
                     class="cell-av"
@@ -173,21 +202,23 @@
                   </div>
                 </div>
               </td>
-              <td>{{ evento.modulo_auditoria }}</td>
-              <td class="mono dim">{{ accionLegible(evento.accion_auditoria) }}</td>
-              <td>
+              <td data-label="Módulo">{{ evento.modulo_auditoria }}</td>
+              <td data-label="Acción" class="mono dim">
+                {{ accionLegible(evento.accion_auditoria) }}
+              </td>
+              <td data-label="Observación">
                 {{ evento.observacion_auditoria }}
                 @if (evento.referencia_auditoria) {
                   <div class="cell-sub mono">{{ evento.referencia_auditoria }}</div>
                 }
               </td>
-              <td>
+              <td data-label="Resultado">
                 <bee-badge
                   [tone]="tono(evento.resultado_auditoria)"
                   [label]="etiquetaResultado(evento.resultado_auditoria)"
                 />
               </td>
-              <td style="text-align: right">
+              <td data-label="Detalle" style="text-align: right">
                 <button
                   class="link"
                   type="button"
@@ -200,7 +231,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="7">
+              <td data-label="Fecha y hora" colspan="7">
                 <p class="note-line" style="text-align: center; padding: 22px 0">
                   @if (loading()) {
                     Cargando la bitácora…
@@ -226,8 +257,8 @@
 
       @if (total() > 0) {
         <span class="note-line">
-          Mostrando {{ rangoVisible().desde }}–{{ rangoVisible().hasta }}
-          de {{ rangoVisible().total }} eventos
+          Mostrando {{ rangoVisible().desde }}–{{ rangoVisible().hasta }} de
+          {{ rangoVisible().total }} eventos
         </span>
 
         @if (paginas() > 1) {
@@ -253,7 +284,12 @@
         }
       }
 
-      <button class="btn-sm btn-ghost" type="button" [disabled]="total() === 0" (click)="exportar()">
+      <button
+        class="btn-sm btn-ghost"
+        type="button"
+        [disabled]="total() === 0"
+        (click)="exportar()"
+      >
         <bee-icon name="download" [size]="15" [strokeWidth]="2.2" />
         Exportar bitácora
       </button>
@@ -272,76 +308,63 @@
 </section>
 
 @if (detalle(); as evento) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="audit-detail-title">
-    <div class="modal-card">
-      <div class="modal-h">
-        <span
-          class="ti ic-info"
-          style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none"
-        >
-          <bee-icon name="eye" [size]="18" />
-        </span>
-        <div id="audit-detail-title" class="ct">Detalle del evento</div>
-        <div class="sp"></div>
-        <button class="link" type="button" aria-label="Cerrar el detalle" (click)="cerrarDetalle()">
-          <bee-icon name="x" [size]="16" />
-        </button>
-      </div>
-
-      <div class="modal-body">
-        <div class="kv-row">
-          <span class="kv-k">Fecha y hora</span>
-          <span class="kv-v mono">{{ formatFechaHora(evento.fecha_auditoria) }}</span>
-        </div>
-        <div class="kv-row">
-          <span class="kv-k">Usuario</span>
-          <span class="kv-v">{{ evento.nombre_usuario_auditoria }} · {{ evento.correo_usuario_auditoria }}</span>
-        </div>
-        <div class="kv-row">
-          <span class="kv-k">Rol</span>
-          <span class="kv-v">{{ evento.rol_usuario_auditoria }}</span>
-        </div>
-        <div class="kv-row">
-          <span class="kv-k">Módulo y acción</span>
-          <span class="kv-v">{{ evento.modulo_auditoria }} · {{ accionLegible(evento.accion_auditoria) }}</span>
-        </div>
-        <div class="kv-row">
-          <span class="kv-k">Observación</span>
-          <span class="kv-v">{{ evento.observacion_auditoria }}</span>
-        </div>
-        @if (evento.periodo_auditoria) {
-          <div class="kv-row">
-            <span class="kv-k">Periodo</span>
-            <span class="kv-v">{{ evento.periodo_auditoria }}</span>
-          </div>
-        }
-        @if (evento.entidad_auditoria || evento.referencia_auditoria) {
-          <div class="kv-row">
-            <span class="kv-k">Objeto afectado</span>
-            <span class="kv-v mono">
-              {{ evento.entidad_auditoria }}{{ evento.referencia_auditoria ? ' · ' + evento.referencia_auditoria : '' }}
-            </span>
-          </div>
-        }
-        @for (par of paresDeDetalle(evento); track par.clave) {
-          <div class="kv-row">
-            <span class="kv-k">{{ par.clave }}</span>
-            <span class="kv-v mono">{{ par.valor }}</span>
-          </div>
-        }
-        <div class="kv-row">
-          <span class="kv-k">Dirección IP</span>
-          <span class="kv-v mono">{{ evento.ip_auditoria ?? '—' }}</span>
-        </div>
-        <div class="kv-row">
-          <span class="kv-k">Navegador</span>
-          <span class="kv-v audit-agent">{{ evento.agente_auditoria ?? '—' }}</span>
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn-sm btn-solid" type="button" (click)="cerrarDetalle()">Cerrar</button>
-      </div>
+  <bee-modal titulo="Detalle del evento" icono="eye" tono="info" (cerrar)="cerrarDetalle()">
+    <div class="kv-row">
+      <span class="kv-k">Fecha y hora</span>
+      <span class="kv-v mono">{{ formatFechaHora(evento.fecha_auditoria) }}</span>
     </div>
-  </div>
+    <div class="kv-row">
+      <span class="kv-k">Usuario</span>
+      <span class="kv-v"
+        >{{ evento.nombre_usuario_auditoria }} · {{ evento.correo_usuario_auditoria }}</span
+      >
+    </div>
+    <div class="kv-row">
+      <span class="kv-k">Rol</span>
+      <span class="kv-v">{{ evento.rol_usuario_auditoria }}</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-k">Módulo y acción</span>
+      <span class="kv-v"
+        >{{ evento.modulo_auditoria }} · {{ accionLegible(evento.accion_auditoria) }}</span
+      >
+    </div>
+    <div class="kv-row">
+      <span class="kv-k">Observación</span>
+      <span class="kv-v">{{ evento.observacion_auditoria }}</span>
+    </div>
+    @if (evento.periodo_auditoria) {
+      <div class="kv-row">
+        <span class="kv-k">Periodo</span>
+        <span class="kv-v">{{ evento.periodo_auditoria }}</span>
+      </div>
+    }
+    @if (evento.entidad_auditoria || evento.referencia_auditoria) {
+      <div class="kv-row">
+        <span class="kv-k">Objeto afectado</span>
+        <span class="kv-v mono">
+          {{ evento.entidad_auditoria
+          }}{{ evento.referencia_auditoria ? ' · ' + evento.referencia_auditoria : '' }}
+        </span>
+      </div>
+    }
+    @for (par of paresDeDetalle(evento); track par.clave) {
+      <div class="kv-row">
+        <span class="kv-k">{{ par.clave }}</span>
+        <span class="kv-v mono">{{ par.valor }}</span>
+      </div>
+    }
+    <div class="kv-row">
+      <span class="kv-k">Dirección IP</span>
+      <span class="kv-v mono">{{ evento.ip_auditoria ?? '—' }}</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-k">Navegador</span>
+      <span class="kv-v audit-agent">{{ evento.agente_auditoria ?? '—' }}</span>
+    </div>
+
+    <ng-container acciones>
+      <button class="btn-sm btn-solid" type="button" (click)="cerrarDetalle()">Cerrar</button>
+    </ng-container>
+  </bee-modal>
 }

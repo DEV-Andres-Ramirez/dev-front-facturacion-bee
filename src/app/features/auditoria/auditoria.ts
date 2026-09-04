@@ -20,13 +20,13 @@ import {
 } from '@core/models';
 import { formatFechaHora, limiteDelDia } from '@core/utils/fecha.util';
 import { initialsOf } from '@core/utils/usuario.mapper';
-import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
+import { BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent } from '@shared/ui';
 
 /** Auditoría y logs: bitácora inmutable de acciones del sistema (RF-LOG). */
 @Component({
   selector: 'app-auditoria',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent],
   templateUrl: './auditoria.html',
   styleUrl: './auditoria.css',
 })

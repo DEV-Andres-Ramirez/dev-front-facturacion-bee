@@ -14,6 +14,7 @@ import { PeriodStore } from '@core/services/period.store';
 import { FacturasService } from '@core/services/facturas.service';
 import { ParametrosService } from '@core/services/parametros.service';
 import {
+  AdjuntoCorreo,
   CampoCorreo,
   CorreoPreparado,
   DiagnosticoCorreo,
@@ -23,8 +24,19 @@ import {
   PRESENTACION_ENVIO,
   SemanticTone,
 } from '@core/models';
-import { componerCorreos, cuerpoComoHtml, prepararCorreo } from '@core/utils/correo.util';
-import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
+import {
+  componerCorreos,
+  cuerpoComoHtml,
+  prepararCorreo,
+  tipoDeArchivo,
+} from '@core/utils/correo.util';
+import {
+  BadgeComponent,
+  DireccionesComponent,
+  EmptyStateComponent,
+  IconComponent,
+  ModalComponent,
+} from '@shared/ui';
 
 /** Cómo terminó el envío de una factura concreta. */
 interface EstadoFactura {
@@ -40,6 +52,9 @@ interface AdvertenciaEnvio {
 }
 
 /** Prefijo de la clave con la que se recuerdan las ediciones de cada periodo. */
+/** Qué tarjetas se muestran en la lista. */
+type FiltroCorreos = 'todas' | 'pendientes' | 'enviadas';
+
 const CLAVE_EDICIONES = 'bee.correos.';
 
 /**
@@ -59,10 +74,7 @@ function leerEdiciones(clave: string): Record<string, EdicionCorreo> {
   }
 }
 
-function guardarEdiciones(
-  clave: string,
-  ediciones: Record<string, EdicionCorreo>,
-): void {
+function guardarEdiciones(clave: string, ediciones: Record<string, EdicionCorreo>): void {
   try {
     if (Object.keys(ediciones).length === 0) localStorage.removeItem(clave);
     else localStorage.setItem(clave, JSON.stringify(ediciones));
@@ -75,7 +87,13 @@ function guardarEdiciones(
 @Component({
   selector: 'app-entregar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
+  imports: [
+    BadgeComponent,
+    DireccionesComponent,
+    EmptyStateComponent,
+    IconComponent,
+    ModalComponent,
+  ],
   templateUrl: './entregar.html',
   styleUrl: './entregar.css',
 })
@@ -95,6 +113,19 @@ export class Entregar {
   protected readonly hayDatos = computed(() => this.registro().length > 0);
   protected readonly revisado = computed(() => this.periodStore.alcanzo('entrega'));
 
+  /**
+   * Excel de Aprobación de Prefactura del periodo. Va adjunto en todos los
+   * correos, así que se resuelve una sola vez y no factura a factura.
+   */
+  private readonly aprobacionPrefactura = computed<AdjuntoCorreo | undefined>(() => {
+    const doc = this.documentos.docDe('Aprobación Prefactura');
+    if (!doc) return undefined;
+    return {
+      url: doc.direccion_documento_facturacion,
+      filename: doc.nombre_documento_facturacion ?? undefined,
+    };
+  });
+
   /** Los correos que genera el sistema a partir de los datos del periodo. */
   private readonly plantillas = computed(() =>
     componerCorreos({
@@ -106,6 +137,7 @@ export class Entregar {
       copiasFijas: this.parametros.lista('correo_copias'),
       proveedor: this.parametros.texto('proveedor_nombre'),
       asunto: this.parametros.texto('asunto_entrega'),
+      aprobacion: this.aprobacionPrefactura(),
     }),
   );
 
@@ -118,9 +150,7 @@ export class Entregar {
    */
   private readonly ediciones = signal<Record<string, EdicionCorreo>>({});
 
-  protected readonly hayEdiciones = computed(
-    () => Object.keys(this.ediciones()).length > 0,
-  );
+  protected readonly hayEdiciones = computed(() => Object.keys(this.ediciones()).length > 0);
 
   /** Los correos tal y como saldrían, con sus ediciones y sus avisos. */
   protected readonly correos = computed<CorreoPreparado[]>(() => {
@@ -143,6 +173,11 @@ export class Entregar {
       guardarEdiciones(this.clave(), siguiente);
       return siguiente;
     });
+  }
+
+  /** Cambio que llega ya resuelto desde `bee-direcciones`. */
+  protected editarCampo(secuencial: string, campo: CampoCorreo, valor: string): void {
+    this.aplicar(secuencial, campo, valor);
   }
 
   protected editar(secuencial: string, campo: CampoCorreo, evento: Event): void {
@@ -205,6 +240,33 @@ export class Entregar {
    * las que quedan por entregar. Así la propuesta se recalcula sola mientras
    * cargan los datos, sin necesidad de un efecto que escriba señales.
    */
+  /**
+   * Qué tarjetas se ven. Con veinte facturas, distinguir las que quedan por
+   * enviar de las que ya salieron a ojo es justo donde se cometen los reenvíos
+   * involuntarios.
+   */
+  protected readonly filtro = signal<FiltroCorreos>('todas');
+
+  protected readonly correosVisibles = computed(() => {
+    const todos = this.correos();
+    switch (this.filtro()) {
+      case 'pendientes':
+        return todos.filter((correo) => !correo.yaEnviada);
+      case 'enviadas':
+        return todos.filter((correo) => correo.yaEnviada);
+      default:
+        return todos;
+    }
+  });
+
+  protected readonly numEnviadasYa = computed(
+    () => this.correos().filter((correo) => correo.yaEnviada).length,
+  );
+
+  protected setFiltro(filtro: FiltroCorreos): void {
+    this.filtro.set(filtro);
+  }
+
   private readonly seleccionManual = signal<ReadonlySet<string> | null>(null);
 
   private pendientes(): string[] {
@@ -222,16 +284,33 @@ export class Entregar {
   protected readonly numPendientes = computed(() => this.pendientes().length);
 
   /** Reenvíos marcados: el cliente recibiría la misma factura por segunda vez. */
-  protected readonly numReenvios = computed(() => {
+  /**
+   * Las marcadas que **ya salieron**. No basta con contarlas: la confirmación
+   * tiene que decir cuáles son y cuándo se enviaron, porque es la única forma de
+   * que el usuario reconozca un reenvío que no pretendía hacer.
+   */
+  protected readonly reenvios = computed(() => {
     const marcados = this.seleccionados();
-    return this.correos().filter(
-      (correo) => correo.yaEnviada && marcados.has(correo.secuencial),
-    ).length;
+    return this.correos().filter((correo) => correo.yaEnviada && marcados.has(correo.secuencial));
   });
 
-  protected readonly numSinEnviar = computed(
-    () => this.correos().length - this.numSeleccionados(),
-  );
+  protected readonly numReenvios = computed(() => this.reenvios().length);
+
+  /** Las que están por entregar y se quedan fuera de este envío. */
+  protected readonly numSinEnviar = computed(() => {
+    const marcados = this.seleccionados();
+    return this.correos().filter((correo) => !correo.yaEnviada && !marcados.has(correo.secuencial))
+      .length;
+  });
+
+  /** Cuándo salió por primera vez, para poder decirlo en la confirmación. */
+  protected fechaEnvioDe(secuencial: string): string {
+    const iso = this.facturas.porSecuencial().get(secuencial)?.fecha_envio_factura;
+    if (!iso) return '';
+    const fecha = new Date(iso);
+    if (Number.isNaN(fecha.getTime())) return '';
+    return `${String(fecha.getDate()).padStart(2, '0')}/${String(fecha.getMonth() + 1).padStart(2, '0')}/${fecha.getFullYear()}`;
+  }
 
   protected marcada(secuencial: string): boolean {
     return this.seleccionados().has(secuencial);
@@ -254,6 +333,12 @@ export class Entregar {
     this.seleccionManual.set(new Set());
   }
 
+  /** Marca todo lo visible, incluidas las ya enviadas si el filtro las muestra. */
+  protected marcarVisibles(): void {
+    this.seleccionManual.set(new Set(this.correosVisibles().map((correo) => correo.secuencial)));
+    this.errorAccion.set('');
+  }
+
   // ── Estado del servicio de correo ────────────────────────────────────────────
 
   protected readonly estadoServicio = signal<EstadoServicio>('sin_comprobar');
@@ -270,6 +355,14 @@ export class Entregar {
   }
 
   /** Comprobación pedida por el usuario: sí deja rastro en la bitácora. */
+  /** Clase y rótulo del distintivo de un adjunto, según su extensión real. */
+  protected tipoArchivo(adjunto: AdjuntoCorreo): {
+    readonly clase: string;
+    readonly rotulo: string;
+  } {
+    return tipoDeArchivo(adjunto.filename ?? adjunto.url);
+  }
+
   protected recomprobar(): void {
     void this.comprobarServicio(true);
   }
@@ -331,6 +424,11 @@ export class Entregar {
   // ── Envío ────────────────────────────────────────────────────────────────────
 
   protected readonly confirmEnviar = signal(false);
+  /**
+   * Casilla de «entiendo que se reenvían». Solo estorba cuando de verdad hay
+   * reenvíos, que es justo cuando debe estorbar.
+   */
+  protected readonly reenvioAsumido = signal(false);
   protected readonly enviando = signal(false);
   protected readonly completado = signal(false);
   protected readonly errorAccion = signal('');
@@ -341,7 +439,7 @@ export class Entregar {
   private readonly estados = signal<Record<string, EstadoFactura>>({});
 
   private readonly lote = signal<CorreoPreparado[]>([]);
-  private readonly procesados = signal(0);
+  protected readonly procesados = signal(0);
 
   protected readonly loteTotal = computed(() => this.lote().length);
   protected readonly progreso = computed(() =>
@@ -402,14 +500,28 @@ export class Entregar {
     };
   });
 
+  protected readonly totalIntentado = computed(() => {
+    const r = this.resumen();
+    return r.enviados.length + r.conError.length + r.sinEnviar.length;
+  });
+
+  /** Nada falló y nada se quedó fuera: merece decirlo, no enumerar tres ceros. */
+  protected readonly todoBien = computed(() => {
+    const r = this.resumen();
+    return r.enviados.length > 0 && r.conError.length === 0 && r.sinEnviar.length === 0;
+  });
+
+  protected readonly resumenTexto = computed(() => {
+    const r = this.resumen();
+    return `${r.enviados.length} enviados, ${r.conError.length} con error, ${r.sinEnviar.length} sin enviar`;
+  });
+
   protected readonly hayResultado = computed(
     () => this.completado() && Object.keys(this.estados()).length > 0,
   );
 
   protected readonly reintentables = computed(() =>
-    this.resumen().conError.filter(
-      (correo) => this.estados()[correo.secuencial]?.reintentable,
-    ),
+    this.resumen().conError.filter((correo) => this.estados()[correo.secuencial]?.reintentable),
   );
 
   /** Comprueba el servicio y, si se puede enviar, pide confirmación. */
@@ -417,9 +529,7 @@ export class Entregar {
     if (this.enviando()) return;
     this.errorAccion.set('');
 
-    const elegidos = this.correos().filter((correo) =>
-      this.seleccionados().has(correo.secuencial),
-    );
+    const elegidos = this.correos().filter((correo) => this.seleccionados().has(correo.secuencial));
 
     if (elegidos.length === 0) {
       this.errorAccion.set('Marca al menos una factura para poder enviar.');
@@ -444,6 +554,7 @@ export class Entregar {
       return;
     }
 
+    this.reenvioAsumido.set(false);
     this.confirmEnviar.set(true);
   }
 
@@ -493,6 +604,9 @@ export class Entregar {
     if (lote.length === 0 || this.enviando()) return;
 
     const miEpoch = this.epoch;
+    // Los `marcarEnviada` van sueltos aposta: esperarlos dentro del bucle
+    // retrasaría el correo siguiente sin motivo. Se confirman todos al final.
+    const marcadas: Promise<void>[] = [];
     this.prepararEstados(lote);
     this.enviando.set(true);
     this.completado.set(false);
@@ -522,7 +636,7 @@ export class Entregar {
 
         // La factura pasa a «enviada» con su fecha: es lo que después alimenta
         // el cálculo de días para el pago en Conciliar.
-        void this.facturas.marcarEnviada(this.periodStore.label(), correo.secuencial);
+        marcadas.push(this.facturas.marcarEnviada(this.periodStore.label(), correo.secuencial));
 
         if (respuesta.rejected.length) {
           this.advertencias.update((lista) => [
@@ -582,8 +696,12 @@ export class Entregar {
     this.completado.set(true);
     this.enviandoSecuencial.set('');
     // Refresca el estado real de las facturas para que «Ya enviada» refleje lo
-    // que quedó guardado, y no lo que este componente cree recordar.
-    void this.facturas.load(this.periodStore.label());
+    // que quedó guardado, y no lo que este componente cree recordar. Antes hay
+    // que confirmar los `marcarEnviada`: si la recarga adelanta al último, la
+    // factura sale como no enviada hasta el siguiente cambio de periodo.
+    await Promise.allSettled(marcadas);
+    if (this.epoch !== miEpoch) return;
+    await this.facturas.load(this.periodStore.label());
   }
 
   /**
@@ -626,6 +744,8 @@ export class Entregar {
     this.lote.set([]);
     this.procesados.set(0);
     this.seleccionManual.set(null);
+    this.filtro.set('todas');
+    this.reenvioAsumido.set(false);
     this.auditados.clear();
     this.ediciones.set(leerEdiciones(this.clave()));
   }

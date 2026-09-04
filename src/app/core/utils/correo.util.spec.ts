@@ -10,6 +10,7 @@ import {
   esCorreoValido,
   partirDirecciones,
   prepararCorreo,
+  tipoDeArchivo,
 } from './correo.util';
 
 const registro = (
@@ -65,9 +66,7 @@ const factura = (parcial: Partial<FacturaRow>): FacturaRow =>
     ...parcial,
   }) as FacturaRow;
 
-const prefactura = (
-  parcial: Partial<AprobacionPrefacturaRow>,
-): AprobacionPrefacturaRow =>
+const prefactura = (parcial: Partial<AprobacionPrefacturaRow>): AprobacionPrefacturaRow =>
   ({
     id_prefactura: 1,
     periodo_prefactura: 'Agosto 2026',
@@ -222,7 +221,8 @@ describe('componerCorreos', () => {
     expect(correos[0].adjuntos).toEqual([
       { url: 'https://storage/factura.pdf', filename: 'FACTURA 001.pdf' },
     ]);
-    expect(correos[0].faltantes).toEqual(['Pedido de compra']);
+    // Sin `aprobacion` en los datos, el Excel del periodo también se reclama.
+    expect(correos[0].faltantes).toEqual(['Pedido de compra', 'Aprobación de prefactura']);
   });
 
   // Hay facturas que legítimamente no llevan pedido de compra: reclamarlo
@@ -239,7 +239,80 @@ describe('componerCorreos', () => {
       ],
     });
 
-    expect(correos[0].faltantes).toEqual([]);
+    expect(correos[0].faltantes).toEqual(['Aprobación de prefactura']);
+  });
+
+  // RF-ENV-01: el Excel que el cliente devolvió aprobado es el soporte de que
+  // reconoció lo facturado, así que acompaña a todas las facturas del mes.
+  it('adjunta la aprobación de prefactura del periodo a todos los correos', () => {
+    const correos = componerCorreos({
+      ...base,
+      aprobacion: {
+        url: 'https://storage/2026-08/aprobacion-prefactura/1787-DocPrefactura.xlsx',
+        filename: 'DocPrefactura.xlsx',
+      },
+      registro: [
+        registro({
+          secuencial_facturacion_interna: '001',
+          documento_factura_bee: 'https://storage/f1.pdf',
+        }),
+        registro({
+          secuencial_facturacion_interna: '002',
+          documento_factura_bee: 'https://storage/f2.pdf',
+        }),
+      ],
+    });
+
+    for (const correo of correos) {
+      expect(correo.adjuntos).toContainEqual({
+        url: 'https://storage/2026-08/aprobacion-prefactura/1787-DocPrefactura.xlsx',
+        filename: 'APROBACION PREFACTURA Agosto 2026.xlsx',
+      });
+      expect(correo.faltantes).not.toContain('Aprobación de prefactura');
+    }
+  });
+
+  // Si el nombre guardado no trae extensión, la url manda; y si tampoco, `xlsx`,
+  // que es el único formato en que el cliente devuelve ese documento.
+  it('deduce la extensión de la aprobación aunque el nombre no la traiga', () => {
+    const correos = componerCorreos({
+      ...base,
+      aprobacion: { url: 'https://storage/aprobacion.xlsx', filename: 'DocCargaPrefactura' },
+      registro: [registro({ secuencial_facturacion_interna: '001' })],
+    });
+
+    expect(correos[0].adjuntos.at(-1)?.filename).toBe('APROBACION PREFACTURA Agosto 2026.xlsx');
+  });
+
+  it('el asunto configurado sin marcadores sale igual en todas las facturas', () => {
+    const correos = componerCorreos({
+      ...base,
+      asunto: 'EMISION DE FACTURA',
+      registro: [
+        registro({ secuencial_facturacion_interna: '001' }),
+        registro({ secuencial_facturacion_interna: '002' }),
+      ],
+    });
+
+    expect(correos.map((c) => c.subject)).toEqual(['EMISION DE FACTURA', 'EMISION DE FACTURA']);
+  });
+});
+
+describe('tipoDeArchivo', () => {
+  it('distingue el Excel del PDF para no anunciar mal el adjunto', () => {
+    expect(tipoDeArchivo('APROBACION PREFACTURA Agosto 2026.xlsx')).toEqual({
+      clase: 'fx-xls',
+      rotulo: 'XLS',
+    });
+    expect(tipoDeArchivo('FACTURA 001.pdf')).toEqual({ clase: 'fx-pdf', rotulo: 'PDF' });
+  });
+
+  it('ignora los parámetros de consulta de una url firmada', () => {
+    expect(tipoDeArchivo('https://storage/doc.xlsx?token=abc').clase).toBe('fx-xls');
+  });
+
+  it('sin extensión reconocible asume PDF, que es lo que más se adjunta', () => {
+    expect(tipoDeArchivo('soporte').clase).toBe('fx-pdf');
   });
 });
 

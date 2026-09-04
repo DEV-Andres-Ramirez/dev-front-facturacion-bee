@@ -1,10 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import {
-  EtapaCiclo,
-  PeriodoId,
-  PeriodoRow,
-  ordenEtapa,
-} from '../models';
+import { EtapaCiclo, PeriodoId, PeriodoRow, ordenEtapa } from '../models';
 import { PeriodosService } from './periodos.service';
 
 const STORAGE_KEY = 'bee.periodo';

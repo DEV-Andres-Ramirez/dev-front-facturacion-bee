@@ -11,30 +11,21 @@ import { DocumentosService } from '@core/services/documentos.service';
 import { FacturasService } from '@core/services/facturas.service';
 import { ParametrosService } from '@core/services/parametros.service';
 import { PeriodStore } from '@core/services/period.store';
-import {
-  ETAPAS,
-  ETIQUETA_ETAPA,
-  FacturaRow,
-  Kpi,
-  PRESENTACION_ESTADO,
-  RUTA_ETAPA,
-  ordenEtapa,
-} from '@core/models';
+import { PeriodosService } from '@core/services/periodos.service';
+import { FacturaRow, Kpi, PRESENTACION_ESTADO } from '@core/models';
 import { montoACentavos } from '@core/utils/monto.util';
 import {
   BadgeComponent,
+  BarrasComponent,
+  CicloComponent,
+  DonutComponent,
   EmptyStateComponent,
   IconComponent,
   KpiCardComponent,
+  Porcion,
+  PuntoSerie,
+  SerieComponent,
 } from '@shared/ui';
-
-/** Una porción del gráfico de reparto por estado. */
-interface Porcion {
-  readonly etiqueta: string;
-  readonly valor: number;
-  readonly porcentaje: number;
-  readonly color: string;
-}
 
 /** Aviso accionable del tablero (RF-DSH-03). */
 interface Alerta {
@@ -59,8 +50,12 @@ const FMT_COP = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
     RouterLink,
     KpiCardComponent,
     BadgeComponent,
+    BarrasComponent,
+    CicloComponent,
+    DonutComponent,
     EmptyStateComponent,
     IconComponent,
+    SerieComponent,
   ],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
@@ -70,6 +65,7 @@ export class Dashboard {
   private readonly facturas = inject(FacturasService);
   private readonly documentos = inject(DocumentosService);
   private readonly parametros = inject(ParametrosService);
+  private readonly periodos = inject(PeriodosService);
 
   protected readonly periodLabel = this.periodStore.label;
   protected readonly periodShort = this.periodStore.shortLabel;
@@ -82,6 +78,10 @@ export class Dashboard {
       if (!label) return;
       void this.facturas.load(label);
       void this.documentos.loadPeriodo(label);
+      // La evolución no depende del periodo activo, pero sí de que las facturas
+      // estén sincronizadas: recargarla aquí la mantiene al día sin un effect
+      // aparte que dispararía otra consulta al abrir cualquier pantalla.
+      void this.periodos.cargarResumen();
     });
   }
 
@@ -118,9 +118,7 @@ export class Dashboard {
 
   /** Media de días entre el envío y el pago, solo sobre lo ya cobrado. */
   protected readonly diasPromedio = computed(() => {
-    const conDias = this.facturas
-      .pagadas()
-      .filter((f) => f.dias_transcurridos !== null);
+    const conDias = this.facturas.pagadas().filter((f) => f.dias_transcurridos !== null);
     if (conDias.length === 0) return null;
     const suma = conDias.reduce((total, f) => total + (f.dias_transcurridos ?? 0), 0);
     return Math.round(suma / conDias.length);
@@ -213,30 +211,59 @@ export class Dashboard {
   /** Reparto por estado, para el gráfico de barras apiladas. */
   protected readonly reparto = computed<Porcion[]>(() => {
     const todas = this.todas();
-    if (todas.length === 0) return [];
     const cuenta = (estado: string): number =>
       todas.filter((f) => f.estado_factura === estado).length;
 
-    const porciones = [
+    return [
       { etiqueta: 'Pagadas', valor: cuenta('pagada'), color: 'var(--ok)' },
       { etiqueta: 'Enviadas', valor: cuenta('enviada'), color: 'var(--info)' },
       { etiqueta: 'Emitidas', valor: cuenta('emitida'), color: 'var(--honey)' },
       { etiqueta: 'Anuladas', valor: cuenta('anulada'), color: 'var(--bad)' },
-    ];
-    return porciones
-      .filter((p) => p.valor > 0)
-      .map((p) => ({ ...p, porcentaje: Math.round((p.valor / todas.length) * 100) }));
+    ].filter((porcion) => porcion.valor > 0);
   });
+
+  /**
+   * Antigüedad de lo que está por cobrar. `dias_transcurridos` lo calcula la
+   * base de datos desde el envío y hasta ahora no se estaba usando para nada:
+   * es el dato que dice si un cobro se está enfriando.
+   */
+  protected readonly antiguedad = computed<Porcion[]>(() => {
+    const porCobrar = this.facturas.rows().filter((f) => f.estado_factura === 'enviada');
+    const enTramo = (desde: number, hasta: number): number =>
+      porCobrar.filter((f) => {
+        const dias = f.dias_transcurridos ?? 0;
+        return dias >= desde && dias <= hasta;
+      }).length;
+
+    return [
+      { etiqueta: 'Hasta 30 días', valor: enTramo(0, 30), color: 'var(--ok)' },
+      { etiqueta: 'De 31 a 60 días', valor: enTramo(31, 60), color: 'var(--honey-600)' },
+      { etiqueta: 'Más de 60 días', valor: enTramo(61, 100000), color: 'var(--bad)' },
+    ].map((tramo) => ({ ...tramo, detalle: `${tramo.valor} factura(s)` }));
+  });
+
+  protected readonly hayPorCobrar = computed(() =>
+    this.antiguedad().some((tramo) => tramo.valor > 0),
+  );
+
+  /** Evolución entre periodos: la única vista que cruza meses. */
+  protected readonly evolucion = computed<PuntoSerie[]>(() =>
+    this.periodos
+      .resumen()
+      .filter((r) => r.total_facturas > 0)
+      .map((r) => ({
+        etiqueta: r.etiqueta_corta_periodo,
+        valor: Number(r.facturado),
+        detalle: `USD ${FMT.format(Number(r.facturado))} · ${r.total_facturas} factura(s)`,
+      })),
+  );
+
+  protected readonly hayEvolucion = computed(() => this.evolucion().length >= 2);
 
   // ── Avance del ciclo ────────────────────────────────────────────────────────
 
-  protected readonly etapas = ETAPAS.filter((e) => e !== 'cerrado');
-  protected readonly etiquetaEtapa = ETIQUETA_ETAPA;
-  protected readonly rutaEtapa = RUTA_ETAPA;
-  protected readonly indiceEtapa = computed(() => ordenEtapa(this.periodStore.etapa()));
-  protected readonly avanceCiclo = computed(() =>
-    Math.round((Math.min(this.indiceEtapa(), this.etapas.length) / this.etapas.length) * 100),
-  );
+  /** El avance lo pinta `bee-ciclo`; el tablero solo aporta la etapa. */
+  protected readonly etapa = this.periodStore.etapa;
 
   // ── Top de proyectos y colaboradores ───────────────────────────────────────
 
@@ -260,6 +287,15 @@ export class Dashboard {
       .sort((a, b) => b.monto - a.monto)
       .slice(0, 5);
   });
+
+  protected readonly proyectosBarras = computed<Porcion[]>(() =>
+    this.topProyectos().map((proyecto) => ({
+      etiqueta: proyecto.nombre,
+      valor: proyecto.monto,
+      color: 'var(--info)',
+      detalle: `USD ${FMT.format(proyecto.monto)}`,
+    })),
+  );
 
   protected readonly totalColaboradores = computed(
     () =>

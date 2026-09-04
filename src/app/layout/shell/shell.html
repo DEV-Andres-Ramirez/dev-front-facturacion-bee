@@ -45,13 +45,23 @@
   </aside>
 
   @if (sidebarOpen()) {
-    <button class="nav-veil" type="button" aria-label="Cerrar menú" (click)="closeSidebar()"></button>
+    <button
+      class="nav-veil"
+      type="button"
+      aria-label="Cerrar menú"
+      (click)="closeSidebar()"
+    ></button>
   }
 
   <div class="main scroll">
     <header class="topbar">
       <div class="tb-main">
-        <button class="icon-btn menu-btn" type="button" aria-label="Abrir menú" (click)="toggleSidebar()">
+        <button
+          class="icon-btn menu-btn"
+          type="button"
+          aria-label="Abrir menú"
+          (click)="toggleSidebar()"
+        >
           <bee-icon name="dashboard" [size]="18" />
         </button>
 
@@ -79,7 +89,17 @@
               (change)="onPeriodChange($event)"
             >
               @for (option of periodStore.options(); track option.id_periodo) {
-                <option [value]="option.id_periodo">{{ option.etiqueta_periodo }}</option>
+                <!-- `[selected]` además de `[value]` en el select: las opciones
+                     llegan después del catálogo, y para entonces el `[value]`
+                     ya se evaluó contra una lista vacía. El resultado era que
+                     el desplegable mostraba un periodo y la pantalla trabajaba
+                     con otro. -->
+                <option
+                  [value]="option.id_periodo"
+                  [selected]="option.id_periodo === periodStore.period()"
+                >
+                  {{ option.etiqueta_periodo }}
+                </option>
               }
               @if (periodStore.options().length === 0) {
                 <option value="">Sin periodos</option>
@@ -117,28 +137,7 @@
       </div>
 
       @if (periodStore.listo()) {
-        <ol class="ciclo" aria-label="Avance del ciclo de facturación">
-          @for (etapa of etapasCiclo; track etapa; let i = $index; let last = $last) {
-            <li
-              class="ciclo-paso"
-              [class.done]="i < indiceEtapa()"
-              [class.cur]="i === indiceEtapa()"
-              [attr.aria-current]="i === indiceEtapa() ? 'step' : null"
-            >
-              <span class="cn">
-                @if (i < indiceEtapa()) {
-                  <bee-icon name="check" [size]="12" [strokeWidth]="3" />
-                } @else {
-                  {{ i + 1 }}
-                }
-              </span>
-              <span class="cl">{{ etiquetaEtapa[etapa] }}</span>
-            </li>
-            @if (!last) {
-              <li class="ciclo-linea" [class.done]="i < indiceEtapa()" aria-hidden="true"></li>
-            }
-          }
-        </ol>
+        <bee-ciclo [etapa]="etapaActual()" />
       }
     </header>
 
@@ -188,66 +187,45 @@
 }
 
 @if (modalPeriodo()) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="periodo-title">
-    <div class="modal-card">
-      <div class="modal-h">
-        <span
-          class="ti ic-primary"
-          style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none"
-        >
-          <bee-icon name="plus" [size]="18" />
-        </span>
-        <div id="periodo-title" class="ct">Crear un periodo nuevo</div>
-      </div>
-
-      @if (!confirmarPeriodo()) {
-        <div class="modal-body">
-          <p class="note-line" style="margin-bottom: 14px">
-            Elige el mes y el año del periodo de facturación que quieres abrir.
-          </p>
-          <div class="grid-2">
-            <div>
-              <label class="f-label" for="periodo-mes">Mes</label>
-              <select id="periodo-mes" class="f-input" [value]="mesNuevo()" (change)="setMes($event)">
-                @for (mes of meses; track mes; let i = $index) {
-                  <option [value]="i + 1">{{ mes }}</option>
-                }
-              </select>
-            </div>
-            <div>
-              <label class="f-label" for="periodo-anio">Año</label>
-              <select id="periodo-anio" class="f-input" [value]="anioNuevo()" (change)="setAnio($event)">
-                @for (anio of aniosDisponibles; track anio) {
-                  <option [value]="anio">{{ anio }}</option>
-                }
-              </select>
-            </div>
-          </div>
-
-          @if (errorPeriodo()) {
-            <p class="form-msg" role="alert" style="margin-top: 12px">{{ errorPeriodo() }}</p>
+  <bee-modal
+    titulo="Crear un periodo nuevo"
+    icono="plus"
+    tono="primary"
+    (cerrar)="cerrarModalPeriodo()"
+  >
+    <p class="note-line" style="margin-bottom: 14px">
+      Elige el mes y el año del periodo de facturación que quieres abrir.
+    </p>
+    <div class="grid-2">
+      <div>
+        <label class="f-label" for="periodo-mes">Mes</label>
+        <select id="periodo-mes" class="f-input" [value]="mesNuevo()" (change)="setMes($event)">
+          @for (mes of meses; track mes; let i = $index) {
+            <option [value]="i + 1">{{ mes }}</option>
           }
-        </div>
-
-        <div class="modal-actions">
-          <button class="btn-sm btn-ghost" type="button" (click)="cerrarModalPeriodo()">Cancelar</button>
-          <button class="btn-sm btn-solid" type="button" (click)="pedirConfirmacion()">Continuar</button>
-        </div>
-      } @else {
-        <p class="modal-body">
-          Se creará el periodo <b>{{ etiquetaNueva() }}</b> y quedará listo para cargar sus
-          documentos. El aplicativo pasará a trabajar sobre él.
-        </p>
-
-        <div class="modal-actions">
-          <button class="btn-sm btn-ghost" type="button" [disabled]="creando()" (click)="cerrarModalPeriodo()">
-            Cancelar
-          </button>
-          <button class="btn-sm btn-solid" type="button" [disabled]="creando()" (click)="crearPeriodo()">
-            {{ creando() ? 'Creando…' : 'Sí, crear el periodo' }}
-          </button>
-        </div>
-      }
+        </select>
+      </div>
+      <div>
+        <label class="f-label" for="periodo-anio">Año</label>
+        <select id="periodo-anio" class="f-input" [value]="anioNuevo()" (change)="setAnio($event)">
+          @for (anio of aniosDisponibles; track anio) {
+            <option [value]="anio">{{ anio }}</option>
+          }
+        </select>
+      </div>
     </div>
-  </div>
+
+    @if (errorPeriodo()) {
+      <p class="form-msg" role="alert" style="margin-top: 12px">{{ errorPeriodo() }}</p>
+    }
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cerrarModalPeriodo()">
+        Cancelar
+      </button>
+      <button class="btn-sm btn-solid" type="button" (click)="pedirConfirmacion()">
+        Continuar
+      </button>
+    </ng-container>
+  </bee-modal>
 }

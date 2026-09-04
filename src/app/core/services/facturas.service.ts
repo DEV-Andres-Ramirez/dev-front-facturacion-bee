@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import type { PostgrestError } from '@supabase/supabase-js';
-import { FacturaRow, RegistroPago } from '../models';
+import { FacturaRow, InformeSincronizacion, RegistroPago, SecuencialEnConflicto } from '../models';
 import { SupabaseService } from './supabase.service';
 
 /** Resultado de una operación de escritura. */
@@ -29,21 +29,11 @@ export class FacturasService {
   readonly error = this._error.asReadonly();
 
   /** Las anuladas no cuentan para entregar ni para los totales del periodo. */
-  readonly vigentes = computed(() =>
-    this._rows().filter((f) => f.estado_factura !== 'anulada'),
-  );
-  readonly anuladas = computed(() =>
-    this._rows().filter((f) => f.estado_factura === 'anulada'),
-  );
-  readonly pagadas = computed(() =>
-    this._rows().filter((f) => f.estado_factura === 'pagada'),
-  );
-  readonly enviadas = computed(() =>
-    this._rows().filter((f) => f.estado_factura === 'enviada'),
-  );
-  readonly porEnviar = computed(() =>
-    this._rows().filter((f) => f.estado_factura === 'emitida'),
-  );
+  readonly vigentes = computed(() => this._rows().filter((f) => f.estado_factura !== 'anulada'));
+  readonly anuladas = computed(() => this._rows().filter((f) => f.estado_factura === 'anulada'));
+  readonly pagadas = computed(() => this._rows().filter((f) => f.estado_factura === 'pagada'));
+  readonly enviadas = computed(() => this._rows().filter((f) => f.estado_factura === 'enviada'));
+  readonly porEnviar = computed(() => this._rows().filter((f) => f.estado_factura === 'emitida'));
   readonly vencidas = computed(() => this._rows().filter((f) => f.vencida));
 
   /** Índice por secuencial, para cruzar con el registro interno. */
@@ -68,14 +58,45 @@ export class FacturasService {
   /**
    * Crea las facturas que falten y actualiza los importes de las que no estén
    * anuladas ni pagadas. Se llama tras cargar o reemplazar el registro interno.
+   *
+   * Devuelve además los secuenciales que **rechazó** por pertenecer ya a otro
+   * periodo. Antes esto no podía ocurrir —la unicidad era por mes— y ahora sí:
+   * ignorar el informe dejaría facturas fuera sin que nadie se enterase.
    */
-  async sincronizar(periodo: string): Promise<OpResult> {
-    const { error } = await this.supabase.rpc('fn_sincronizar_facturas', {
+  async sincronizar(periodo: string): Promise<OpResult & { informe?: InformeSincronizacion }> {
+    const { data, error } = await this.supabase.rpc('fn_sincronizar_facturas', {
       p_periodo: periodo,
     });
     if (error) return { ok: false, error: this.friendly(error) };
     await this.load(periodo);
-    return { ok: true };
+    return { ok: true, informe: (data ?? undefined) as InformeSincronizacion | undefined };
+  }
+
+  /**
+   * Secuenciales de la lista que ya pertenecen a otro periodo. Se consulta al
+   * interpretar el Excel, para poder avisar **antes** de guardar nada.
+   */
+  async verificarSecuenciales(
+    periodo: string,
+    secuenciales: readonly string[],
+  ): Promise<readonly SecuencialEnConflicto[]> {
+    if (secuenciales.length === 0) return [];
+    const { data, error } = await this.supabase.rpc('fn_verificar_secuenciales', {
+      p_periodo: periodo,
+      p_secuenciales: secuenciales,
+    });
+    if (error) return [];
+    return (data ?? []) as SecuencialEnConflicto[];
+  }
+
+  /**
+   * Siguiente número de factura libre, contando toda la historia. Lo calcula la
+   * base de datos: el navegador solo veía las filas del periodo abierto y, al
+   * empezar un mes nuevo, volvía a proponer números ya usados.
+   */
+  async siguienteSecuencial(): Promise<string> {
+    const { data, error } = await this.supabase.rpc('fn_siguiente_secuencial');
+    return error ? '—' : ((data as string | null) ?? '—');
   }
 
   async anular(
@@ -107,11 +128,7 @@ export class FacturasService {
   }
 
   /** Registra el pago recibido; la retención y el equivalente COP los calcula la BD. */
-  async registrarPago(
-    periodo: string,
-    secuencial: string,
-    pago: RegistroPago,
-  ): Promise<OpResult> {
+  async registrarPago(periodo: string, secuencial: string, pago: RegistroPago): Promise<OpResult> {
     const { error } = await this.supabase.rpc('fn_registrar_pago', {
       p_periodo: periodo,
       p_secuencial: secuencial,

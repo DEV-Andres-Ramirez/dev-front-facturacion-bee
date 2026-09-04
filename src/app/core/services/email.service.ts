@@ -80,7 +80,8 @@ export function mensajeDeError(error: unknown): string {
     if (Array.isArray(detalle)) return detalle.join(' ');
     if (typeof detalle === 'string') return detalle;
     if (error.status === 0) return 'No se pudo contactar con el servicio de correo.';
-    if (error.status === 502) return 'El servidor de correo rechazó las credenciales. Avisa a soporte; reintentar no ayuda.';
+    if (error.status === 502)
+      return 'El servidor de correo rechazó las credenciales. Avisa a soporte; reintentar no ayuda.';
     return `Error ${error.status} al enviar el correo.`;
   }
   return 'Error inesperado al enviar el correo.';

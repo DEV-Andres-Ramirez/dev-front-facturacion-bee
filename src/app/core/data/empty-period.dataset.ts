@@ -9,10 +9,34 @@ export const EMPTY_DATASET: PeriodDataset = {
   invoices: [],
   dashboard: {
     kpis: [
-      { label: 'Total facturas', value: '0', caption: 'Sin facturas en el periodo', tone: 'neutral', icon: 'file-stack' },
-      { label: 'Pagadas', value: '0', caption: 'Aún no hay cobros', tone: 'neutral', icon: 'check' },
-      { label: 'Pendientes', value: '0', caption: 'Sin gestión de cobro', tone: 'neutral', icon: 'clock' },
-      { label: 'Sin emitir', value: '0', caption: 'Sin facturas generadas', tone: 'neutral', icon: 'alert' },
+      {
+        label: 'Total facturas',
+        value: '0',
+        caption: 'Sin facturas en el periodo',
+        tone: 'neutral',
+        icon: 'file-stack',
+      },
+      {
+        label: 'Pagadas',
+        value: '0',
+        caption: 'Aún no hay cobros',
+        tone: 'neutral',
+        icon: 'check',
+      },
+      {
+        label: 'Pendientes',
+        value: '0',
+        caption: 'Sin gestión de cobro',
+        tone: 'neutral',
+        icon: 'clock',
+      },
+      {
+        label: 'Sin emitir',
+        value: '0',
+        caption: 'Sin facturas generadas',
+        tone: 'neutral',
+        icon: 'alert',
+      },
     ],
     financial: null,
     pendingActions: [],

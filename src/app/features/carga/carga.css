@@ -17,7 +17,9 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.16s, box-shadow 0.16s;
+  transition:
+    border-color 0.16s,
+    box-shadow 0.16s;
 }
 .slot.loaded {
   border-color: var(--ok-line);
@@ -61,7 +63,9 @@
   padding: 16px 12px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.16s, background 0.16s;
+  transition:
+    border-color 0.16s,
+    background 0.16s;
   width: 100%;
   font-family: inherit;
   display: flex;

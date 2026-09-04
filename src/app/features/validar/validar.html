@@ -50,14 +50,26 @@
         </div>
         <div class="sp"></div>
         <div class="seg">
-          <button type="button" [class.on]="filtro() === 'todos'" (click)="setFiltro('todos')">Todos</button>
-          <button type="button" [class.on]="filtro() === 'diferencias'" (click)="setFiltro('diferencias')">Diferencias</button>
-          <button type="button" [class.on]="filtro() === 'nomop'" (click)="setFiltro('nomop')">Talentos No MOP</button>
+          <button type="button" [class.on]="filtro() === 'todos'" (click)="setFiltro('todos')">
+            Todos
+          </button>
+          <button
+            type="button"
+            [class.on]="filtro() === 'diferencias'"
+            (click)="setFiltro('diferencias')"
+          >
+            Diferencias
+          </button>
+          <button type="button" [class.on]="filtro() === 'nomop'" (click)="setFiltro('nomop')">
+            Talentos No MOP
+          </button>
         </div>
       </div>
       <div class="tbl-wrap">
-        <table class="dt">
-          <caption class="sr-only">Cotejo por colaborador: prefactura contra registro interno</caption>
+        <table class="dt dt-stack">
+          <caption class="sr-only">
+            Cotejo por colaborador: prefactura contra registro interno
+          </caption>
           <thead>
             <tr>
               <th scope="col">Colaborador</th>
@@ -70,45 +82,59 @@
           <tbody>
             @for (fila of filtradas(); track fila.id) {
               <tr>
-                <td>
+                <td class="dt-head">
                   <div class="strong">{{ fila.nombre }}</div>
                   <div class="cell-sub mono">ID {{ fila.id }}</div>
                 </td>
-                <td style="text-align: right">
+                <td data-label="Prefactura" style="text-align: right">
                   @if (fila.estado === 'solo_registro') {
                     <span class="dim">—</span>
                   } @else {
                     <span class="mono">{{ money(fila.prefacturaCents) }}</span>
                   }
                 </td>
-                <td style="text-align: right">
+                <td data-label="Registro interno" style="text-align: right">
                   @if (fila.estado === 'solo_prefactura') {
                     <span class="dim">No registrado</span>
                   } @else {
-                    <span class="mono" [class]="fila.estado === 'diferencia' ? 'diff diff-bad' : ''">{{ money(fila.registroCents) }}</span>
+                    <span
+                      class="mono"
+                      [class]="fila.estado === 'diferencia' ? 'diff diff-bad' : ''"
+                      >{{ money(fila.registroCents) }}</span
+                    >
                   }
                 </td>
-                <td style="text-align: right" class="mono">
+                <td data-label="Diferencia" style="text-align: right" class="mono">
                   @if (fila.estado === 'identico') {
                     <span class="dim">0,00</span>
                   } @else if (fila.estado === 'diferencia') {
-                    <span style="color: var(--bad); font-weight: 700">{{ money(fila.diferenciaCents) }}</span>
+                    <span style="color: var(--bad); font-weight: 700">{{
+                      money(fila.diferenciaCents)
+                    }}</span>
                   } @else {
                     <span class="dim">—</span>
                   }
                 </td>
-                <td>
+                <td data-label="Estado">
                   @switch (fila.estado) {
-                    @case ('identico') { <bee-badge tone="ok" label="Idéntico" /> }
-                    @case ('diferencia') { <bee-badge tone="bad" label="Diferencia" /> }
-                    @case ('solo_prefactura') { <bee-badge tone="warn" label="Solo prefactura" /> }
-                    @case ('solo_registro') { <bee-badge tone="warn" label="Talento No MOP" /> }
+                    @case ('identico') {
+                      <bee-badge tone="ok" label="Idéntico" />
+                    }
+                    @case ('diferencia') {
+                      <bee-badge tone="bad" label="Diferencia" />
+                    }
+                    @case ('solo_prefactura') {
+                      <bee-badge tone="warn" label="Solo prefactura" />
+                    }
+                    @case ('solo_registro') {
+                      <bee-badge tone="warn" label="Talento No MOP" />
+                    }
                   }
                 </td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="5">
+                <td data-label="Colaborador" colspan="5">
                   <p class="note-line" style="text-align: center; padding: 22px 0">
                     No hay colaboradores en este filtro.
                   </p>
@@ -118,10 +144,15 @@
           </tbody>
           <tfoot>
             <tr style="background: var(--surface-2)">
-              <td style="padding: 13px 16px; font-weight: 700; color: var(--ink)">Totales del periodo</td>
+              <td style="padding: 13px 16px; font-weight: 700; color: var(--ink)">
+                Totales del periodo
+              </td>
               <td class="num mono" style="padding: 13px 16px">{{ money(resumen().totalPref) }}</td>
               <td class="num mono" style="padding: 13px 16px">{{ money(resumen().totalReg) }}</td>
-              <td class="num mono" style="padding: 13px 16px; color: var(--primary-deep); font-weight: 700">
+              <td
+                class="num mono"
+                style="padding: 13px 16px; color: var(--primary-deep); font-weight: 700"
+              >
                 {{ money(resumen().diferenciaNeta) }}
               </td>
               <td></td>
@@ -129,7 +160,10 @@
           </tfoot>
         </table>
       </div>
-      <div class="card-pad" style="display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--line-2)">
+      <div
+        class="card-pad"
+        style="display: flex; align-items: center; gap: 14px; border-top: 1px solid var(--line-2)"
+      >
         <div class="legend">
           <span><span class="ld" style="background: var(--ok)"></span>Monto idéntico</span>
           <span><span class="ld" style="background: var(--bad)"></span>Diferencia de monto</span>
@@ -146,23 +180,23 @@
 </section>
 
 @if (confirmOpen()) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="val-title">
-    <div class="modal-card">
-      <div class="modal-h">
-        <span class="ti ic-warn" style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none">
-          <bee-icon name="alert" [size]="18" />
-        </span>
-        <div id="val-title" class="ct">Continuar con diferencias</div>
-      </div>
-      <p class="modal-body">
-        Hay <b>{{ resumen().diferencias }}</b> colaborador(es) cuyo monto a facturar no coincide entre la
-        prefactura y el registro interno. Puedes continuar a Agrupar de todos modos (las diferencias
-        pueden corresponder a novedades), pero quedará registrado que avanzaste con diferencias.
-      </p>
-      <div class="modal-actions">
-        <button class="btn-sm btn-ghost" type="button" (click)="cancelarConfirmacion()">Revisar</button>
-        <button class="btn-sm btn-solid" type="button" (click)="confirmarContinuar()">Continuar de todos modos</button>
-      </div>
-    </div>
-  </div>
+  <bee-modal
+    titulo="Continuar con diferencias"
+    icono="alert"
+    tono="warn"
+    (cerrar)="cancelarConfirmacion()"
+  >
+    Hay <b>{{ resumen().diferencias }}</b> colaborador(es) cuyo monto a facturar no coincide entre
+    la prefactura y el registro interno. Puedes continuar a Agrupar de todos modos (las diferencias
+    pueden corresponder a novedades), pero quedará registrado que avanzaste con diferencias.
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cancelarConfirmacion()">
+        Revisar
+      </button>
+      <button class="btn-sm btn-solid" type="button" (click)="confirmarContinuar()">
+        Continuar de todos modos
+      </button>
+    </ng-container>
+  </bee-modal>
 }

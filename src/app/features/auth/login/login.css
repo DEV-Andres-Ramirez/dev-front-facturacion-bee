@@ -1,10 +1,10 @@
 :host {
   display: block;
-  height: 100dvh;
+  height: var(--app-h);
 }
 .login {
   display: flex;
-  height: 100dvh;
+  height: var(--app-h);
   background: var(--bg);
 }
 
@@ -26,7 +26,8 @@
   position: absolute;
   inset: 0;
   opacity: 0.12;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 1px),
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.5) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
   background-size: 46px 46px;
   -webkit-mask-image: radial-gradient(ellipse at 62% 35%, #000, transparent 78%);
@@ -136,12 +137,20 @@
 }
 
 /* ── Panel de acceso ──────────────────────────────────────────────────────── */
+/*
+ * El documento ya no hace scroll (ver `styles.css`), así que el panel del
+ * formulario tiene que poder desplazarse por su cuenta: en un teléfono apaisado
+ * el formulario es más alto que la ventana y si no, quedaría recortado.
+ */
 .login-main {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px;
+  padding: 40px max(40px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom))
+    max(40px, env(safe-area-inset-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .login-card {
   width: 100%;
@@ -240,7 +249,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   color: #fff;
 }
 .cbx-vis bee-icon {
@@ -303,7 +314,11 @@
   border-radius: var(--radius-sm);
   background: var(--surface);
   cursor: pointer;
-  transition: border-color 0.16s, background 0.16s, transform 0.16s, box-shadow 0.16s;
+  transition:
+    border-color 0.16s,
+    background 0.16s,
+    transform 0.16s,
+    box-shadow 0.16s;
   text-align: left;
   width: 100%;
   font-family: inherit;
@@ -349,5 +364,13 @@
 @media (max-width: 880px) {
   .login-aside {
     display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-main {
+    padding: 24px max(20px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+    align-items: flex-start;
   }
 }

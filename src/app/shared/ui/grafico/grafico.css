@@ -1,0 +1,167 @@
+/* Estilos compartidos por los tres gráficos SVG. */
+
+:host {
+  display: block;
+}
+
+/* ── Anillo ──────────────────────────────────────────────────────────────── */
+.donut-caja {
+  position: relative;
+  width: 100%;
+  max-width: 176px;
+  margin: 0 auto var(--sp-4);
+}
+.donut {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Empieza arriba, no a las tres en punto. */
+  transform: rotate(-90deg);
+}
+.pista {
+  fill: none;
+  stroke: var(--line-2);
+  stroke-width: 12;
+}
+.arco {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: butt;
+  transition:
+    stroke-dasharray var(--dur-4) var(--ease-out),
+    stroke-dashoffset var(--dur-4) var(--ease-out);
+}
+.centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  pointer-events: none;
+}
+.c-valor {
+  font-size: 27px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.c-etq {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.leyenda {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.l-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: 12.5px;
+}
+.l-punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+.l-etq {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.l-val {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* ── Barras ──────────────────────────────────────────────────────────────── */
+.b-fila {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.b-fila:last-child {
+  border-bottom: none;
+}
+.b-cab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: 7px;
+}
+.b-etq {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.b-val {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.b-pista {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.b-relleno {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  transition: width var(--dur-4) var(--ease-out);
+  animation: growWidth var(--dur-4) var(--ease-out);
+}
+
+/* ── Serie ───────────────────────────────────────────────────────────────── */
+.serie {
+  display: block;
+  width: 100%;
+  height: 110px;
+  overflow: visible;
+}
+.s-area {
+  fill: url(#beeSerieRelleno);
+}
+.s-linea {
+  fill: none;
+  stroke: var(--honey-600);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  /* Se traza al aparecer: el recorrido se entiende mejor si se dibuja. */
+  stroke-dasharray: 1200;
+  animation: drawStroke 1s var(--ease-out) backwards;
+  --dash: 1200;
+}
+.s-punto {
+  fill: var(--surface);
+  stroke: var(--honey-600);
+  stroke-width: 2.5;
+}
+.s-ejes {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: 6px;
+}
+.s-eje {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}

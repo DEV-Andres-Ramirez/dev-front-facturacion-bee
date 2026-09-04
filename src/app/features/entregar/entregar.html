@@ -32,9 +32,7 @@
             <span class="mono em">{{ diagnostico()?.remitente }}</span>
           </span>
           <div class="spacer"></div>
-          <button class="link" type="button" (click)="recomprobar()">
-            Volver a comprobar
-          </button>
+          <button class="link" type="button" (click)="recomprobar()">Volver a comprobar</button>
         </div>
       }
       @case ('caido') {
@@ -66,17 +64,22 @@
       }
     }
 
-    <!-- ── Resultado del último envío ────────────────────────────────────── -->
+    <!-- ── Resultado del último envío ────────────────────────────────────
+         Antes eran tres recuadros de colores al mismo peso, cada uno con una
+         columna de pastillas negras estiradas a todo lo ancho. Ahora manda una
+         sola barra proporcional y debajo va el detalle, solo de lo que existe. -->
     @if (hayResultado()) {
-      <div class="card card-pad mb-16">
-        <div class="row" style="margin-bottom: 14px">
+      <div class="card card-pad mb-16 resultado">
+        <div class="res-cab">
           <div>
-            <div class="ct">Resultado del último envío</div>
-            <div class="note-line">
-              {{ resumen().enviados.length }} enviado(s) ·
-              {{ resumen().conError.length }} con error ·
-              {{ resumen().sinEnviar.length }} sin enviar
+            <div class="ct">
+              @if (todoBien()) {
+                Los {{ resumen().enviados.length }} correos salieron sin problemas
+              } @else {
+                Resultado del último envío
+              }
             </div>
+            <div class="note-line">{{ periodLabel() }} · {{ totalIntentado() }} procesado(s)</div>
           </div>
           <div class="spacer"></div>
           @if (reintentables().length) {
@@ -87,37 +90,66 @@
           }
         </div>
 
-        <div class="grupos">
-          <div class="grupo grupo-ok">
-            <div class="gt"><bee-icon name="check" [size]="14" /> Enviados</div>
-            @for (correo of resumen().enviados; track correo.secuencial) {
-              <span class="chip-id">{{ correo.secuencial }}</span>
-            } @empty {
-              <span class="note-line">Ninguno.</span>
-            }
-          </div>
-
-          <div class="grupo grupo-bad">
-            <div class="gt"><bee-icon name="alert-circle" [size]="14" /> Con error</div>
-            @for (correo of resumen().conError; track correo.secuencial) {
-              <div class="fallo">
-                <span class="chip-id">{{ correo.secuencial }}</span>
-                <span>{{ motivoDe(correo.secuencial) }}</span>
-              </div>
-            } @empty {
-              <span class="note-line">Ninguno.</span>
-            }
-          </div>
-
-          <div class="grupo grupo-warn">
-            <div class="gt"><bee-icon name="clock" [size]="14" /> Sin enviar</div>
-            @for (correo of resumen().sinEnviar; track correo.secuencial) {
-              <span class="chip-id">{{ correo.secuencial }}</span>
-            } @empty {
-              <span class="note-line">Ninguno.</span>
-            }
-          </div>
+        <!-- La proporción se lee antes que cualquier cifra. -->
+        <div class="res-barra" role="img" [attr.aria-label]="resumenTexto()">
+          @if (resumen().enviados.length) {
+            <span class="seg-ok" [style.flex]="resumen().enviados.length"></span>
+          }
+          @if (resumen().conError.length) {
+            <span class="seg-bad" [style.flex]="resumen().conError.length"></span>
+          }
+          @if (resumen().sinEnviar.length) {
+            <span class="seg-warn" [style.flex]="resumen().sinEnviar.length"></span>
+          }
         </div>
+
+        <div class="res-leyenda">
+          <span class="lg"><i class="pt pt-ok"></i>{{ resumen().enviados.length }} enviados</span>
+          <span class="lg"><i class="pt pt-bad"></i>{{ resumen().conError.length }} con error</span>
+          <span class="lg"
+            ><i class="pt pt-warn"></i>{{ resumen().sinEnviar.length }} sin enviar</span
+          >
+        </div>
+
+        <!-- Los grupos vacíos no se pintan: «Ninguno.» tres veces era ruido. -->
+        @if (resumen().conError.length) {
+          <div class="res-grupo">
+            <div class="rg-tit t-bad">
+              <bee-icon name="alert-circle" [size]="14" /> No se pudieron enviar
+            </div>
+            @for (correo of resumen().conError; track correo.secuencial) {
+              <div class="res-fila">
+                <span class="rf-sec mono">{{ correo.secuencial }}</span>
+                <span class="rf-para mono">{{ correo.destinatarios.join(', ') }}</span>
+                <span class="rf-motivo">{{ motivoDe(correo.secuencial) }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        @if (resumen().enviados.length) {
+          <div class="res-grupo">
+            <div class="rg-tit t-ok"><bee-icon name="check" [size]="14" /> Enviados</div>
+            <div class="res-pastillas">
+              @for (correo of resumen().enviados; track correo.secuencial) {
+                <span class="chip-id">{{ correo.secuencial }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (resumen().sinEnviar.length) {
+          <div class="res-grupo">
+            <div class="rg-tit t-muted">
+              <bee-icon name="clock" [size]="14" /> Sin enviar · no se marcaron
+            </div>
+            <div class="res-pastillas">
+              @for (correo of resumen().sinEnviar; track correo.secuencial) {
+                <span class="chip-id chip-tenue">{{ correo.secuencial }}</span>
+              }
+            </div>
+          </div>
+        }
 
         @if (advertencias().length) {
           <div class="alert alert-warn" style="margin-top: 14px">
@@ -135,36 +167,64 @@
       </div>
     }
 
-    <!-- ── Panorama del periodo ──────────────────────────────────────────── -->
-    <div class="kpi-grid k3" style="margin-bottom: 16px">
+    <div class="kpi-grid k4" style="margin-bottom: 16px">
       <div class="mini">
         <div class="ml">Correos preparados</div>
         <div class="mv">{{ correos().length }}</div>
-        <div class="ms">{{ numPendientes() }} por entregar</div>
+        <div class="ms">{{ periodLabel() }}</div>
+      </div>
+      <div class="mini">
+        <div class="ml">Por entregar</div>
+        <div class="mv t-info">{{ numPendientes() }}</div>
+        <div class="ms">{{ numSeleccionados() }} marcada(s) para este envío</div>
+      </div>
+      <div class="mini">
+        <div class="ml">Ya enviadas</div>
+        <div class="mv" [class.t-ok]="numEnviadasYa() > 0">{{ numEnviadasYa() }}</div>
+        <div class="ms">No se vuelven a marcar solas</div>
       </div>
       <div class="mini">
         <div class="ml">Destinatario del cliente</div>
-        <div class="mv" style="font-size: 14px">{{ numSeleccionados() }} marcada(s)</div>
-        <div class="ms mono">{{ cliente() || 'Sin configurar' }}</div>
-      </div>
-      <div class="mini">
-        <div class="ml">Periodo</div>
-        <div class="mv" style="font-size: 18px">{{ periodLabel() }}</div>
-        <div class="ms">Mes de facturación</div>
+        <div class="mv mono" style="font-size: 13px; letter-spacing: 0">
+          {{ cliente() || 'Sin configurar' }}
+        </div>
+        <div class="ms">Editable en cada correo</div>
       </div>
     </div>
 
     <!-- ── Barra de acción ───────────────────────────────────────────────── -->
     <div class="card card-pad mb-16 barra">
-      <div>
-        <div style="font-weight: 700; font-size: 14px">
-          Correos listos para revisar y enviar
-        </div>
+      <div class="barra-txt">
+        <div style="font-weight: 700; font-size: 14px">Correos listos para revisar y enviar</div>
         <div class="note-line">
-          Puedes cambiar destinatarios, copias, asunto y cuerpo antes de enviar. Marca
-          los que quieras enviar; los demás quedarán como «sin enviar».
+          Puedes cambiar destinatarios, copias, asunto y cuerpo antes de enviar. Solo se envían los
+          marcados.
         </div>
       </div>
+
+      <!-- Separar por estado es lo que evita marcar por error algo ya enviado. -->
+      <div class="seg seg-filtro">
+        <button type="button" [class.on]="filtro() === 'todas'" (click)="setFiltro('todas')">
+          Todas <span class="chip-soft">{{ correos().length }}</span>
+        </button>
+        <button
+          type="button"
+          [class.on]="filtro() === 'pendientes'"
+          (click)="setFiltro('pendientes')"
+        >
+          Por enviar <span class="chip-soft">{{ numPendientes() }}</span>
+        </button>
+        @if (numEnviadasYa()) {
+          <button
+            type="button"
+            [class.on]="filtro() === 'enviadas'"
+            (click)="setFiltro('enviadas')"
+          >
+            Ya enviadas <span class="chip-soft">{{ numEnviadasYa() }}</span>
+          </button>
+        }
+      </div>
+
       <div class="spacer"></div>
       <div class="acciones">
         @if (hayEdiciones()) {
@@ -181,11 +241,16 @@
         <button
           class="btn-sm btn-honey"
           type="button"
-          [disabled]="enviando() || estadoServicio() === 'caido'"
+          [disabled]="enviando() || estadoServicio() === 'caido' || numSeleccionados() === 0"
           (click)="enviar()"
         >
           <bee-icon name="send" [size]="16" />
           Enviar {{ numSeleccionados() }}
+          @if (numReenvios()) {
+            <span class="pin-reenvio" title="Incluye facturas ya enviadas">
+              {{ numReenvios() }} reenvío(s)
+            </span>
+          }
         </button>
       </div>
     </div>
@@ -195,9 +260,13 @@
     }
 
     <!-- ── Un correo por factura ─────────────────────────────────────────── -->
-    @for (correo of correos(); track correo.secuencial) {
-      <div class="card mb-16 correo" [class.marcado]="marcada(correo.secuencial)">
-        <div class="card-h">
+    @for (correo of correosVisibles(); track correo.secuencial) {
+      <div
+        class="card mb-16 correo"
+        [class.marcado]="marcada(correo.secuencial)"
+        [class.ya-enviada]="correo.yaEnviada"
+      >
+        <div class="card-h correo-cab">
           <input
             class="sel-box"
             type="checkbox"
@@ -205,9 +274,25 @@
             [attr.aria-label]="'Incluir la factura ' + correo.secuencial + ' en el envío'"
             (change)="alternar(correo.secuencial)"
           />
-          <div>
-            <div class="ct">Factura {{ correo.secuencial }}</div>
+          <div class="correo-tit">
+            <div class="ct">
+              Factura {{ correo.secuencial }}
+              @if (correo.yaEnviada && marcada(correo.secuencial)) {
+                <span class="pin-aviso">
+                  <bee-icon name="alert" [size]="12" [strokeWidth]="2.6" /> Se reenviará
+                </span>
+              }
+            </div>
             <div class="cd">
+              @if (correo.yaEnviada) {
+                <span class="t-ok em">
+                  Enviada{{
+                    fechaEnvioDe(correo.secuencial) ? ' el ' + fechaEnvioDe(correo.secuencial) : ''
+                  }}
+                </span>
+                ·
+              }
+              {{ correo.destinatarios.length }} destinatario(s) ·
               {{ correo.copias.length }} copia(s) · {{ correo.adjuntos.length }} adjunto(s)
             </div>
           </div>
@@ -218,43 +303,35 @@
             </button>
             <bee-badge tone="info" label="Editado" />
           }
-          @if (correo.yaEnviada) {
-            <bee-badge tone="ok" label="Ya enviada" />
-          }
           @if (correo.faltantes.length) {
             <bee-badge tone="warn" [label]="'Falta ' + correo.faltantes.join(' y ')" />
           }
-          <bee-badge
-            [tone]="tonoEstado(estadoDe(correo.secuencial))"
-            [label]="etiquetaEstado(estadoDe(correo.secuencial))"
-          />
+          @if (estadoDe(correo.secuencial) !== 'pendiente' || hayResultado()) {
+            <bee-badge
+              [tone]="tonoEstado(estadoDe(correo.secuencial))"
+              [label]="etiquetaEstado(estadoDe(correo.secuencial))"
+            />
+          }
         </div>
 
-        <div class="card-pad compose">
-          <div class="cmp-row">
-            <label class="cl" [attr.for]="'to-' + correo.secuencial">Para</label>
-            <input
-              class="cmp-input mono"
-              type="text"
-              [id]="'to-' + correo.secuencial"
-              [value]="correo.to"
-              placeholder="destinatario@cliente.com, otro@cliente.com"
-              (input)="editar(correo.secuencial, 'to', $event)"
-              (blur)="auditarEdicion(correo.secuencial, 'to')"
-            />
-          </div>
-          <div class="cmp-row">
-            <label class="cl" [attr.for]="'cc-' + correo.secuencial">CC</label>
-            <input
-              class="cmp-input mono"
-              type="text"
-              [id]="'cc-' + correo.secuencial"
-              [value]="correo.cc"
-              placeholder="Sin copias"
-              (input)="editar(correo.secuencial, 'cc', $event)"
-              (blur)="auditarEdicion(correo.secuencial, 'cc')"
-            />
-          </div>
+        <div class="compose">
+          <bee-direcciones
+            etiqueta="Para"
+            [campoId]="'to-' + correo.secuencial"
+            [valor]="correo.to"
+            placeholder="destinatario@cliente.com"
+            (cambio)="editarCampo(correo.secuencial, 'to', $event)"
+            (fin)="auditarEdicion(correo.secuencial, 'to')"
+          />
+          <bee-direcciones
+            etiqueta="Copia"
+            [campoId]="'cc-' + correo.secuencial"
+            [valor]="correo.cc"
+            placeholder="Sin copias"
+            (cambio)="editarCampo(correo.secuencial, 'cc', $event)"
+            (fin)="auditarEdicion(correo.secuencial, 'cc')"
+          />
+
           <div class="cmp-row">
             <label class="cl" [attr.for]="'as-' + correo.secuencial">Asunto</label>
             <input
@@ -267,159 +344,204 @@
             />
           </div>
 
-          <label class="sr-only" [attr.for]="'cu-' + correo.secuencial">
-            Cuerpo del correo de la factura {{ correo.secuencial }}
-          </label>
-          <textarea
-            class="cmp-area"
-            rows="11"
-            [id]="'cu-' + correo.secuencial"
-            [value]="correo.cuerpo"
-            (input)="editar(correo.secuencial, 'cuerpo', $event)"
-            (blur)="auditarEdicion(correo.secuencial, 'cuerpo')"
-          ></textarea>
+          <div class="cmp-cuerpo">
+            <label class="sr-only" [attr.for]="'cu-' + correo.secuencial">
+              Cuerpo del correo de la factura {{ correo.secuencial }}
+            </label>
+            <textarea
+              class="cmp-area"
+              rows="11"
+              [id]="'cu-' + correo.secuencial"
+              [value]="correo.cuerpo"
+              (input)="editar(correo.secuencial, 'cuerpo', $event)"
+              (blur)="auditarEdicion(correo.secuencial, 'cuerpo')"
+            ></textarea>
 
-          @if (correo.invalidas.length) {
-            <p class="form-msg" role="alert">
-              Direcciones que no parecen correos:
-              <span class="mono">{{ correo.invalidas.join(', ') }}</span>
-            </p>
-          } @else if (!correo.listo) {
-            <p class="form-msg" role="alert">
-              Hace falta al menos un destinatario y un asunto para poder enviar.
-            </p>
-          }
+            @if (!correo.listo && !correo.invalidas.length) {
+              <p class="form-msg" role="alert">
+                Hace falta al menos un destinatario y un asunto para poder enviar.
+              </p>
+            }
+            @if (estadoDe(correo.secuencial) === 'error') {
+              <p class="form-msg" role="alert">{{ motivoDe(correo.secuencial) }}</p>
+            }
 
-          @if (estadoDe(correo.secuencial) === 'error') {
-            <p class="form-msg" role="alert">{{ motivoDe(correo.secuencial) }}</p>
-          }
-
-          @if (correo.adjuntos.length) {
-            <div class="adjuntos">
-              @for (adjunto of correo.adjuntos; track adjunto.url) {
-                <a class="attach" [href]="adjunto.url" target="_blank" rel="noopener">
-                  <span class="fx fx-pdf">PDF</span>
-                  {{ adjunto.filename }}
-                </a>
-              }
-            </div>
-          } @else {
-            <p class="note-line adjuntos">
-              Sin adjuntos: esta factura no tiene Factura BEE ni pedido de compra cargados.
-            </p>
-          }
+            @if (correo.adjuntos.length) {
+              <div class="adjuntos">
+                @for (adjunto of correo.adjuntos; track adjunto.url) {
+                  <a class="attach" [href]="adjunto.url" target="_blank" rel="noopener">
+                    <span class="fx" [class]="tipoArchivo(adjunto).clase">
+                      {{ tipoArchivo(adjunto).rotulo }}
+                    </span>
+                    {{ adjunto.filename }}
+                  </a>
+                }
+              </div>
+            } @else {
+              <p class="note-line adjuntos">
+                Sin adjuntos: esta factura no tiene documentos cargados.
+              </p>
+            }
+          </div>
         </div>
+      </div>
+    } @empty {
+      <div class="card card-pad" style="text-align: center">
+        <p class="note-line">
+          @switch (filtro()) {
+            @case ('pendientes') {
+              Todas las facturas del periodo ya se enviaron.
+            }
+            @case ('enviadas') {
+              Todavía no se ha enviado ninguna factura de este periodo.
+            }
+            @default {
+              No hay correos preparados.
+            }
+          }
+        </p>
       </div>
     }
   }
 </section>
 
-<!-- ── Confirmación del envío ──────────────────────────────────────────────── -->
 @if (confirmEnviar()) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="env-title">
-    <div class="modal-card">
-      <div class="modal-h">
-        <span class="ti ic-honey modal-ic"><bee-icon name="send" [size]="18" /></span>
-        <div id="env-title" class="ct">Enviar correos</div>
+  <bee-modal titulo="Enviar correos" icono="send" tono="warn" (cerrar)="cancelarEnviar()">
+    <div class="conf-cifras">
+      <div class="cifra">
+        <span class="cf-v">{{ numSeleccionados() - numReenvios() }}</span>
+        <span class="cf-k">se envían</span>
       </div>
-      <div class="modal-body">
-        <p>
-          Se enviarán <b>{{ numSeleccionados() }}</b> correo(s) de factura desde
-          <span class="mono em">{{ diagnostico()?.remitente || 'el buzón del servicio' }}</span>
-          con sus copias y adjuntos.
-        </p>
-        @if (numReenvios()) {
-          <div class="alert alert-warn" style="margin-top: 12px">
-            <span class="ai"><bee-icon name="alert" [size]="16" /></span>
-            <div>
-              <div class="at">{{ numReenvios() }} factura(s) ya se habían enviado</div>
-              El cliente las recibiría por segunda vez.
-            </div>
-          </div>
-        }
-        @if (numSinEnviar()) {
-          <p class="note-line" style="margin-top: 12px">
-            {{ numSinEnviar() }} factura(s) quedarán como «sin enviar».
-          </p>
-        }
+      <div class="cifra" [class.cifra-alerta]="numReenvios() > 0">
+        <span class="cf-v">{{ numReenvios() }}</span>
+        <span class="cf-k">se reenvían</span>
       </div>
-      <div class="modal-actions">
-        <button class="btn-sm btn-ghost" type="button" (click)="cancelarEnviar()">
-          Cancelar
-        </button>
-        <button class="btn-sm btn-honey" type="button" (click)="confirmarEnviar()">
-          Sí, enviar
-        </button>
+      <div class="cifra">
+        <span class="cf-v">{{ numSinEnviar() }}</span>
+        <span class="cf-k">quedan sin enviar</span>
       </div>
     </div>
-  </div>
+
+    <p style="margin-top: 14px">
+      Saldrán desde
+      <span class="mono em">{{ diagnostico()?.remitente || 'el buzón del servicio' }}</span>
+      con sus copias y adjuntos.
+    </p>
+
+    <!-- No basta con contar los reenvíos: hay que decir cuáles son y cuándo
+         salieron, que es lo único que permite reconocer un error a tiempo. -->
+    @if (numReenvios()) {
+      <div class="alert alert-warn conf-reenvios">
+        <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+        <div>
+          <div class="at">El cliente recibirá {{ numReenvios() }} factura(s) por segunda vez</div>
+          <ul class="conf-lista">
+            @for (correo of reenvios(); track correo.secuencial) {
+              <li>
+                <span class="mono em">{{ correo.secuencial }}</span>
+                @if (fechaEnvioDe(correo.secuencial)) {
+                  · ya se envió el {{ fechaEnvioDe(correo.secuencial) }}
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+
+      <label class="conf-check">
+        <input
+          type="checkbox"
+          [checked]="reenvioAsumido()"
+          (change)="reenvioAsumido.set(!reenvioAsumido())"
+        />
+        <span>Entiendo que esas facturas se enviarán otra vez al cliente.</span>
+      </label>
+    }
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cancelarEnviar()">Cancelar</button>
+      <button
+        class="btn-sm btn-honey"
+        type="button"
+        [disabled]="numReenvios() > 0 && !reenvioAsumido()"
+        (click)="confirmarEnviar()"
+      >
+        Sí, enviar {{ numSeleccionados() }}
+      </button>
+    </ng-container>
+  </bee-modal>
 }
 
 <!-- ── Detalle del fallo del buzón ─────────────────────────────────────────── -->
 @if (verDiagnostico() && diagnostico(); as info) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="diag-title">
-    <div class="modal-card modal-ancho">
-      <div class="modal-h">
-        <span class="ti ic-warn modal-ic"><bee-icon name="alert" [size]="18" /></span>
-        <div id="diag-title" class="ct">{{ info.titulo }}</div>
-      </div>
-      <div class="modal-body">
-        <div class="kv-row">
-          <span class="kv-k">Buzón del servicio</span>
-          <span class="kv-v mono">{{ info.remitente }}</span>
-        </div>
-        <div class="kv-row">
-          <span class="kv-k">Servidor</span>
-          <span class="kv-v mono">{{ info.servidor }}</span>
-        </div>
-        <div class="kv-row">
-          <span class="kv-k">Código</span>
-          <span class="kv-v mono">{{ info.codigo }}</span>
-        </div>
-
-        <p class="diag-parrafo">{{ info.detalle }}</p>
-
-        <div class="diag-solucion">
-          <div class="at">Cómo se resuelve</div>
-          <p>{{ info.solucion }}</p>
-        </div>
-
-        @if (info.tecnico) {
-          <details class="diag-tecnico">
-            <summary>Detalle técnico para soporte</summary>
-            <pre class="mono">{{ info.tecnico }}</pre>
-          </details>
-        }
-      </div>
-      <div class="modal-actions">
-        <button class="btn-sm btn-ghost" type="button" (click)="cerrarDiagnostico()">
-          Cerrar
-        </button>
-        <button class="btn-sm btn-solid" type="button" (click)="recomprobar()">
-          Volver a comprobar
-        </button>
-      </div>
+  <bee-modal
+    [titulo]="info.titulo"
+    icono="alert"
+    tono="warn"
+    ancho="lg"
+    (cerrar)="cerrarDiagnostico()"
+  >
+    <div class="kv-row">
+      <span class="kv-k">Buzón del servicio</span>
+      <span class="kv-v mono">{{ info.remitente }}</span>
     </div>
-  </div>
+    <div class="kv-row">
+      <span class="kv-k">Servidor</span>
+      <span class="kv-v mono">{{ info.servidor }}</span>
+    </div>
+    <div class="kv-row">
+      <span class="kv-k">Código</span>
+      <span class="kv-v mono">{{ info.codigo }}</span>
+    </div>
+
+    <p class="diag-parrafo">{{ info.detalle }}</p>
+
+    <div class="diag-solucion">
+      <div class="at">Cómo se resuelve</div>
+      {{ info.solucion }}
+    </div>
+
+    @if (info.tecnico) {
+      <details class="diag-tecnico">
+        <summary>Detalle técnico para soporte</summary>
+        <pre class="mono">{{ info.tecnico }}</pre>
+      </details>
+    }
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cerrarDiagnostico()">Cerrar</button>
+      <button class="btn-sm btn-solid" type="button" (click)="recomprobar()">
+        Volver a comprobar
+      </button>
+    </ng-container>
+  </bee-modal>
 }
 
 <!-- ── Progreso del envío ──────────────────────────────────────────────────── -->
 @if (enviando()) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="snd-title">
-    <div class="modal-card" style="text-align: center">
-      <span class="spinner" style="margin: 4px auto 14px"></span>
-      <div id="snd-title" class="ct" style="margin-bottom: 6px">Enviando correos…</div>
-      <p class="note-line" style="margin-bottom: 16px" aria-live="polite">
-        Factura {{ enviandoSecuencial() }} · {{ progreso() }}% de {{ loteTotal() }} correo(s)
-      </p>
-      <div class="progress-track">
-        <div class="progress-fill" [style.width.%]="progreso()"></div>
-      </div>
-      <div class="modal-actions" style="justify-content: center">
-        <button class="btn-sm btn-ghost" type="button" (click)="cancelarEnvio()">
-          Detener el envío
-        </button>
-      </div>
+  <bee-modal titulo="Enviando correos…" ancho="sm" [cerrable]="false" (cerrar)="cancelarEnvio()">
+    <div class="prog-linea" aria-live="polite">
+      <span class="spinner spinner-sm"></span>
+      <span>
+        Factura <span class="mono em">{{ enviandoSecuencial() }}</span> · {{ procesados() }} de
+        {{ loteTotal() }}
+      </span>
+      <span class="spacer"></span>
+      <span class="mono prog-pct">{{ progreso() }}%</span>
     </div>
-  </div>
+
+    <div class="progress-track">
+      <div class="progress-fill" [style.width.%]="progreso()"></div>
+    </div>
+
+    <p class="note-line" style="margin-top: 12px">
+      Detener corta los correos que faltan. El que ya está en vuelo no se puede retirar.
+    </p>
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cancelarEnvio()">
+        Detener el envío
+      </button>
+    </ng-container>
+  </bee-modal>
 }

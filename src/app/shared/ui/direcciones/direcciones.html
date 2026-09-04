@@ -1,0 +1,63 @@
+<div class="campo" [class.solo-lectura]="soloLectura()">
+  <label class="etq" [attr.for]="campoId()">{{ etiqueta() }}</label>
+
+  @if (modoTexto()) {
+    <textarea
+      class="texto"
+      rows="2"
+      [id]="campoId()"
+      [value]="valor()"
+      [attr.placeholder]="placeholder()"
+      [readOnly]="soloLectura()"
+      (input)="editarTexto($event)"
+      (blur)="fin.emit()"
+    ></textarea>
+  } @else {
+    <div class="pastillas">
+      @for (direccion of direcciones(); track direccion.valor) {
+        <span class="pastilla" [class.mala]="!direccion.valida">
+          <span class="ini" aria-hidden="true">{{ direccion.inicial }}</span>
+          <span class="txt">{{ direccion.valor }}</span>
+          @if (!soloLectura()) {
+            <button
+              class="quitar"
+              type="button"
+              [attr.aria-label]="'Quitar ' + direccion.valor"
+              (click)="quitar(direccion.valor)"
+            >
+              <bee-icon name="x" [size]="12" [strokeWidth]="2.6" />
+            </button>
+          }
+        </span>
+      }
+
+      @if (!soloLectura()) {
+        <input
+          class="entrada"
+          type="text"
+          [id]="campoId()"
+          [value]="borrador()"
+          [attr.placeholder]="direcciones().length ? 'Añadir…' : placeholder()"
+          (input)="escribirBorrador($event)"
+          (keydown)="alTeclear($event)"
+          (paste)="alPegar($event)"
+          (blur)="alSalir()"
+        />
+      } @else if (!direcciones().length) {
+        <span class="vacio">—</span>
+      }
+    </div>
+  }
+
+  @if (!soloLectura()) {
+    <button class="modo" type="button" (click)="alternarModo()">
+      {{ modoTexto() ? 'Ver como etiquetas' : 'Editar como texto' }}
+    </button>
+  }
+</div>
+
+@if (invalidas()) {
+  <p class="aviso" role="alert">
+    {{ invalidas() }} dirección(es) mal escrita(s), marcadas en rojo.
+  </p>
+}

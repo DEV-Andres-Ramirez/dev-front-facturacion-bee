@@ -43,7 +43,9 @@
     <div class="card card-pad mb-16">
       <div class="row" style="margin-bottom: 13px">
         <span style="font-weight: 700; font-size: 14px">Agrupación por secuencial</span>
-        <span class="note-line" style="margin-left: auto">Cada secuencial es una factura · toca una tarjeta para ver su detalle</span>
+        <span class="note-line" style="margin-left: auto"
+          >Cada secuencial es una factura · toca una tarjeta para ver su detalle</span
+        >
       </div>
       <div class="seq-grid">
         @for (group of grupos(); track group.secuencial) {
@@ -70,14 +72,21 @@
         <div class="card-h">
           <div>
             <div class="ct">Detalle · {{ group.secuencial }}</div>
-            <div class="cd">{{ group.pedido }} · {{ group.cliente }} · {{ group.lineas.length }} línea(s)</div>
+            <div class="cd">
+              {{ group.pedido }} · {{ group.cliente }} · {{ group.lineas.length }} línea(s)
+            </div>
           </div>
           <div class="sp"></div>
           <bee-badge tone="primary" [label]="group.moneda + ' ' + money(group.totalCents)" />
         </div>
         <div class="tbl-wrap">
-          <table class="dt">
-            <caption class="sr-only">Líneas que pertenecen a la factura {{ group.secuencial }}</caption>
+          <table class="dt dt-stack">
+            <caption class="sr-only">
+              Líneas que pertenecen a la factura
+              {{
+                group.secuencial
+              }}
+            </caption>
             <thead>
               <tr>
                 <th scope="col">Colaborador</th>
@@ -89,10 +98,12 @@
             <tbody>
               @for (linea of group.lineas; track linea.id) {
                 <tr>
-                  <td class="strong">{{ linea.nombre }}</td>
-                  <td class="mono dim">{{ linea.idColaborador || '—' }}</td>
-                  <td class="dim" style="max-width: 420px">{{ linea.descripcion }}</td>
-                  <td class="num mono">{{ money(linea.montoCents) }}</td>
+                  <td class="dt-head" class="strong">{{ linea.nombre }}</td>
+                  <td data-label="ID" class="mono dim">{{ linea.idColaborador || '—' }}</td>
+                  <td data-label="Descripción" class="dim" style="max-width: 420px">
+                    {{ linea.descripcion }}
+                  </td>
+                  <td data-label="Monto" class="num mono">{{ money(linea.montoCents) }}</td>
                 </tr>
               }
             </tbody>
@@ -101,7 +112,10 @@
                 <td colspan="3" style="padding: 13px 16px; font-weight: 700; color: var(--ink)">
                   Total factura {{ group.secuencial }}
                 </td>
-                <td class="num mono" style="padding: 13px 16px; font-size: 14px; color: var(--primary-deep)">
+                <td
+                  class="num mono"
+                  style="padding: 13px 16px; font-size: 14px; color: var(--primary-deep)"
+                >
                   {{ group.moneda }} {{ money(group.totalCents) }}
                 </td>
               </tr>
@@ -129,22 +143,16 @@
 </section>
 
 @if (confirmEmision()) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="emi-title">
-    <div class="modal-card">
-      <div class="modal-h">
-        <span class="ti ic-primary" style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none">
-          <bee-icon name="send" [size]="18" />
-        </span>
-        <div id="emi-title" class="ct">Enviar a emisión</div>
-      </div>
-      <p class="modal-body">
-        ¿Seguro que deseas continuar? Confirma que <b>validaste que la agrupación de las facturas con
-        sus respectivos talentos es correcta</b>. Al continuar pasarás al módulo de Revisar Facturas.
-      </p>
-      <div class="modal-actions">
-        <button class="btn-sm btn-ghost" type="button" (click)="cancelarEmision()">Revisar</button>
-        <button class="btn-sm btn-solid" type="button" (click)="confirmarEmision()">Sí, enviar a emisión</button>
-      </div>
-    </div>
-  </div>
+  <bee-modal titulo="Enviar a emisión" icono="send" tono="primary" (cerrar)="cancelarEmision()">
+    ¿Seguro que deseas continuar? Confirma que
+    <b>validaste que la agrupación de las facturas con sus respectivos talentos es correcta</b>. Al
+    continuar pasarás al módulo de Revisar Facturas.
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cancelarEmision()">Revisar</button>
+      <button class="btn-sm btn-solid" type="button" (click)="confirmarEmision()">
+        Sí, enviar a emisión
+      </button>
+    </ng-container>
+  </bee-modal>
 }

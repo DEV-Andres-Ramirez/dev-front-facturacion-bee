@@ -1,12 +1,19 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { AuditoriaService } from '@core/services/auditoria.service';
 import { PeriodStore } from '@core/services/period.store';
 import { PeriodosService } from '@core/services/periodos.service';
 import { FacturasService } from '@core/services/facturas.service';
-import { DocumentoFacturacion, TipoDocumento } from '@core/models';
-import { IconComponent, IconName } from '@shared/ui';
+import { DocumentoFacturacion, SecuencialEnConflicto, TipoDocumento } from '@core/models';
+import { IconComponent, IconName, ModalComponent } from '@shared/ui';
 
 type SlotId = 'prefactura' | 'pedido' | 'registro' | 'novedades';
 
@@ -29,7 +36,12 @@ interface StagedFiles {
   readonly pedidos: readonly File[];
 }
 
-const EMPTY_STAGED: StagedFiles = { prefactura: null, registro: null, novedades: null, pedidos: [] };
+const EMPTY_STAGED: StagedFiles = {
+  prefactura: null,
+  registro: null,
+  novedades: null,
+  pedidos: [],
+};
 const MAX_MB = 5;
 
 /**
@@ -41,7 +53,7 @@ const MAX_MB = 5;
 @Component({
   selector: 'app-carga',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, ModalComponent],
   templateUrl: './carga.html',
   styleUrl: './carga.css',
 })
@@ -74,30 +86,107 @@ export class Carga {
   protected readonly maxMb = MAX_MB;
 
   protected readonly slots: readonly SlotConfig[] = [
-    { id: 'prefactura', tipo: 'Aprobación Prefactura', title: 'Aprobación de prefactura', desc: 'Excel del cliente · 1 por periodo', accept: '.xlsx', formats: 'XLSX', icon: 'file', iconBg: 'ic-primary', multi: false },
-    { id: 'pedido', tipo: 'Pedido Compra', title: 'Pedidos de compra', desc: 'PDF del cliente · varios por periodo', accept: '.pdf', formats: 'PDF', icon: 'file', iconBg: 'ic-info', multi: true },
-    { id: 'registro', tipo: 'Registro Facturación Interna', title: 'Registro de facturación interna', desc: 'Plantilla BEE · 1 por periodo', accept: '.xlsx', formats: 'XLSX', icon: 'records', iconBg: 'ic-ink', multi: false },
-    { id: 'novedades', tipo: 'Novedades Periodo', title: 'Novedades del periodo', desc: 'Excel · 1 por periodo', accept: '.xlsx', formats: 'XLSX', icon: 'alert', iconBg: 'ic-warn', multi: false },
+    {
+      id: 'prefactura',
+      tipo: 'Aprobación Prefactura',
+      title: 'Aprobación de prefactura',
+      desc: 'Excel del cliente · 1 por periodo',
+      accept: '.xlsx',
+      formats: 'XLSX',
+      icon: 'file',
+      iconBg: 'ic-primary',
+      multi: false,
+    },
+    {
+      id: 'pedido',
+      tipo: 'Pedido Compra',
+      title: 'Pedidos de compra',
+      desc: 'PDF del cliente · varios por periodo',
+      accept: '.pdf',
+      formats: 'PDF',
+      icon: 'file',
+      iconBg: 'ic-info',
+      multi: true,
+    },
+    {
+      id: 'registro',
+      tipo: 'Registro Facturación Interna',
+      title: 'Registro de facturación interna',
+      desc: 'Plantilla BEE · 1 por periodo',
+      accept: '.xlsx',
+      formats: 'XLSX',
+      icon: 'records',
+      iconBg: 'ic-ink',
+      multi: false,
+    },
+    {
+      id: 'novedades',
+      tipo: 'Novedades Periodo',
+      title: 'Novedades del periodo',
+      desc: 'Excel · 1 por periodo',
+      accept: '.xlsx',
+      formats: 'XLSX',
+      icon: 'alert',
+      iconBg: 'ic-warn',
+      multi: false,
+    },
   ];
 
   // ── Métricas reales del periodo ────────────────────────────────────────────
   protected readonly lineasPrefactura = computed(() => this.prefacturaRows().length);
   protected readonly lineasRegistro = computed(() => this.registroRows().length);
   protected readonly talentos = computed(
-    () => new Set(this.prefacturaRows().map((r) => r.id_colaborador_prefactura).filter(Boolean)).size,
+    () =>
+      new Set(
+        this.prefacturaRows()
+          .map((r) => r.id_colaborador_prefactura)
+          .filter(Boolean),
+      ).size,
   );
   protected readonly ordenes = computed(
-    () => new Set(this.registroRows().map((r) => r.pedido_compra_facturacion_interna).filter(Boolean)).size,
+    () =>
+      new Set(
+        this.registroRows()
+          .map((r) => r.pedido_compra_facturacion_interna)
+          .filter(Boolean),
+      ).size,
   );
   protected readonly moneda = computed(
-    () => this.registroRows().find((r) => r.tipo_moneda_facturacion_interna)?.tipo_moneda_facturacion_interna ?? '—',
+    () =>
+      this.registroRows().find((r) => r.tipo_moneda_facturacion_interna)
+        ?.tipo_moneda_facturacion_interna ?? '—',
   );
-  protected readonly siguienteSecuencial = computed(() => {
-    const nums = this.registroRows()
-      .map((r) => Number((r.secuencial_facturacion_interna ?? '').replace(/\D/g, '')))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    return nums.length ? `BEE${Math.max(...nums) + 1}` : '—';
-  });
+  /**
+   * Siguiente número de factura libre. Lo calcula la base de datos sobre **toda
+   * la historia**: el cálculo que había aquí solo miraba las filas del periodo
+   * abierto, así que al empezar un mes nuevo volvía a proponer números ya usados
+   * —incluidos los de facturas anuladas, que quedan consumidos para siempre—.
+   */
+  protected readonly siguienteSecuencial = signal('—');
+
+  /** Secuenciales del Excel que ya pertenecen a otro periodo. */
+  protected readonly secuencialesEnConflicto = signal<readonly SecuencialEnConflicto[]>([]);
+
+  private async refrescarSecuencial(): Promise<void> {
+    this.siguienteSecuencial.set(await this.facturas.siguienteSecuencial());
+  }
+
+  /**
+   * Comprueba, antes de guardar nada, si el Excel reutiliza un número ya
+   * consumido. Avisar después de haberlo guardado obligaría a deshacerlo.
+   */
+  private async comprobarSecuenciales(): Promise<void> {
+    const secuenciales = [
+      ...new Set(
+        this.registroRows()
+          .map((r) => (r.secuencial_facturacion_interna ?? '').trim())
+          .filter(Boolean),
+      ),
+    ];
+    this.secuencialesEnConflicto.set(
+      await this.facturas.verificarSecuenciales(this.periodStore.label(), secuenciales),
+    );
+  }
 
   protected readonly loadedTipos = computed(
     () =>
@@ -108,7 +197,9 @@ export class Carga {
   );
 
   /** Solo se valida con la prefactura y el registro interno persistidos. */
-  protected readonly canContinue = computed(() => this.isSaved('prefactura') && this.isSaved('registro'));
+  protected readonly canContinue = computed(
+    () => this.isSaved('prefactura') && this.isSaved('registro'),
+  );
 
   protected readonly hasStagedAny = computed(() => {
     const s = this.staged();
@@ -140,7 +231,9 @@ export class Carga {
       this.preview.set(null);
       this.errorSlot.set(null);
       this.saveError.set('');
-      void this.documentos.loadPeriodo(label);
+      this.secuencialesEnConflicto.set([]);
+      void this.documentos.loadPeriodo(label).then(() => void this.comprobarSecuenciales());
+      void this.refrescarSecuencial();
     });
   }
 
@@ -313,7 +406,6 @@ export class Carga {
     );
   }
 
-
   /** Deja constancia de un archivo que la aplicación rechazó antes de subirlo. */
   private registrarRechazo(slot: SlotConfig, file: File, motivo: string): void {
     this.auditoria.registrar({
@@ -391,21 +483,36 @@ export class Carga {
 
     let baseCambiada = false;
     if (s.prefactura) {
-      const r = await this.documentos.guardarPrefactura(id, label, s.prefactura, this.isSaved('prefactura'));
+      const r = await this.documentos.guardarPrefactura(
+        id,
+        label,
+        s.prefactura,
+        this.isSaved('prefactura'),
+      );
       if (r.ok) {
         next.prefactura = null;
         baseCambiada = true;
       } else errors.push(`Prefactura: ${r.error}`);
     }
     if (s.registro) {
-      const r = await this.documentos.guardarRegistro(id, label, s.registro, this.isSaved('registro'));
+      const r = await this.documentos.guardarRegistro(
+        id,
+        label,
+        s.registro,
+        this.isSaved('registro'),
+      );
       if (r.ok) {
         next.registro = null;
         baseCambiada = true;
       } else errors.push(`Registro interno: ${r.error}`);
     }
     if (s.novedades) {
-      const r = await this.documentos.guardarNovedades(id, label, s.novedades, this.isSaved('novedades'));
+      const r = await this.documentos.guardarNovedades(
+        id,
+        label,
+        s.novedades,
+        this.isSaved('novedades'),
+      );
       if (r.ok) next.novedades = null;
       else errors.push(`Novedades: ${r.error}`);
     }
@@ -423,7 +530,30 @@ export class Carga {
 
     // El registro interno define qué facturas existen: se sincronizan aquí
     // para que Revisar, Entregar y Conciliar trabajen sobre la misma lista.
-    if (baseCambiada) await this.facturas.sincronizar(label);
+    if (baseCambiada) {
+      const sync = await this.facturas.sincronizar(label);
+      const conflictos = sync.informe?.conflictos ?? [];
+      if (conflictos.length > 0) {
+        this.secuencialesEnConflicto.set(conflictos);
+        errors.push(
+          `No se crearon ${conflictos.length} factura(s): ` +
+            conflictos.map((c) => `${c.secuencial} ya es de ${c.periodo}`).join(', ') +
+            '. Un número de factura no se reutiliza aunque se anule.',
+        );
+        this.auditoria.registrar({
+          modulo: 'Carga',
+          accion: 'BLOQUEAR_AVANCE',
+          resultado: 'advertencia',
+          observacion:
+            `El registro interno traía ${conflictos.length} secuencial(es) ya usado(s) en otro ` +
+            'periodo; no se crearon esas facturas.',
+          entidad: 'periodo',
+          referencia: label,
+          detalle: { conflictos },
+        });
+      }
+      void this.refrescarSecuencial();
+    }
 
     this.staged.set(next);
     this.confirmOpen.set(false);
