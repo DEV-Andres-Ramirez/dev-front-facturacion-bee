@@ -1,11 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { AuditoriaService } from '@core/services/auditoria.service';
 import { PeriodStore } from '@core/services/period.store';
 import { PeriodosService } from '@core/services/periodos.service';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
-import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
+import { BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent } from '@shared/ui';
 
 type EstadoFila = 'identico' | 'diferencia' | 'solo_prefactura' | 'solo_registro';
 type Filtro = 'todos' | 'diferencias' | 'nomop';
@@ -21,7 +28,6 @@ interface FilaValidacion {
   readonly estado: EstadoFila;
 }
 
-
 /**
  * Validar información (RF-VAL). Coteja `aprobacion_prefactura` contra
  * `registro_facturacion_interna` por `id_colaborador`, sumando y comparando el
@@ -30,7 +36,7 @@ interface FilaValidacion {
 @Component({
   selector: 'app-validar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
+  imports: [BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent],
   templateUrl: './validar.html',
 })
 export class Validar {
@@ -45,7 +51,9 @@ export class Validar {
   private readonly prefactura = this.documentos.prefactura;
   private readonly registro = this.documentos.registro;
 
-  protected readonly hayDatos = computed(() => this.prefactura().length > 0 && this.registro().length > 0);
+  protected readonly hayDatos = computed(
+    () => this.prefactura().length > 0 && this.registro().length > 0,
+  );
 
   protected readonly filtro = signal<Filtro>('todos');
   protected readonly confirmOpen = signal(false);
@@ -88,7 +96,9 @@ export class Validar {
         estado,
       });
     }
-    return filas.sort((a, b) => this.peso(a.estado) - this.peso(b.estado) || a.nombre.localeCompare(b.nombre));
+    return filas.sort(
+      (a, b) => this.peso(a.estado) - this.peso(b.estado) || a.nombre.localeCompare(b.nombre),
+    );
   });
 
   protected readonly filtradas = computed(() => {

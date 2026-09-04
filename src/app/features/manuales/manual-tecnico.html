@@ -1,79 +1,133 @@
 <div class="manual-layout">
-  <!-- Índice -->
-  <nav class="toc" aria-label="Índice del manual técnico">
-    <p class="toc-title">Contenido</p>
-    @for (seccion of secciones; track seccion.id) {
-      <a [routerLink]="[]" [fragment]="seccion.id">{{ seccion.label }}</a>
-    }
-  </nav>
+  <bee-toc [secciones]="secciones" titulo="Manual Técnico" />
 
-  <!-- Contenido -->
   <div class="prose">
     <!-- 1 · Stack -->
     <section id="stack" class="card card-pad mb-16">
       <h2><span class="sec-n">1</span> Visión general y stack</h2>
       <div class="divider"></div>
       <p>
-        Facturación Bee es una <b>SPA Angular</b> servida como archivos estáticos desde Vercel, con
-        <b>Supabase</b> como capa de datos y archivos, y un <b>backend NestJS</b> dedicado al envío de
-        correos (<code>dev-back-facturacion-bee</code>). No hay servidor propio de aplicación: el
-        navegador conversa directamente con Supabase (PostgREST/Storage) y con el API de correo.
+        Facturación Bee son <b>dos repositorios independientes</b> —no comparten workspace, ni
+        despliegue, ni git— más un proyecto de Supabase compartido.
       </p>
-      <div class="kpi-grid k3" style="margin: 14px 0">
-        <div class="mini"><div class="ml">Frontend</div><div class="mv" style="font-size: 16px">Angular 21</div><div class="ms">Standalone · signals · zoneless · OnPush</div></div>
-        <div class="mini"><div class="ml">Datos</div><div class="mv" style="font-size: 16px">Supabase</div><div class="ms">PostgreSQL · RLS · Storage · RPC</div></div>
-        <div class="mini"><div class="ml">Correo</div><div class="mv" style="font-size: 16px">NestJS</div><div class="ms">SMTP Office 365 · Vercel Functions</div></div>
+
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th scope="col">Pieza</th>
+              <th scope="col">Tecnología</th>
+              <th scope="col">Responsabilidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="strong">Front-End</td>
+              <td>Angular 21 · standalone · zoneless · signals · Tailwind v4 (solo el reset)</td>
+              <td>Toda la lógica de negocio y la interfaz</td>
+            </tr>
+            <tr>
+              <td class="strong">Back-End</td>
+              <td>NestJS 11 · Express 5 · Nodemailer 9 · Node ≥ 22</td>
+              <td><b>Solo</b> el envío de correo con adjuntos. No toca Supabase</td>
+            </tr>
+            <tr>
+              <td class="strong">Datos</td>
+              <td>Supabase · PostgreSQL 17 · Storage</td>
+              <td>Persistencia y reglas de negocio en funciones SQL</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
+
+      <h3>Dependencias del front</h3>
       <ul>
-        <li><b>UI:</b> Tailwind CSS v4 + design system propio en <code>src/styles.css</code> (paleta Bee: charcoal <code>#26282C</code> + honey <code>#F4C41A</code>, fuentes Plus Jakarta Sans y JetBrains Mono autoalojadas).</li>
-        <li><b>Lenguaje:</b> TypeScript en modo estricto (incluye <code>strictTemplates</code> y <code>noPropertyAccessFromIndexSignature</code>).</li>
-        <li><b>Pruebas:</b> Vitest vía <code>&#64;angular/build:unit-test</code> (jsdom).</li>
-        <li><b>Paquetes:</b> pnpm. Dependencias clave: <code>&#64;supabase/supabase-js</code>, <code>xlsx</code> (SheetJS, en chunk diferido).</li>
+        <li><code>@supabase/supabase-js</code> — cliente de datos y Storage.</li>
+        <li>
+          <code>xlsx</code> — lectura de los Excel. <b>Solo lectura</b>; para exportar se usa CSV
+          propio.
+        </li>
+        <li><code>jszip</code> — descarga del periodo comprimido.</li>
       </ul>
+      <p>
+        <b>No hay librería de gráficos.</b> El anillo, las barras y la serie del tablero son SVG
+        propio: para tres formas, 150-400 kB de dependencia y su superficie de vulnerabilidades no
+        compensan.
+      </p>
     </section>
 
     <!-- 2 · Estructura -->
     <section id="estructura" class="card card-pad mb-16">
       <h2><span class="sec-n">2</span> Estructura del proyecto</h2>
       <div class="divider"></div>
-      <div class="tree mono" style="font-size: 12px; line-height: 1.9">
-        <div class="tnode"><bee-icon name="folder" [size]="14" /> src/app/core — núcleo sin UI</div>
-        <div class="tchild">guards/ · authGuard y adminGuard (protección de rutas)</div>
-        <div class="tchild">models/ · dominio tipado (usuario, documento, prefactura, registro, periodo…)</div>
-        <div class="tchild">services/ · Supabase, Auth, Documentos, Usuarios, Email, stores</div>
-        <div class="tchild">utils/ · xlsx, montos, mapper de usuario, escape HTML</div>
-        <div class="tchild">data/ · dataset en blanco y matriz de permisos</div>
-        <div class="tnode" style="margin-top: 6px"><bee-icon name="folder" [size]="14" /> src/app/features — una carpeta por pantalla (lazy)</div>
-        <div class="tchild">auth/login · dashboard · carga · validar · agrupar · revisar · entregar</div>
-        <div class="tchild">conciliar · registros · usuarios · auditoria · manuales</div>
-        <div class="tnode" style="margin-top: 6px"><bee-icon name="folder" [size]="14" /> src/app/layout/shell — barra lateral + encabezado + router-outlet</div>
-        <div class="tnode"><bee-icon name="folder" [size]="14" /> src/app/shared — ui/ (bee-icon, badge, kpi, stepper…) y pipes/</div>
-        <div class="tnode"><bee-icon name="folder" [size]="14" /> src/environments — configuración por entorno (file replacement)</div>
-        <div class="tnode"><bee-icon name="folder" [size]="14" /> supabase/schema.sql — esquema completo re-ejecutable</div>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th scope="col">Carpeta</th>
+              <th scope="col">Qué contiene</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>core/</code></td>
+              <td>
+                Dominio: <code>models</code>, <code>services</code> (incluidos los stores),
+                <code>guards</code>, <code>utils</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>shared/ui/</code></td>
+              <td>
+                Sistema de diseño: icon, badge, kpi-card, empty-state, modal, ciclo, direcciones,
+                toc, gráficos
+              </td>
+            </tr>
+            <tr>
+              <td><code>shared/facturas/</code></td>
+              <td>Widgets de dominio que usa más de una pantalla (el diálogo de anulación)</td>
+            </tr>
+            <tr>
+              <td><code>layout/</code></td>
+              <td>El shell: barra lateral, encabezado, notificaciones</td>
+            </tr>
+            <tr>
+              <td><code>features/</code></td>
+              <td>Una carpeta por módulo, con carga diferida</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <p class="note-line" style="margin-top: 10px">
-        Alias de importación: <code>&#64;core/*</code>, <code>&#64;shared/*</code>, <code>&#64;features/*</code>,
-        <code>&#64;env</code> (tsconfig.json).
+      <p style="margin-top: 12px">
+        Alias: <code>@core/*</code>, <code>@shared/*</code>, <code>@features/*</code>,
+        <code>&#64;env</code>. <b>Dentro de <code>core/</code> se usan rutas relativas</b>
+        (<code>../models</code>); fuera, los alias.
       </p>
     </section>
 
-    <!-- 3 · Rutas y seguridad -->
+    <!-- 3 · Rutas -->
     <section id="rutas" class="card card-pad mb-16">
-      <h2><span class="sec-n">3</span> Enrutamiento y seguridad</h2>
+      <h2><span class="sec-n">3</span> Enrutamiento y sesión</h2>
       <div class="divider"></div>
-      <ul>
-        <li>Todas las pantallas cuelgan de <code>/app</code> (shell) con <b>lazy loading</b> por componente: cada feature es un chunk independiente.</li>
-        <li><code>authGuard</code> protege <code>/app</code>: sin sesión redirige a <code>/login</code>. <code>adminGuard</code> protege usuarios, auditoría y este manual: sin rol admin redirige al dashboard.</li>
-        <li>La sesión vive en <code>localStorage</code> (clave <code>bee.session</code>) y se restaura al recargar. El login valida contra la base con la función <code>fn_login</code>; el último acceso se actualiza al navegar (con un acelerador de 60 s).</li>
-        <li>Título y subtítulo del encabezado salen de <code>data.title</code>/<code>data.subtitle</code> de la ruta activa más profunda.</li>
-      </ul>
-      <div class="alert alert-warn">
-        <span class="ai"><bee-icon name="alert" [size]="18" /></span>
+      <p>
+        Todas las rutas de módulo cuelgan de <code>/app</code> y usan <code>loadComponent</code>.
+        Dos guards: <code>authGuard</code> en todo <code>/app</code> y <code>adminGuard</code> en
+        Usuarios, Auditoría y los manuales técnicos.
+      </p>
+      <p>
+        El acceso a cada módulo del ciclo <b>no lo controla un guard de router</b>, sino la etapa
+        del periodo: cada pantalla comprueba <code>periodStore.alcanzo('etapa')</code> y muestra un
+        estado vacío explicativo si aún no le toca.
+      </p>
+
+      <div class="alert alert-warn" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="alert" [size]="16" /></span>
         <div>
-          <div class="at">Límite de seguridad actual</div>
-          La autenticación es contra tabla propia con la clave publicable (rol <code>anon</code>): el
-          control de administrador es <b>de interfaz</b>, no criptográfico. El endurecimiento previsto
-          es migrar a Supabase Auth (JWT) y cerrar las políticas RLS por rol autenticado.
+          <div class="at">Limitación conocida de la sesión</div>
+          La sesión vive en <code>localStorage['bee.session']</code> como JSON <b>sin firmar</b>, y
+          las contraseñas están en texto plano en la tabla <code>usuarios</code>. La bitácora tiene
+          valor operativo, pero <b>no es prueba forense</b> hasta que exista autenticación real
+          (Supabase Auth + hash).
         </div>
       </div>
     </section>
@@ -83,171 +137,832 @@
       <h2><span class="sec-n">4</span> Gestión de estado</h2>
       <div class="divider"></div>
       <p>
-        Todo el estado es <b>signals + computed</b> (sin NgRx, sin Zone.js). Los componentes son OnPush y
-        reaccionan al cambio de periodo mediante <code>effect()</code> que recarga los datos.
+        La aplicación es <b>zoneless</b> (<code>provideZonelessChangeDetection()</code>): todo el
+        estado va en signals. Un <code>setTimeout</code> que mute una propiedad normal no repinta
+        nada.
       </p>
-      <div class="kv-row"><span class="kv-k">AuthService</span><span class="kv-v">Sesión, rol, login/logout, touch de último acceso</span></div>
-      <div class="kv-row"><span class="kv-k">PeriodStore</span><span class="kv-v">Periodo activo del encabezado (catálogo en <code>period.model.ts</code>)</span></div>
-      <div class="kv-row"><span class="kv-k">PeriodosService</span><span class="kv-v">Catálogo de periodos y etapa del ciclo (<code>carga → validacion → agrupacion → revision → entrega → conciliacion → archivo</code>), persistida en la tabla <code>periodos</code></span></div>
-      <div class="kv-row"><span class="kv-k">DocumentosService</span><span class="kv-v">Corazón del ciclo: Storage + tablas de detalle + relaciones (pedido↔registro, Factura BEE, monto/fecha emitidos)</span></div>
-      <div class="kv-row"><span class="kv-k">UsuariosService</span><span class="kv-v">CRUD de cuentas vía RPC (nunca toca la tabla directamente)</span></div>
-      <div class="kv-row"><span class="kv-k">EmailService</span><span class="kv-v">POST al backend de correo con manejo tipado de errores</span></div>
-      <div class="kv-row"><span class="kv-k">BillingDataService</span><span class="kv-v">Transitorio: dataset en blanco para módulos aún no conectados (dashboard, conciliar, registros, auditoría)</span></div>
-    </section>
+      <ul>
+        <li>
+          <b>Servicios de datos</b>: señal privada <code>_rows</code> +
+          <code>asReadonly()</code> público, <code>loading</code> y <code>error</code> (cadena
+          vacía, nunca <code>null</code>).
+        </li>
+        <li>
+          <b>Derivados</b>: siempre <code>computed()</code>. Nunca duplicar estado que se puede
+          derivar.
+        </li>
+        <li>
+          <b>`effect()`</b>: solo para reaccionar al cambio de periodo. <b>Nunca</b> para registrar
+          auditoría ni para escribir señales.
+        </li>
+      </ul>
 
-    <!-- 5 · Base de datos -->
-    <section id="datos" class="card card-pad mb-16">
-      <h2><span class="sec-n">5</span> Base de datos (Supabase · PostgreSQL)</h2>
-      <div class="divider"></div>
-      <p>
-        El esquema completo vive en <code>supabase/schema.sql</code>: es <b>idempotente</b> (se puede
-        re-ejecutar entero sin romper datos). Cuatro tablas:
-      </p>
+      <h3>La doble clave de periodo</h3>
+      <p>Es la trampa número uno del proyecto:</p>
       <div class="tbl-wrap">
         <table class="dt">
-          <caption class="sr-only">Tablas del sistema</caption>
           <thead>
-            <tr><th scope="col">Tabla</th><th scope="col">Propósito</th><th scope="col">Notas clave</th></tr>
+            <tr>
+              <th scope="col">Llamada</th>
+              <th scope="col">Devuelve</th>
+              <th scope="col">Se usa para</th>
+            </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="strong mono">usuarios</td>
-              <td>Cuentas y acceso</td>
-              <td>Se lee por la vista <code>vw_usuarios</code> (sin contraseña); TODA escritura va por funciones <code>SECURITY DEFINER</code></td>
+              <td><code>periodStore.period()</code></td>
+              <td><code>'2026-08'</code></td>
+              <td>
+                Rutas de Storage, clave de <code>periodos</code>, claves de
+                <code>localStorage</code>
+              </td>
             </tr>
             <tr>
-              <td class="strong mono">documentos_facturacion</td>
-              <td>Índice de archivos del periodo</td>
-              <td>Tipo, URL pública del Storage y <code>nombre_documento_facturacion</code> (sin extensión, para relacionar pedidos)</td>
-            </tr>
-            <tr>
-              <td class="strong mono">aprobacion_prefactura</td>
-              <td>Detalle de la plantilla del cliente</td>
-              <td>25 columnas en el orden exacto de la plantilla; todo texto</td>
-            </tr>
-            <tr>
-              <td class="strong mono">registro_facturacion_interna</td>
-              <td>Detalle de la plantilla interna · base del ciclo</td>
-              <td>13 columnas de plantilla + 4 de Revisar: <code>documento_pedido_compra</code>, <code>documento_factura_bee</code>, <code>monto_emitido_factura_bee</code>, <code>fecha_factura_bee</code></td>
+              <td><code>periodStore.label()</code></td>
+              <td><code>'Agosto 2026'</code></td>
+              <td><b>Todas</b> las columnas <code>periodo_*</code> de la base de datos</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <h3>Funciones RPC (usuarios)</h3>
-      <p>
-        <code>fn_login</code> · <code>fn_touch_acceso</code> · <code>fn_crear_usuario</code> ·
-        <code>fn_actualizar_usuario</code> · <code>fn_set_estado_usuario</code>
+      <p style="margin-top: 10px">
+        Consultar una tabla con el id en vez de la etiqueta <b>no da error</b>: devuelve cero filas.
       </p>
-      <div class="alert alert-info">
-        <span class="ai"><bee-icon name="info" [size]="18" /></span>
+    </section>
+
+    <!-- 5 · Base de datos -->
+    <section id="datos" class="card card-pad mb-16">
+      <h2><span class="sec-n">5</span> Base de datos</h2>
+      <div class="divider"></div>
+      <p>
+        Proyecto Supabase <code>xatapilakdhlmgfjvdco</code>, PostgreSQL 17. Convención de columnas:
+        <code>&lt;concepto&gt;_&lt;sufijo_de_tabla&gt;</code>.
+      </p>
+
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th scope="col">Tabla</th>
+              <th scope="col">Para qué</th>
+              <th scope="col">Acceso</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>usuarios</code></td>
+              <td>Cuentas y roles</td>
+              <td>
+                RLS activo <b>sin políticas</b> · solo RPC y la vista <code>vw_usuarios</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>documentos_facturacion</code></td>
+              <td>Índice de soportes subidos (URL de Storage)</td>
+              <td>Directo</td>
+            </tr>
+            <tr>
+              <td><code>aprobacion_prefactura</code></td>
+              <td>Las 25 columnas del Excel del cliente</td>
+              <td>Directo</td>
+            </tr>
+            <tr>
+              <td><code>registro_facturacion_interna</code></td>
+              <td>13 columnas del Excel interno + 4 que añade Revisar</td>
+              <td>Directo</td>
+            </tr>
+            <tr>
+              <td><code>facturas</code></td>
+              <td>La factura como entidad: estado, envío, anulación y conciliación</td>
+              <td>Solo RPC</td>
+            </tr>
+            <tr>
+              <td><code>periodos</code></td>
+              <td>Catálogo de periodos y <b>etapa del ciclo</b></td>
+              <td>Solo RPC</td>
+            </tr>
+            <tr>
+              <td><code>parametros</code></td>
+              <td>Retención, TRM, plazo, destinatarios, asunto, prefijo de factura</td>
+              <td>Solo RPC · RLS sin políticas</td>
+            </tr>
+            <tr>
+              <td><code>auditoria</code></td>
+              <td>Bitácora inmutable</td>
+              <td>Solo RPC · <code>revoke all</code> incluido <code>TRUNCATE</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Advertencias estructurales</h3>
+      <ul>
+        <li>
+          <b>No hay ni una sola clave foránea.</b> Todas las relaciones son por igualdad de texto.
+        </li>
+        <li>
+          En las tablas de detalle, montos, fechas y periodos son <code>text</code>. En
+          <code>facturas</code> sí son <code>numeric</code> y <code>date</code>.
+        </li>
+        <li>
+          El join central del ciclo es <code>id_colaborador_prefactura</code> ↔
+          <code>id_colaborados_facturacion_interna</code> (sí, «colaborados»).
+        </li>
+        <li>
+          La columna <code>entega_valor_prefactura</code> va sin la «r», y existe
+          <code>año_prefactura</code> con carácter no ASCII. <b>No los «arregles»</b> sin migrar los
+          datos.
+        </li>
+      </ul>
+
+      <div class="alert alert-warn" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="alert" [size]="16" /></span>
         <div>
-          <div class="at">Por qué SECURITY DEFINER y no escritura directa</div>
-          Con RLS activo y sin política de SELECT, el rol <code>anon</code> no puede localizar filas para
-          UPDATE/DELETE (INSERT sí funciona — no necesita localizar). Abrir SELECT expondría las
-          contraseñas. Las funciones <code>SECURITY DEFINER</code> ejecutan como dueño: escrituras
-          controladas y contraseñas nunca viajan al cliente.
+          <div class="at">Deuda de seguridad abierta</div>
+          Las tres tablas del ciclo tienen políticas RLS <code>using (true)</code> para
+          <code>anon</code>, y la clave publicable viaja en el bundle: hoy la facturación es
+          <b>legible y escribible</b> por cualquiera que tenga la clave. El bucket de Storage es
+          público. Está pendiente de remediación.
         </div>
       </div>
-      <p class="note-line">
-        Las tablas del ciclo (documentos/prefactura/registro) tienen políticas abiertas al rol
-        <code>anon</code> — coherente con el modelo de auth actual; se cierran al adoptar JWT.
+
+      <p style="margin-top: 12px">
+        <b>La tabla <code>respuestas_prospectiva</code> pertenece a otro producto</b> alojado en el
+        mismo proyecto de Supabase. Es ruido para este aplicativo: no la toques.
       </p>
     </section>
 
-    <!-- 6 · Storage -->
-    <section id="storage" class="card card-pad mb-16">
-      <h2><span class="sec-n">6</span> Storage de archivos</h2>
-      <div class="divider"></div>
-      <div class="kv-row"><span class="kv-k">Bucket</span><span class="kv-v mono">facturacion-bee (público)</span></div>
-      <div class="kv-row"><span class="kv-k">Ruta de objetos</span><span class="kv-v mono">{{ '{' }}periodoId{{ '}' }}/{{ '{' }}tipo-slug{{ '}' }}/{{ '{' }}timestamp{{ '}' }}-{{ '{' }}archivo{{ '}' }}</span></div>
-      <div class="kv-row"><span class="kv-k">Políticas</span><span class="kv-v">SELECT/INSERT/UPDATE/DELETE sobre <code>storage.objects</code> restringidas al bucket</span></div>
-      <ul style="margin-top: 12px">
-        <li>La <b>URL pública</b> de cada objeto se guarda en <code>direccion_documento_facturacion</code> y es la que consumen la UI y los adjuntos de correo.</li>
-        <li><b>Relación pedido↔registro:</b> al subir un pedido, su nombre sin extensión (p. ej. <code>PCC-2026-00745</code>) se compara con <code>pedido_compra_facturacion_interna</code> y se escribe <code>documento_pedido_compra</code> en las filas coincidentes. Guardar el registro interno re-ejecuta esta relación con los pedidos existentes.</li>
-        <li><b>Reemplazos y eliminaciones</b> limpian el objeto del Storage, la fila índice y las referencias en el registro interno (sin huérfanos).</li>
-        <li>La subida usa el cliente JS de Supabase (clave publicable) — el protocolo S3 no se usa: exigiría credenciales secretas que jamás van al navegador.</li>
-      </ul>
-    </section>
-
-    <!-- 7 · Excel -->
-    <section id="excel" class="card card-pad mb-16">
-      <h2><span class="sec-n">7</span> Procesamiento de Excel</h2>
-      <div class="divider"></div>
-      <ul>
-        <li><b>SheetJS (<code>xlsx</code>)</b> se importa con <code>import()</code> dinámico: queda en un chunk diferido (~430 kB) que solo se descarga al cargar un archivo, no en el arranque.</li>
-        <li>El mapeo es <b>posicional</b>: la fila 1 es encabezado y cada columna se lee por índice en el orden de la plantilla (25 columnas prefactura, 13 registro interno). Cambiar el orden de columnas de las plantillas rompe el mapeo — es un contrato.</li>
-        <li>Las filas totalmente vacías se descartan; toda celda se normaliza a texto (<code>celdaATexto</code>).</li>
-      </ul>
-      <h3>Montos: precisión al centavo</h3>
-      <ul>
-        <li><code>montoDosDecimales</code> trunca a 2 decimales <b>sin aproximar y sobre el texto del número</b>: <code>2636.1152 → "2636.11"</code>, <code>3800 → "3800.00"</code>. Evita el clásico error de flotantes (<code>4416.45 × 100 = 441644.999…</code> → «4416.44»).</li>
-        <li><code>montoACentavos</code> convierte ese texto a <b>centavos enteros</b> para sumar y comparar de forma exacta en Validar, Agrupar y Revisar. Nunca se compara con números flotantes.</li>
-        <li><code>monto_emitido_factura_bee</code> es un valor <b>global por factura</b> (repetido en cada fila del secuencial): al usarlo se toma el primero, jamás se suma.</li>
-      </ul>
-    </section>
-
-    <!-- 8 · Correo -->
-    <section id="correo" class="card card-pad mb-16">
-      <h2><span class="sec-n">8</span> Integración de correo</h2>
+    <!-- 6 · RPC -->
+    <section id="rpc" class="card card-pad mb-16">
+      <h2><span class="sec-n">6</span> Funciones RPC</h2>
       <div class="divider"></div>
       <p>
-        El envío real lo hace el backend <code>dev-back-facturacion-bee</code> (NestJS en Vercel, SMTP
-        Office 365, remitente <span class="em">facturacion&#64;beeconsultoria.com</span>). El contrato
-        completo está en <code>CONSUMO.md</code> en la raíz del repo.
+        Todas son <code>SECURITY DEFINER</code> con <code>set search_path = public</code> y
+        <code>grant execute</code> a <code>anon</code> y <code>authenticated</code>. Las reglas de
+        negocio que no pueden depender del navegador viven aquí.
       </p>
-      <div class="kv-row"><span class="kv-k">Endpoint</span><span class="kv-v mono">POST /api/email/send</span></div>
-      <div class="kv-row"><span class="kv-k">Auth</span><span class="kv-v">Header <code>x-api-key</code> (clave en <code>environment.api.key</code>; pública por diseño — ver CONSUMO.md §7)</span></div>
-      <div class="kv-row"><span class="kv-k">Adjuntos</span><span class="kv-v"><code>attachmentUrls</code>: el backend descarga desde Supabase Storage — esquiva el límite de 4.5 MB por petición de Vercel</span></div>
-      <div class="kv-row"><span class="kv-k">Salud</span><span class="kv-v mono">GET /api/health (sin auth)</span></div>
+
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th scope="col">Función</th>
+              <th scope="col">Qué hace</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>fn_login</code></td>
+              <td>Autentica y actualiza el último acceso. Sin coincidencia devuelve vacío</td>
+            </tr>
+            <tr>
+              <td><code>fn_touch_acceso</code></td>
+              <td>Refresca el último acceso al actuar</td>
+            </tr>
+            <tr>
+              <td>
+                <code>fn_crear_usuario</code> · <code>fn_actualizar_usuario</code> ·
+                <code>fn_set_estado_usuario</code>
+              </td>
+              <td>CRUD de cuentas. La contraseña vacía conserva la anterior</td>
+            </tr>
+            <tr>
+              <td><code>fn_listar_periodos</code> · <code>fn_crear_periodo</code></td>
+              <td>Catálogo. La unicidad de (año, mes) la garantiza la base de datos</td>
+            </tr>
+            <tr>
+              <td><code>fn_avanzar_etapa</code></td>
+              <td>
+                Avanza el ciclo. <b>Ignora los retrocesos</b>: confirmar dos veces no deshace nada
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn_reabrir_etapa</code></td>
+              <td>Retrocede, con motivo obligatorio</td>
+            </tr>
+            <tr>
+              <td><code>fn_orden_etapa</code></td>
+              <td>
+                Posición de una etapa. Es <code>IMMUTABLE</code>, no <code>SECURITY DEFINER</code>
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn_sincronizar_facturas</code></td>
+              <td>
+                Regenera las facturas desde el registro interno.
+                <b>Devuelve <code>jsonb</code></b> con creadas, omitidas y conflictos. Respeta
+                anuladas y pagadas
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn_listar_facturas</code></td>
+              <td>
+                Facturas del periodo + días transcurridos y vencimiento calculados contra el plazo
+                parametrizado. Orden natural por la parte numérica del secuencial
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn_marcar_enviada</code></td>
+              <td>Deja constancia del envío. <b>No pisa el estado anulada</b></td>
+            </tr>
+            <tr>
+              <td><code>fn_anular_factura</code></td>
+              <td>Anula con motivo obligatorio. <b>Rechaza anular una pagada</b></td>
+            </tr>
+            <tr>
+              <td><code>fn_registrar_pago</code></td>
+              <td>
+                Registra el pago y calcula retención y equivalente COP. <b>Rechaza una anulada</b>
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn_siguiente_secuencial</code></td>
+              <td>Siguiente número libre sobre <b>toda la historia</b>, anuladas incluidas</td>
+            </tr>
+            <tr>
+              <td><code>fn_verificar_secuenciales</code></td>
+              <td>
+                Números del Excel que ya pertenecen a otro periodo, para avisar antes de guardar
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn_resumen_periodos</code></td>
+              <td>Totales por periodo. La única consulta que cruza meses</td>
+            </tr>
+            <tr>
+              <td><code>fn_listar_parametros</code> · <code>fn_guardar_parametro</code></td>
+              <td>
+                Parámetros de negocio. <code>guardar</code> solo actualiza: no crea claves nuevas
+              </td>
+            </tr>
+            <tr>
+              <td><code>fn_registrar_auditoria</code></td>
+              <td><b>El único camino de escritura</b> de la bitácora</td>
+            </tr>
+            <tr>
+              <td>
+                <code>fn_listar_auditoria</code> · <code>fn_resumen_auditoria</code> ·
+                <code>fn_filtros_auditoria</code>
+              </td>
+              <td>Consulta paginada, métricas del filtro y valores para los desplegables</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Por qué la lógica está en SQL y no en el navegador</h3>
+      <ul>
+        <li>
+          La <b>retención y el equivalente en COP</b> los calcula <code>fn_registrar_pago</code>, y
+          guarda la TRM concreta de la operación. Así todas las pantallas muestran la misma cifra.
+        </li>
+        <li>
+          Los <b>días transcurridos y el vencimiento</b> los calcula
+          <code>fn_listar_facturas</code> contra el plazo parametrizado, por el mismo motivo.
+        </li>
+        <li>
+          La <b>IP y el navegador</b> de la auditoría los lee la base de datos de
+          <code>current_setting('request.headers')</code>: no llegan como parámetro, así que el
+          cliente no puede falsearlos.
+        </li>
+      </ul>
+    </section>
+
+    <!-- 7 · Secuencial -->
+    <section id="secuencial" class="card card-pad mb-16">
+      <h2><span class="sec-n">7</span> Numeración de facturas</h2>
+      <div class="divider"></div>
+      <p>
+        <code>secuencial_factura</code> es <b>único en toda la tabla</b>, no por periodo. La
+        restricción se llama <code>facturas_secuencial_global_unico</code>.
+      </p>
+      <p>
+        Antes la unicidad era <code>(periodo_factura, secuencial_factura)</code>, así que un
+        <code>BEE771</code> anulado en agosto podía reaparecer en septiembre sin que nada lo
+        impidiera. Un número de factura identifica un documento contable: no es del mes, es de la
+        empresa, y anular no lo libera.
+      </p>
+
+      <h3>Las cuatro barreras</h3>
+      <ol class="step-list">
+        <li>
+          <span class="n">1</span>
+          <div>
+            <b>Carga</b> consulta <code>fn_verificar_secuenciales</code> al interpretar el Excel y
+            avisa antes de guardar nada.
+          </div>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <div>
+            <b><code>fn_sincronizar_facturas</code></b> filtra los conflictivos antes del
+            <code>insert</code> y los devuelve en su informe.
+          </div>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <div>
+            <b>La restricción de la base de datos</b> lo impide aunque se intente por SQL directo.
+          </div>
+        </li>
+        <li>
+          <span class="n">4</span>
+          <div>
+            <b><code>fn_siguiente_secuencial</code></b> propone siempre un número libre, contando
+            facturas y registro interno de todos los periodos.
+          </div>
+        </li>
+      </ol>
+
+      <div class="alert alert-info" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="info" [size]="16" /></span>
+        <div>
+          <div class="at">Al tocar la sincronización</div>
+          El <code>on conflict</code> apunta a <code>(periodo, secuencial)</code> y
+          <b>no cubre</b> el índice global. Si se quita el filtro de conflictivos, un número
+          repetido entre periodos aborta toda la sincronización con una violación de unicidad.
+        </div>
+      </div>
+
+      <p style="margin-top: 12px">
+        El prefijo (<code>BEE</code>) es el parámetro <code>prefijo_secuencial</code>, no un
+        literal.
+      </p>
+    </section>
+
+    <!-- 8 · Storage -->
+    <section id="storage" class="card card-pad mb-16">
+      <h2><span class="sec-n">8</span> Storage de archivos</h2>
+      <div class="divider"></div>
+      <p>
+        Bucket único <code>facturacion-bee</code>, <b>público</b>, 5 MB por archivo. Ruta:
+        <code>{{ '{periodId}/{slug-tipo}/{timestamp}-{nombre}' }}</code
+        >, por ejemplo <code>2026-08/factura-bee/1785449571300-FACTURA_BEE_671.pdf</code>.
+      </p>
+      <p>
+        El <code>timestamp</code> evita colisiones entre archivos del mismo nombre. La URL pública
+        resultante es la que se guarda en <code>documentos_facturacion</code> y la que el backend de
+        correo descarga para adjuntar.
+      </p>
+
+      <div class="alert alert-warn" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+        <div>
+          <div class="at">Sin transacciones</div>
+          <code>documentos.service.ts</code> sube el archivo y después inserta la fila. Un fallo
+          parcial deja archivos huérfanos en Storage o filas de detalle sin índice. Y
+          <code>guardarPedido</code> no deduplica: subir dos veces el mismo PCC crea dos filas.
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 · Excel -->
+    <section id="excel" class="card card-pad mb-16">
+      <h2><span class="sec-n">9</span> Excel y montos</h2>
+      <div class="divider"></div>
+      <p>
+        Los Excel se parsean con <code>xlsx</code>
+        <b>por índice de columna</b> (<code>r[0]</code>…<code>r[24]</code>) y siempre de la
+        <b>hoja 0</b>. No se validan las cabeceras: si el cliente mueve una columna, los datos
+        entran desplazados <b>en silencio</b>.
+      </p>
+
+      <h3>Montos: precisión al centavo</h3>
+      <ul>
+        <li>Al parsear se <b>trunca a dos decimales sobre el texto</b>, sin redondear.</li>
+        <li>
+          Toda comparación se hace en <b>centavos enteros</b> (<code>monto.util.ts</code>), nunca
+          con aritmética en coma flotante.
+        </li>
+        <li>
+          Es lo que evita que dos importes idénticos se declaren distintos por un error de
+          representación de <code>0.1 + 0.2</code>.
+        </li>
+      </ul>
+
+      <div class="alert alert-warn" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+        <div>
+          <div class="at">Dependencia con vulnerabilidades conocidas</div>
+          <code>xlsx@0.18.5</code> arrastra CVE conocidas y parsea archivos que llegan de fuera.
+          SheetJS ya no publica en npm; la vía oficial es su CDN. Pendiente de actualizar.
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 · Correo -->
+    <section id="correo" class="card card-pad mb-16">
+      <h2><span class="sec-n">10</span> Integración de correo</h2>
+      <div class="divider"></div>
+      <p>
+        El front no envía correo: se lo pide al backend <code>dev-back-facturacion-bee</code>, que
+        es un servicio de NestJS desplegado aparte y autenticado con <code>x-api-key</code>.
+      </p>
+
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th scope="col">Endpoint</th>
+              <th scope="col">Qué hace</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>GET /api/health</code></td>
+              <td>Latido. Sin autenticación</td>
+            </tr>
+            <tr>
+              <td><code>GET /api/health/details</code></td>
+              <td>Configuración efectiva del servicio</td>
+            </tr>
+            <tr>
+              <td><code>GET /api/email/verify</code></td>
+              <td>
+                <b>Si el buzón puede enviar y por qué no.</b> Autentica por SMTP sin enviar nada
+              </td>
+            </tr>
+            <tr>
+              <td><code>POST /api/email/send</code></td>
+              <td>El que usa el aplicativo. Responde <b>200</b>, no 201</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>El diagnóstico del buzón</h3>
+      <p>
+        <code>/api/email/verify</code> responde <b>200 siempre</b>, incluso con el buzón caído: la
+        comprobación se hizo con éxito y su resultado es un diagnóstico (<code>operativo</code>,
+        <code>remitente</code>, <code>codigo</code>, <code>titulo</code>, <code>detalle</code>,
+        <code>solucion</code>, <code>tecnico</code>). Devolver 502 haría indistinguible «el buzón no
+        puede enviar» de «no pude preguntar». Cachea 60 s para no acumular intentos de inicio de
+        sesión contra Office 365.
+      </p>
+
+      <div class="alert alert-info" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="info" [size]="16" /></span>
+        <div>
+          <div class="at">La regla que no se debe invertir</div>
+          Se bloquea el envío por un <b>diagnóstico negativo</b>, nunca por la <b>ausencia</b> de
+          diagnóstico. Un backend desplegado sin el endpoint devuelve 404, y bloquear ahí dejaría el
+          aplicativo inservible por una causa que ni siquiera se ha confirmado.
+        </div>
+      </div>
+
+      <h3>Los adjuntos van por URL</h3>
+      <p>
+        El front manda <code>attachmentUrls</code> con las URL públicas de Storage y el backend las
+        descarga. Codificar en base64 haría crecer el cuerpo un 37 % y lo cortaría el analizador de
+        cuerpo antes de llegar. El backend valida el host contra una lista blanca
+        (<code>*.supabase.co</code>) y bloquea rangos privados: es la protección anti-SSRF.
+      </p>
+      <p>
+        Cada correo lleva hasta <b>tres adjuntos</b>: Factura BEE, Pedido de Compra y el Excel de
+        Aprobación de Prefactura del periodo (RF-ENV-01).
+      </p>
+
       <h3>Decisiones de diseño en Entregar</h3>
       <ul>
-        <li><b>Envío secuencial</b> (una petición por factura): progreso real, se sabe exactamente cuál falló y no se agota el límite de 60 s por invocación.</li>
-        <li><b>Épocas de cancelación:</b> cambiar de periodo o salir de la pantalla incrementa una época que el bucle comprueba tras cada <code>await</code> — no quedan bucles huérfanos enviando correos.</li>
-        <li><b>Política de reintentos</b> (tabla de errores de CONSUMO.md): solo <code>504</code>/fallo de red son reintentables; <code>502 EAUTH</code> → avisar a soporte; <code>400</code> → corregir datos.</li>
-        <li><b>200 con <code>rejected</code> parcial</b> cuenta como enviado (el mensaje sí salió a los aceptados) y se registra como advertencia — reintentarlo duplicaría la factura en el buzón del cliente.</li>
-        <li>El cuerpo se genera en texto y en HTML (líneas escapadas con <code>escaparHtml</code> — provienen de Excel del usuario).</li>
+        <li>
+          <b>La composición vive fuera del componente</b>, en
+          <code>core/utils/correo.util.ts</code>, como función pura con sus pruebas.
+        </li>
+        <li>
+          <b>Ediciones por sobrescritura</b>: una señal de cambios encima del
+          <code>computed</code> base, no una copia. Lo que no se toca sigue derivándose de los
+          datos.
+        </li>
+        <li>
+          <b>Mecanismo de <code>epoch</code></b
+          >: un contador que se incrementa al cambiar de periodo, al detener el envío y al destruir
+          el componente. El bucle lo comprueba <b>justo después de cada <code>await</code></b
+          >. Por eso <code>auditoria.registrar()</code> nunca se espera con <code>await</code> ahí
+          dentro.
+        </li>
+        <li>
+          <b>Un 200 con <code>rejected</code> cuenta como enviado</b>: el correo salió hacia los
+          aceptados; reintentarlo duplicaría la factura en el buzón del cliente.
+        </li>
+      </ul>
+
+      <div class="alert alert-warn" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+        <div>
+          <div class="at">Bloqueo operativo conocido</div>
+          El tenant de Microsoft 365 responde
+          <code>535 5.7.139 SmtpClientAuthentication is disabled for the Tenant</code>. Mientras
+          siga así, todo envío real falla. <b>No es una contraseña mal escrita</b>: se resuelve con
+          <code>Set-CASMailbox -SmtpClientAuthenticationDisabled $false</code> y revisando los
+          valores predeterminados de seguridad en Entra ID.
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 · Diseño -->
+    <section id="diseno" class="card card-pad mb-16">
+      <h2><span class="sec-n">11</span> Sistema de diseño</h2>
+      <div class="divider"></div>
+      <p>
+        Todo vive en <code>src/styles.css</code>.
+        <b>Tailwind está instalado pero no se usa como framework de utilidades</b>: no hay ni una
+        clase utilitaria en las plantillas. Aporta solo su reset. Antes de escribir una clase nueva,
+        búscala allí.
+      </p>
+
+      <h3>Tokens</h3>
+      <ul>
+        <li>
+          <b>Color</b>: carbón (<code>--ink</code>) + miel (<code>--honey</code>) + semánticos
+          <code>--ok</code>, <code>--info</code>, <code>--bad</code>, <code>--warn</code>, cada uno
+          con su <code>-soft</code> y <code>-line</code>.
+        </li>
+        <li><b>Espaciado</b>: <code>--sp-1</code> … <code>--sp-10</code>.</li>
+        <li>
+          <b>Movimiento</b>: <code>--dur-1</code> … <code>--dur-4</code> y <code>--ease-out</code>.
+          No escribas duraciones literales.
+        </li>
+        <li>
+          <b>Elevación</b>: <code>--shadow-xs</code> … <code>--shadow-xl</code>, siempre en dos
+          capas (contacto + ambiental).
+        </li>
+        <li>
+          <b>Alto de la ventana</b>: <code>--app-h</code>.
+          <b>Nunca uses <code>100vh</code> ni <code>100dvh</code> sueltos</b> (ver abajo).
+        </li>
+      </ul>
+
+      <h3>Componentes propios</h3>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th scope="col">Componente</th>
+              <th scope="col">Para qué</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>bee-modal</code></td>
+              <td>
+                Todos los diálogos. Foco atrapado, <code>Escape</code>, velo clicable y bloqueo del
+                scroll de fondo. <b>No escribas un <code>.modal-veil</code> a mano</b>
+              </td>
+            </tr>
+            <tr>
+              <td><code>bee-ciclo</code></td>
+              <td>
+                La línea del ciclo, en variante <code>cinta</code> (encabezado) o
+                <code>panel</code> (tablero). Fuente única
+              </td>
+            </tr>
+            <tr>
+              <td><code>bee-direcciones</code></td>
+              <td>Campo de correos como etiquetas, con validación individual</td>
+            </tr>
+            <tr>
+              <td><code>bee-donut</code> · <code>bee-barras</code> · <code>bee-serie</code></td>
+              <td>Los gráficos, en SVG propio</td>
+            </tr>
+            <tr>
+              <td><code>bee-toc</code></td>
+              <td>Índice de los manuales, con buscador y apartado activo</td>
+            </tr>
+            <tr>
+              <td>
+                <code>bee-kpi-card</code> · <code>bee-badge</code> · <code>bee-icon</code> ·
+                <code>bee-empty-state</code>
+              </td>
+              <td>Piezas básicas</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>El scroll: por qué está montado así</h3>
+      <p>
+        <b>El documento no se desplaza nunca.</b> El único panel que hace scroll es
+        <code>.main</code>, y el shell mide exactamente <code>--app-h</code> con
+        <code>overflow: hidden</code>.
+      </p>
+      <p>Tres reglas que no se deben romper, cada una arregla un fallo real que se dio:</p>
+      <ul>
+        <li>
+          <b><code>overscroll-behavior: contain</code></b> en todo contenedor con scroll. Sin él, al
+          llegar al final el scroll se encadena al documento.
+        </li>
+        <li>
+          <b><code>.main</code> es <code>position: relative</code></b
+          >. Sin eso, un <code>.sr-only</code> —que es <code>position: absolute</code>— se coloca en
+          coordenadas del documento y lo estira: era la causa de que la aplicación «se subiera y
+          quedara en blanco» al llegar abajo del todo.
+        </li>
+        <li>
+          <b>El desenfoque del encabezado va en <code>.topbar::before</code></b
+          >, no en <code>.topbar</code>. <code>backdrop-filter</code> convierte al elemento en raíz
+          de fondo y rompe el pintado de los descendientes que se salen de sus límites.
+        </li>
+      </ul>
+
+      <h3>Adaptación a móvil</h3>
+      <p>
+        Puntos de corte en <b>1080 · 900 · 640 · 480</b>. Las tablas de datos usan
+        <code>table.dt.dt-stack</code>: por debajo de 640 px cada fila se convierte en una tarjeta,
+        y el rótulo de cada celda sale de su <code>data-label</code>.
+        <b>Si añades una columna, añade también su <code>data-label</code></b
+        >, o la tarjeta saldrá sin rótulo.
+      </p>
+
+      <h3>Trampas de CSS heredadas</h3>
+      <ul>
+        <li>
+          <code>.ti</code> solo existe como <code>.tile .ti</code> y <code>.fx</code> como
+          <code>.doc-item .fx</code>: fuera de ese ancestro se quedan a medio pintar, sin error ni
+          aviso. Antes de reutilizar una clase global, comprueba si su regla tiene ancestro.
+        </li>
+        <li>
+          <code>.slot-error</code> y <code>.slot-link</code> solo existen en <code>carga.css</code>.
+        </li>
       </ul>
     </section>
 
-    <!-- 9 · Despliegue -->
+    <!-- 12 · Despliegue -->
     <section id="despliegue" class="card card-pad mb-16">
-      <h2><span class="sec-n">9</span> Entornos y despliegue</h2>
+      <h2><span class="sec-n">12</span> Entornos y despliegue</h2>
       <div class="divider"></div>
+
       <h3>Configuración por entorno</h3>
-      <ul>
-        <li><code>environment.ts</code> (desarrollo: API de correo en <code>localhost:3000</code>) y <code>environment.production.ts</code> (URLs de producción), intercambiados por <code>fileReplacements</code> en <code>angular.json</code> — sin <code>.env</code> en el frontend.</li>
-        <li>Las claves versionadas (publishable de Supabase, api-key de correo) son <b>públicas por diseño</b>: viajan en el bundle de todos modos. Los secretos reales (service_role, SMTP) viven solo en los backends.</li>
-      </ul>
-      <h3>Vercel</h3>
-      <ul>
-        <li><code>vercel.json</code>: <code>buildCommand pnpm build</code>, <code>outputDirectory dist/dev-front-facturacion-bee/browser</code> y rewrite SPA de <code>/(.*)</code> a <code>/index.html</code> (sin él, refrescar una ruta interna da 404).</li>
-        <li>Rama de producción: <code>master</code>. No requiere variables de entorno en Vercel.</li>
-      </ul>
+      <p>
+        La configuración pública —URL de Supabase, clave publicable, URL y clave del backend— está
+        en
+        <code>src/environments/environment.ts</code> y <code>environment.production.ts</code>, que
+        <b>sí se versionan</b>. Angular sustituye uno por otro al compilar
+        (<code>fileReplacements</code>).
+      </p>
+
+      <div class="alert alert-info" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="info" [size]="16" /></span>
+        <div>
+          <div class="at">El front no lee variables de entorno</div>
+          En el navegador no existe <code>process.env</code>: todo lo que la aplicación necesita se
+          compila dentro del JavaScript.
+          <b>No hace falta crear variables en Vercel para el front</b>, y crearlas no tendría
+          efecto. El <code>.env</code> de la raíz es residuo: sus 22 variables no las usa nadie.
+        </div>
+      </div>
+
       <h3>Comandos</h3>
-      <div class="kv-row"><span class="kv-k mono">pnpm start</span><span class="kv-v">Servidor de desarrollo (puerto 4200)</span></div>
-      <div class="kv-row"><span class="kv-k mono">pnpm build</span><span class="kv-v">Build de producción (con presupuestos de tamaño)</span></div>
-      <div class="kv-row"><span class="kv-k mono">pnpm test</span><span class="kv-v">Pruebas unitarias (Vitest)</span></div>
+      <div class="tbl-wrap">
+        <table class="dt">
+          <thead>
+            <tr>
+              <th scope="col">Comando</th>
+              <th scope="col">Qué hace</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>pnpm install</code></td>
+              <td>Instala dependencias</td>
+            </tr>
+            <tr>
+              <td><code>pnpm start</code></td>
+              <td>Servidor de desarrollo en <code>localhost:4200</code></td>
+            </tr>
+            <tr>
+              <td><code>pnpm build</code></td>
+              <td>Compilación de producción</td>
+            </tr>
+            <tr>
+              <td><code>pnpm test</code></td>
+              <td>Pruebas con Vitest</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-warn" style="margin-top: 14px">
+        <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+        <div>
+          <div class="at">Desarrollo escribe en producción</div>
+          <code>environment.ts</code> y <code>environment.production.ts</code> apuntan al
+          <b>mismo</b> proyecto de Supabase. Trabajar con <code>pnpm start</code> modifica los datos
+          reales. No hay entorno de pruebas separado.
+        </div>
+      </div>
     </section>
 
-    <!-- 10 · Convenciones -->
+    <!-- 13 · Convenciones -->
     <section id="convenciones" class="card card-pad mb-16">
-      <h2><span class="sec-n">10</span> Convenciones y pendientes</h2>
+      <h2><span class="sec-n">13</span> Convenciones y pendientes</h2>
       <div class="divider"></div>
+
       <h3>Convenciones de código</h3>
       <ul>
-        <li>Componentes standalone (sin <code>standalone: true</code> explícito), <code>ChangeDetectionStrategy.OnPush</code> y <code>inject()</code> en lugar de constructor.</li>
-        <li>Signals para estado local, <code>computed()</code> para derivados, <code>input()</code>/<code>output()</code> en vez de decoradores.</li>
-        <li>Control de flujo nativo (<code>&#64;if</code>, <code>&#64;for</code>, <code>&#64;switch</code>); nada de <code>ngClass</code>/<code>ngStyle</code> — se usan bindings de <code>class</code> y <code>style</code>.</li>
-        <li>Columnas de base de datos en español con sufijo de tabla (<code>monto_facturar_facturacion_interna</code>) — el nombre indica su origen.</li>
-        <li>Formularios reactivos; servicios <code>providedIn: 'root'</code> de responsabilidad única.</li>
+        <li>
+          <b>Angular</b>: standalone sin <code>standalone: true</code>, <code>OnPush</code>,
+          <code>input()</code>/<code>output()</code>, <code>inject()</code>, control de flujo nativo
+          (<code>&#64;if</code>/<code>&#64;for</code>), bindings
+          <code>class</code>/<code>style</code>.
+        </li>
+        <li>
+          <b>Idioma</b>: español para el dominio conectado a Supabase, para el SQL, para los
+          comentarios y para <b>todos</b> los mensajes de interfaz; inglés para la API de framework.
+          Si dudas: capa nueva → español.
+        </li>
+        <li>
+          <b>Modelos</b>: <code>XxxInsert</code> = payload sin PK;
+          <code>XxxRow extends XxxInsert</code> = fila completa.
+        </li>
+        <li>
+          <b><code>null</code> vs <code>undefined</code></b
+          >: <code>null</code> para lo que viaja a la base de datos; <code>undefined</code> para «no
+          encontrado»; <code>''</code> para las señales de error.
+        </li>
+        <li>
+          <b>Visibilidad</b>: <code>private readonly</code> para lo que la plantilla no usa,
+          <code>protected readonly</code> para lo que sí.
+        </li>
       </ul>
-      <h3>Pendientes (roadmap técnico)</h3>
+
+      <h3>Cómo registrar una acción en la bitácora</h3>
+      <p>
+        Una línea, en el <b>componente</b> —que es quien conoce la intención y el desenlace—, nunca
+        en un servicio de datos. Quien llama dice solo <b>qué</b> pasó: el usuario, el rol y el
+        periodo los añade el servicio; la fecha, la IP y el navegador, la base de datos.
+      </p>
       <ul>
-        <li><bee-badge tone="warn" label="Pendiente" /> Conectar Dashboard, Conciliar cuentas, Guardar registros y Auditoría a datos reales de Supabase (hoy muestran el estado en blanco de <code>BillingDataService</code>).</li>
-        <li><bee-badge tone="warn" label="Pendiente" /> Migrar a Supabase Auth (JWT) y cerrar RLS por rol; hash de contraseñas.</li>
-        <li><bee-badge tone="ok" label="Hecho" /> Las compuertas del ciclo se persisten en la tabla <code>periodos</code>: son compartidas, auditables y no se pueden saltar desde el navegador.</li>
-        <li><bee-badge tone="ok" label="Hecho" /> Bitácora de auditoría real e inmutable (tabla <code>auditoria</code> con acceso solo por funciones).</li>
+        <li>
+          <b>Nunca dentro de un <code>effect()</code></b
+          >: se ejecutan al montar y en cada cambio de periodo, así que generarían una fila cada vez
+          que alguien abre la pantalla.
+        </li>
+        <li>
+          <b>Nunca registres</b> contraseñas, las URL públicas de Storage ni la clave del backend de
+          correo.
+        </li>
+        <li>
+          Si necesitas una acción o un módulo nuevos, <b>añádelos a las uniones</b> de
+          <code>auditoria.model.ts</code>: son tipos cerrados a propósito.
+        </li>
       </ul>
+
+      <h3>Deuda pendiente, por gravedad</h3>
+      <ol class="step-list">
+        <li>
+          <span class="n">1</span>
+          <div>
+            <b>Seguridad</b>: RLS abierto a <code>anon</code> en las tablas del ciclo, contraseñas
+            en texto plano, bucket público y sesión sin firmar.
+          </div>
+        </li>
+        <li>
+          <span class="n">2</span>
+          <div>
+            <b>Habilitar SMTP AUTH</b> en el tenant de Microsoft 365. Mientras siga deshabilitado,
+            Entregar no puede enviar.
+          </div>
+        </li>
+        <li>
+          <span class="n">3</span>
+          <div>
+            <b>Cerrar un periodo</b>: la etapa <code>cerrado</code> existe en el modelo pero no hay
+            acción que la active ni que bloquee la edición retroactiva.
+          </div>
+        </li>
+        <li>
+          <span class="n">4</span>
+          <div>
+            <b>Registro de envíos detallado</b>: se guarda la fecha de envío, pero no el
+            <code>messageId</code> ni los destinatarios reales de cada correo.
+          </div>
+        </li>
+        <li>
+          <span class="n">5</span>
+          <div>
+            <b>Informe consolidado en PDF</b> del periodo. No hay dependencia de PDF en el proyecto.
+          </div>
+        </li>
+        <li>
+          <span class="n">6</span>
+          <div>
+            <b>Previsualización de archivos</b> dentro del aplicativo: hoy Registros abre la URL
+            pública en otra pestaña.
+          </div>
+        </li>
+        <li>
+          <span class="n">7</span>
+          <div>
+            <b>Multi-cliente</b>: hoy se asume un único cliente y un único contrato. Los parámetros
+            ya están fuera del código, pero no hay catálogo.
+          </div>
+        </li>
+      </ol>
+
+      <p style="margin-top: 12px">
+        Para el uso funcional del aplicativo, el
+        <a class="link" routerLink="/app/manual-usuario">Manual de Usuario</a>.
+      </p>
     </section>
   </div>
 </div>

@@ -23,7 +23,13 @@
       <div class="card-h">
         <div>
           <div class="ct">{{ isEdit() ? 'Editar cuenta' : 'Nueva cuenta' }}</div>
-          <div class="cd">{{ isEdit() ? 'Actualiza la información del usuario' : 'Crea una cuenta de acceso al sistema' }}</div>
+          <div class="cd">
+            {{
+              isEdit()
+                ? 'Actualiza la información del usuario'
+                : 'Crea una cuenta de acceso al sistema'
+            }}
+          </div>
         </div>
         <div class="sp"></div>
         <button class="link" type="button" aria-label="Cerrar formulario" (click)="closeForm()">
@@ -34,21 +40,48 @@
         <div class="grid-2" style="gap: 14px">
           <div>
             <label class="f-label" for="u-nombre">Nombre completo</label>
-            <input id="u-nombre" class="f-input" type="text" formControlName="nombre_usuario" autocomplete="off" />
+            <input
+              id="u-nombre"
+              class="f-input"
+              type="text"
+              formControlName="nombre_usuario"
+              autocomplete="off"
+            />
           </div>
           <div>
             <label class="f-label" for="u-correo">Correo corporativo</label>
-            <input id="u-correo" class="f-input" type="email" formControlName="correo_usuario" autocomplete="off" />
+            <input
+              id="u-correo"
+              class="f-input"
+              type="email"
+              formControlName="correo_usuario"
+              autocomplete="off"
+            />
           </div>
           <div>
             <label class="f-label" for="u-area">Área</label>
-            <input id="u-area" class="f-input" type="text" formControlName="area_usuario" autocomplete="off" />
+            <input
+              id="u-area"
+              class="f-input"
+              type="text"
+              formControlName="area_usuario"
+              autocomplete="off"
+            />
           </div>
           <div>
             <label class="f-label" for="u-pass">
-              Contraseña @if (isEdit()) { <span class="dim">· vacía = conservar</span> }
+              Contraseña
+              @if (isEdit()) {
+                <span class="dim">· vacía = conservar</span>
+              }
             </label>
-            <input id="u-pass" class="f-input" type="text" formControlName="contrasena_usuario" autocomplete="off" />
+            <input
+              id="u-pass"
+              class="f-input"
+              type="text"
+              formControlName="contrasena_usuario"
+              autocomplete="off"
+            />
           </div>
           <div>
             <label class="f-label" for="u-rol">Rol</label>
@@ -105,8 +138,10 @@
     }
 
     <div class="tbl-wrap">
-      <table class="dt">
-        <caption class="sr-only">Cuentas de usuario del sistema y su estado de acceso</caption>
+      <table class="dt dt-stack">
+        <caption class="sr-only">
+          Cuentas de usuario del sistema y su estado de acceso
+        </caption>
         <thead>
           <tr>
             <th scope="col">Usuario</th>
@@ -120,7 +155,7 @@
         <tbody>
           @for (user of users(); track user.id) {
             <tr>
-              <td>
+              <td class="dt-head">
                 <div class="cell-main">
                   <span class="cell-av" [class]="'av-' + user.avatar">{{ user.initials }}</span>
                   <div>
@@ -129,16 +164,16 @@
                   </div>
                 </div>
               </td>
-              <td>{{ user.area }}</td>
-              <td>
+              <td data-label="Área">{{ user.area }}</td>
+              <td data-label="Rol">
                 @if (user.role === 'ADMIN') {
                   <bee-badge tone="primary" label="Administrador" />
                 } @else {
                   <bee-badge tone="neutral" label="Usuario" />
                 }
               </td>
-              <td class="dim mono">{{ user.lastAccess }}</td>
-              <td>
+              <td data-label="Último acceso" class="dim mono">{{ user.lastAccess }}</td>
+              <td data-label="Estado">
                 @if (user.status === 'Activa') {
                   <bee-badge tone="ok" label="Activa" />
                 } @else {
@@ -160,7 +195,7 @@
             </tr>
           } @empty {
             <tr>
-              <td colspan="6">
+              <td data-label="Usuario" colspan="6">
                 <p class="note-line" style="text-align: center; padding: 22px 0">
                   {{ loading() ? 'Cargando usuarios…' : 'No hay cuentas registradas.' }}
                 </p>
@@ -182,7 +217,9 @@
     </div>
     <div class="tbl-wrap">
       <table class="dt">
-        <caption class="sr-only">Permisos concedidos a cada rol por acción o módulo</caption>
+        <caption class="sr-only">
+          Permisos concedidos a cada rol por acción o módulo
+        </caption>
         <thead>
           <tr>
             <th scope="col">Acción / módulo</th>

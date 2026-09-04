@@ -1,5 +1,4 @@
 <section class="stagger">
-
   <div class="grid-2-1">
     <!-- Soportes del periodo · 4 tipos de archivo -->
     <div class="card">
@@ -20,7 +19,9 @@
           @for (slot of slots; track slot.id) {
             <div class="slot" [class.loaded]="isSaved(slot.id)">
               <div class="slot-head">
-                <span class="slot-ic" [class]="slot.iconBg"><bee-icon [name]="slot.icon" [size]="18" /></span>
+                <span class="slot-ic" [class]="slot.iconBg"
+                  ><bee-icon [name]="slot.icon" [size]="18"
+                /></span>
                 <div>
                   <div class="slot-title">{{ slot.title }}</div>
                   <div class="slot-desc">{{ slot.desc }}</div>
@@ -47,20 +48,40 @@
                 @for (doc of pedidoDocs(); track doc.id_documento_facturacion) {
                   <div class="file-row saved">
                     <span class="fx fx-pdf">PDF</span>
-                    <span class="file-name mono">{{ nombreArchivo(doc.direccion_documento_facturacion) }}</span>
-                    <a class="slot-link" [href]="doc.direccion_documento_facturacion" target="_blank" rel="noopener">Ver</a>
-                    <button class="slot-link danger" type="button" (click)="pedirEliminar(doc)">Eliminar</button>
+                    <span class="file-name mono">{{
+                      nombreArchivo(doc.direccion_documento_facturacion)
+                    }}</span>
+                    <a
+                      class="slot-link"
+                      [href]="doc.direccion_documento_facturacion"
+                      target="_blank"
+                      rel="noopener"
+                      >Ver</a
+                    >
+                    <button class="slot-link danger" type="button" (click)="pedirEliminar(doc)">
+                      Eliminar
+                    </button>
                   </div>
                 }
               } @else if (isSaved(slot.id)) {
                 <div class="file-row saved">
-                  <span class="sd-check"><bee-icon name="check" [size]="15" [strokeWidth]="2.6" /></span>
+                  <span class="sd-check"
+                    ><bee-icon name="check" [size]="15" [strokeWidth]="2.6"
+                  /></span>
                   <span class="file-name">{{ resumenGuardado(slot.id) }}</span>
                   <button class="slot-link" type="button" (click)="togglePreview(slot.id)">
                     {{ preview() === slot.id ? 'Ocultar' : 'Ver' }}
                   </button>
-                  <a class="slot-link" [href]="urlDe(slot.id)" target="_blank" rel="noopener">Archivo</a>
-                  <button class="slot-link danger" type="button" (click)="pedirEliminar(docDe(slot.id))">Eliminar</button>
+                  <a class="slot-link" [href]="urlDe(slot.id)" target="_blank" rel="noopener"
+                    >Archivo</a
+                  >
+                  <button
+                    class="slot-link danger"
+                    type="button"
+                    (click)="pedirEliminar(docDe(slot.id))"
+                  >
+                    Eliminar
+                  </button>
                 </div>
               }
 
@@ -70,14 +91,22 @@
                   <div class="file-row pending">
                     <span class="fx fx-pdf">PDF</span>
                     <span class="file-name">{{ file.name }} · {{ pesoKb(file) }}</span>
-                    <button class="slot-link danger" type="button" (click)="removeStaged('pedido', i)">Quitar</button>
+                    <button
+                      class="slot-link danger"
+                      type="button"
+                      (click)="removeStaged('pedido', i)"
+                    >
+                      Quitar
+                    </button>
                   </div>
                 }
               } @else if (stagedSingle(slot.id); as file) {
                 <div class="file-row pending">
                   <span class="fx fx-xls">XLS</span>
                   <span class="file-name">{{ file.name }} · {{ pesoKb(file) }}</span>
-                  <button class="slot-link danger" type="button" (click)="removeStaged(slot.id)">Quitar</button>
+                  <button class="slot-link danger" type="button" (click)="removeStaged(slot.id)">
+                    Quitar
+                  </button>
                 </div>
               }
 
@@ -94,7 +123,8 @@
                 >
                   <bee-icon name="upload" [size]="20" [strokeWidth]="1.8" />
                   <span class="sd-t">
-                    {{ isSaved(slot.id) && !slot.multi ? 'Reemplazar: arrastra o ' : 'Arrastra o ' }}<b>selecciona</b>
+                    {{ isSaved(slot.id) && !slot.multi ? 'Reemplazar: arrastra o ' : 'Arrastra o '
+                    }}<b>selecciona</b>
                   </span>
                   <span class="sd-s">{{ slot.formats }} · máx. {{ maxMb }} MB</span>
                 </button>
@@ -122,15 +152,61 @@
     <div class="card card-pad">
       <div class="row" style="margin-bottom: 14px">
         <span style="font-weight: 700; font-size: 14px">Estado del periodo</span>
-        <span class="badge b-primary" style="margin-left: auto"><span class="bd"></span>{{ periodLabel() }}</span>
+        <span class="badge b-primary" style="margin-left: auto"
+          ><span class="bd"></span>{{ periodLabel() }}</span
+        >
       </div>
 
-      <div class="kv-row"><span class="kv-k">Líneas en prefactura</span><span class="kv-v mono" [class.dim]="!lineasPrefactura()">{{ lineasPrefactura() }}</span></div>
-      <div class="kv-row"><span class="kv-k">Líneas en registro interno</span><span class="kv-v mono" [class.dim]="!lineasRegistro()">{{ lineasRegistro() }}</span></div>
-      <div class="kv-row"><span class="kv-k">Talentos detectados</span><span class="kv-v mono" [class.dim]="!talentos()">{{ talentos() }}</span></div>
-      <div class="kv-row"><span class="kv-k">Órdenes de compra</span><span class="kv-v mono" [class.dim]="!ordenes()">{{ ordenes() }}</span></div>
-      <div class="kv-row"><span class="kv-k">Moneda</span><span class="kv-v mono" [class.dim]="moneda() === '—'">{{ moneda() }}</span></div>
-      <div class="kv-row"><span class="kv-k">Siguiente secuencial</span><span class="kv-v mono" [class.dim]="siguienteSecuencial() === '—'">{{ siguienteSecuencial() }}</span></div>
+      <div class="kv-row">
+        <span class="kv-k">Líneas en prefactura</span
+        ><span class="kv-v mono" [class.dim]="!lineasPrefactura()">{{ lineasPrefactura() }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-k">Líneas en registro interno</span
+        ><span class="kv-v mono" [class.dim]="!lineasRegistro()">{{ lineasRegistro() }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-k">Talentos detectados</span
+        ><span class="kv-v mono" [class.dim]="!talentos()">{{ talentos() }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-k">Órdenes de compra</span
+        ><span class="kv-v mono" [class.dim]="!ordenes()">{{ ordenes() }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-k">Moneda</span
+        ><span class="kv-v mono" [class.dim]="moneda() === '—'">{{ moneda() }}</span>
+      </div>
+      <div class="kv-row">
+        <span class="kv-k">Siguiente secuencial</span
+        ><span class="kv-v mono" [class.dim]="siguienteSecuencial() === '—'">{{
+          siguienteSecuencial()
+        }}</span>
+      </div>
+
+      @if (secuencialesEnConflicto().length) {
+        <div class="alert alert-warn" style="margin-top: 12px" role="alert">
+          <span class="ai"><bee-icon name="alert" [size]="16" /></span>
+          <div>
+            <div class="at">
+              {{ secuencialesEnConflicto().length }} número(s) de factura ya están usados
+            </div>
+            <p style="margin-bottom: 6px">
+              Un número de factura identifica una sola factura en toda la historia de la empresa:
+              anularla <b>no</b> libera el número. Estas líneas no se convertirán en facturas hasta
+              que el Excel use números libres — el siguiente disponible es
+              <span class="mono em">{{ siguienteSecuencial() }}</span
+              >.
+            </p>
+            @for (conflicto of secuencialesEnConflicto(); track conflicto.secuencial) {
+              <div>
+                <span class="mono em">{{ conflicto.secuencial }}</span> · ya pertenece a
+                {{ conflicto.periodo }} ({{ conflicto.estado }})
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       <div class="kv-row">
         <span class="kv-k">Listo para validar</span>
@@ -162,7 +238,11 @@
       }
 
       @if (canContinue()) {
-        <a class="btn-sm btn-ghost" style="width: 100%; margin-top: 10px" [routerLink]="['/app', 'validar']">
+        <a
+          class="btn-sm btn-ghost"
+          style="width: 100%; margin-top: 10px"
+          [routerLink]="['/app', 'validar']"
+        >
           Continuar a validación
           <bee-icon name="arrow-right" [size]="16" [strokeWidth]="2.2" />
         </a>
@@ -184,7 +264,12 @@
         </div>
         <div class="sp"></div>
         <span class="preview-flag"><bee-icon name="lock" [size]="12" />Solo lectura</span>
-        <button class="slot-link" type="button" aria-label="Cerrar vista previa" (click)="preview.set(null)">
+        <button
+          class="slot-link"
+          type="button"
+          aria-label="Cerrar vista previa"
+          (click)="preview.set(null)"
+        >
           <bee-icon name="x" [size]="16" />
         </button>
       </div>
@@ -193,7 +278,9 @@
         @case ('prefactura') {
           <div class="tbl-wrap">
             <table class="dt">
-              <caption class="sr-only">Líneas interpretadas de la prefactura aprobada</caption>
+              <caption class="sr-only">
+                Líneas interpretadas de la prefactura aprobada
+              </caption>
               <thead>
                 <tr>
                   <th scope="col">Colaborador</th>
@@ -214,7 +301,9 @@
                     <td class="dim">{{ row.lider_aprobador_prefactura }}</td>
                     <td>
                       @if (row.aprobado_prefactura) {
-                        <span class="badge b-ok"><span class="bd"></span>{{ row.aprobado_prefactura }}</span>
+                        <span class="badge b-ok"
+                          ><span class="bd"></span>{{ row.aprobado_prefactura }}</span
+                        >
                       } @else {
                         <span class="dim">—</span>
                       }
@@ -228,7 +317,9 @@
         @case ('registro') {
           <div class="tbl-wrap">
             <table class="dt">
-              <caption class="sr-only">Registro interno de facturación interpretado</caption>
+              <caption class="sr-only">
+                Registro interno de facturación interpretado
+              </caption>
               <thead>
                 <tr>
                   <th scope="col">Secuencial</th>
@@ -243,7 +334,9 @@
                 @for (row of registroRows(); track row.id_facturacion_interna) {
                   <tr>
                     <td class="strong mono">{{ row.secuencial_facturacion_interna }}</td>
-                    <td class="mono dim">{{ row.pedido_compra_facturacion_interna || 'NO RECIBIDO' }}</td>
+                    <td class="mono dim">
+                      {{ row.pedido_compra_facturacion_interna || 'NO RECIBIDO' }}
+                    </td>
                     <td class="mono dim">{{ row.id_colaborados_facturacion_interna }}</td>
                     <td class="dim">{{ row.cliente_facturacion_interna }}</td>
                     <td class="mono">{{ row.tipo_moneda_facturacion_interna }}</td>
@@ -262,7 +355,9 @@
                 <div class="fn">{{ nombreArchivo(urlDe('novedades') ?? '') }}</div>
                 <div class="fm">Novedades del periodo · archivo persistido</div>
               </div>
-              <a class="slot-link" [href]="urlDe('novedades')" target="_blank" rel="noopener">Abrir</a>
+              <a class="slot-link" [href]="urlDe('novedades')" target="_blank" rel="noopener"
+                >Abrir</a
+              >
             </div>
           </div>
         }
@@ -273,48 +368,49 @@
 
 <!-- Confirmación de eliminación -->
 @if (confirmDelete(); as doc) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="del-title">
-    <div class="modal-card">
-      <div class="modal-h">
-        <span class="ti ic-bad" style="width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; flex: none">
-          <bee-icon name="alert" [size]="18" />
-        </span>
-        <div id="del-title" class="ct">Eliminar archivo</div>
-      </div>
-      <p class="modal-body">
-        ¿Seguro que deseas eliminar <b>{{ nombreArchivo(doc.direccion_documento_facturacion) }}</b>
-        ({{ doc.tipo_documento_facturacion }})? Se borrará del almacenamiento y de los registros del
-        periodo. Esta acción no se puede deshacer.
-      </p>
-      <div class="modal-actions">
-        <button class="btn-sm btn-ghost" type="button" (click)="cancelarEliminar()">Cancelar</button>
-        <button class="btn-sm btn-solid" type="button" [disabled]="deleting()" (click)="confirmarEliminar()">
-          {{ deleting() ? 'Eliminando…' : 'Sí, eliminar' }}
-        </button>
-      </div>
-    </div>
-  </div>
+  <bee-modal titulo="Eliminar archivo" icono="alert" tono="bad" (cerrar)="cancelarEliminar()">
+    ¿Seguro que deseas eliminar <b>{{ nombreArchivo(doc.direccion_documento_facturacion) }}</b> ({{
+      doc.tipo_documento_facturacion
+    }})? Se borrará del almacenamiento y de los registros del periodo. Esta acción no se puede
+    deshacer.
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cancelarEliminar()">Cancelar</button>
+      <button
+        class="btn-sm btn-solid"
+        type="button"
+        [disabled]="deleting()"
+        (click)="confirmarEliminar()"
+      >
+        {{ deleting() ? 'Eliminando…' : 'Sí, eliminar' }}
+      </button>
+    </ng-container>
+  </bee-modal>
 }
 
 <!-- Confirmación de reemplazo -->
 @if (confirmOpen()) {
-  <div class="modal-veil" role="dialog" aria-modal="true" aria-labelledby="rep-title">
-    <div class="modal-card">
-      <div class="modal-h">
-        <span class="slot-ic ic-warn"><bee-icon name="alert" [size]="18" /></span>
-        <div id="rep-title" class="ct">Reemplazar documentos guardados</div>
-      </div>
-      <p class="modal-body">
-        Ya hay un documento guardado para este periodo en:
-        <b>{{ tiposAReemplazar().join(', ') }}</b>. Al continuar se eliminará el archivo anterior
-        y sus registros, y se cargarán los nuevos. Esta acción no se puede deshacer.
-      </p>
-      <div class="modal-actions">
-        <button class="btn-sm btn-ghost" type="button" (click)="cancelarReemplazo()">Cancelar</button>
-        <button class="btn-sm btn-solid" type="button" [disabled]="saving()" (click)="confirmarReemplazo()">
-          {{ saving() ? 'Guardando…' : 'Reemplazar y guardar' }}
-        </button>
-      </div>
-    </div>
-  </div>
+  <bee-modal
+    titulo="Reemplazar documentos guardados"
+    icono="alert"
+    tono="warn"
+    (cerrar)="cancelarReemplazo()"
+  >
+    Ya hay un documento guardado para este periodo en:
+    <b>{{ tiposAReemplazar().join(', ') }}</b
+    >. Al continuar se eliminará el archivo anterior y sus registros, y se cargarán los nuevos. Esta
+    acción no se puede deshacer.
+
+    <ng-container acciones>
+      <button class="btn-sm btn-ghost" type="button" (click)="cancelarReemplazo()">Cancelar</button>
+      <button
+        class="btn-sm btn-solid"
+        type="button"
+        [disabled]="saving()"
+        (click)="confirmarReemplazo()"
+      >
+        {{ saving() ? 'Guardando…' : 'Reemplazar y guardar' }}
+      </button>
+    </ng-container>
+  </bee-modal>
 }

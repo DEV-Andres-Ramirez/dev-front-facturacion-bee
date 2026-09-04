@@ -12,7 +12,8 @@ export function montoACentavos(text: string | null | undefined): number {
   const t = String(text).trim().replace(',', '.');
   const negativo = t.startsWith('-');
   const [entero, decimales = ''] = (negativo ? t.slice(1) : t).split('.');
-  const cents = (parseInt(entero || '0', 10) || 0) * 100 + (parseInt((decimales + '00').slice(0, 2), 10) || 0);
+  const cents =
+    (parseInt(entero || '0', 10) || 0) * 100 + (parseInt((decimales + '00').slice(0, 2), 10) || 0);
   return negativo ? -cents : cents;
 }
 

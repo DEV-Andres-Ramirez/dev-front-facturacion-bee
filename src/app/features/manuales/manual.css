@@ -11,49 +11,14 @@
   }
 }
 
-.toc {
-  position: sticky;
-  top: 88px; /* compensa el topbar sticky */
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
-  padding: 14px;
-}
-@media (max-width: 1080px) {
-  .toc {
-    position: static;
-  }
-}
-.toc-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  color: var(--faint);
-  margin-bottom: 8px;
-}
-.toc a {
-  display: block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-3);
-  text-decoration: none;
-  padding: 6px 9px;
-  border-radius: 8px;
-  line-height: 1.3;
-}
-.toc a:hover {
-  background: var(--honey-tint);
-  color: var(--honey-deep);
-}
-
 /* ── Prosa (el reset global elimina viñetas y márgenes) ───────────────────── */
 .prose {
   min-width: 0;
 }
+/* El encabezado fijo mide unos 152 px con la línea del ciclo; sin este margen
+   el título del apartado quedaría oculto detrás al saltar desde el índice. */
 .prose section {
-  scroll-margin-top: 88px;
+  scroll-margin-top: 24px;
 }
 .prose h2 {
   font-size: 16px;
@@ -165,4 +130,26 @@
   justify-content: center;
   flex: none;
   margin-top: 1px;
+}
+
+/* Marco del ciclo dentro de la bienvenida. */
+.marco-ciclo {
+  padding: var(--sp-4);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line-2);
+}
+
+/* Enlaces dentro de la prosa: se distinguen sin gritar. */
+.prose .link {
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .prose h2 {
+    font-size: 15px;
+  }
+  .prose section {
+    scroll-margin-top: 64px;
+  }
 }

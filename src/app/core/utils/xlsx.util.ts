@@ -11,7 +11,12 @@ export async function leerPrimeraHoja(file: File): Promise<unknown[][]> {
   const wb = XLSX.read(buffer, { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
   if (!ws) return [];
-  return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null, raw: true, blankrows: false });
+  return XLSX.utils.sheet_to_json<unknown[]>(ws, {
+    header: 1,
+    defval: null,
+    raw: true,
+    blankrows: false,
+  });
 }
 
 /** `true` si la fila no tiene ningún valor útil (toda vacía/nula). */
@@ -41,7 +46,8 @@ export function celdaATexto(value: unknown): string | null {
  */
 export function montoDosDecimales(value: unknown): string | null {
   if (value === null || value === undefined || String(value).trim() === '') return null;
-  const raw = typeof value === 'number' ? numeroATexto(value) : String(value).trim().replace(',', '.');
+  const raw =
+    typeof value === 'number' ? numeroATexto(value) : String(value).trim().replace(',', '.');
   const negativo = raw.startsWith('-');
   const sinSigno = negativo ? raw.slice(1) : raw;
   const [entero, decimales = ''] = sinSigno.split('.');

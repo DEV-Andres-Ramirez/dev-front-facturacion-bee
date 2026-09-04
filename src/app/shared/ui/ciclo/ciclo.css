@@ -1,0 +1,344 @@
+/*
+ * Línea del ciclo. Dos variantes con la misma lógica detrás.
+ *
+ * La clave visual es el raíl: una sola línea continua por detrás de los nodos,
+ * con un relleno que anima su anchura al avanzar de etapa. Antes eran segmentos
+ * sueltos entre círculos, que es lo que hacía que se leyera como una fila de
+ * pastillas y no como un recorrido.
+ */
+
+:host {
+  display: block;
+  /* Ancla del desplegable de móvil. */
+  position: relative;
+}
+
+/* ── El raíl compartido ─────────────────────────────────────────────────────*/
+.rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 13px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.rail-ancho {
+  position: relative;
+  top: 0;
+  margin-bottom: var(--sp-4);
+}
+.rail-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--ok) 0%, var(--honey-600) 92%, var(--honey) 100%);
+  transition: width var(--dur-4) var(--ease-out);
+}
+
+/* ── Variante «cinta»: el encabezado ────────────────────────────────────────*/
+.cinta {
+  position: relative;
+  padding-bottom: 10px;
+}
+.pasos {
+  display: flex;
+  align-items: flex-start;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+.paso {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+/* El primero y el último anclan el raíl a sus centros. */
+.paso:first-child {
+  justify-content: flex-start;
+}
+.paso:last-child {
+  justify-content: flex-end;
+}
+
+.paso-a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px 0;
+  transition: color var(--dur-2) var(--ease-out);
+}
+a.paso-a:hover {
+  color: var(--ink);
+}
+a.paso-a:hover .nodo {
+  border-color: var(--ink-3);
+  transform: translateY(-1px);
+}
+
+.nodo {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  /* Tapa el raíl que pasa por detrás. */
+  background: var(--bg);
+  border: 2px solid var(--line);
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  transition:
+    background var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+}
+.etq {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.paso.hecho {
+  color: var(--ink-2);
+}
+.paso.hecho .nodo {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+.paso.hecho .paso-a {
+  color: var(--ink-2);
+}
+
+.paso.actual .paso-a {
+  color: var(--ink);
+}
+.paso.actual .etq {
+  font-weight: 700;
+}
+.paso.actual .nodo {
+  background: var(--honey);
+  border-color: var(--honey);
+  color: var(--ink);
+  animation: pulseRing 2.4s var(--ease-out) infinite;
+}
+
+.paso.pendiente .nodo {
+  background: var(--surface);
+}
+
+/* ── Resumen de móvil ───────────────────────────────────────────────────────*/
+.resumen {
+  display: none;
+  width: 100%;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 8px 12px 8px 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out);
+}
+.resumen:hover {
+  border-color: var(--ink-3);
+  box-shadow: var(--shadow-xs);
+}
+.resumen-txt {
+  flex: none;
+}
+.resumen-barra {
+  flex: 1;
+  min-width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.resumen-fx {
+  flex: none;
+  color: var(--muted);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+/* ── Variante «panel»: el tablero ───────────────────────────────────────────*/
+.panel-cab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.panel-tit {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+}
+.panel-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--honey-deep);
+}
+
+.casillas {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--sp-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.casilla-a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--muted);
+  transition:
+    border-color var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    background var(--dur-2) var(--ease-out);
+}
+.casilla-a:hover {
+  border-color: var(--ink-3);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+}
+.casilla .nodo {
+  width: 30px;
+  height: 30px;
+}
+.casilla .etq {
+  font-size: 11.5px;
+}
+.casilla.hecho .casilla-a {
+  color: var(--ink-2);
+  background: var(--ok-soft);
+  border-color: var(--ok-line);
+}
+.casilla.actual .casilla-a {
+  color: var(--ink);
+  background: var(--honey-tint);
+  border-color: var(--honey-line);
+  box-shadow: var(--shadow-sm);
+}
+.casilla.actual .etq {
+  font-weight: 700;
+}
+
+/* ── Adaptación ─────────────────────────────────────────────────────────────*/
+@media (max-width: 1080px) {
+  .etq {
+    font-size: 10.5px;
+  }
+}
+
+@media (max-width: 900px) {
+  .casillas {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/*
+ * En estrecho, la tira se pliega detrás de la píldora de resumen. Antes era una
+ * fila con `overflow-x: auto` y barra oculta: se podía deslizar, pero nada lo
+ * indicaba, así que en la práctica solo se veían los tres primeros pasos.
+ */
+@media (max-width: 760px) {
+  .resumen {
+    display: flex;
+  }
+  .cinta {
+    display: none;
+    padding-bottom: var(--sp-3);
+  }
+  /*
+   * Flota sobre el contenido en vez de empujarlo. Dentro del encabezado fijo,
+   * desplegarlo en flujo se comía media pantalla y se quedaba así mientras se
+   * hacía scroll.
+   */
+  .cinta.abierta {
+    display: block;
+    position: absolute;
+    top: calc(100% - 4px);
+    left: 0;
+    right: 0;
+    z-index: 30;
+    max-height: min(60vh, 420px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--sp-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-lg);
+    animation: scaleIn var(--dur-2) var(--ease-out);
+  }
+  .resumen[aria-expanded='true'] .resumen-fx {
+    transform: rotate(180deg);
+  }
+  .pasos {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+  .paso,
+  .paso:first-child,
+  .paso:last-child {
+    justify-content: stretch;
+  }
+  .paso-a {
+    flex-direction: row;
+    gap: var(--sp-3);
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: var(--radius-sm);
+  }
+  a.paso-a:hover {
+    background: var(--surface-2);
+  }
+  .paso-a .etq {
+    font-size: 13px;
+  }
+  /* En vertical el raíl no encaja: el propio orden de la lista ya lo cuenta. */
+  .rail {
+    display: none;
+  }
+  .paso.actual .paso-a {
+    background: var(--honey-tint);
+  }
+}
+
+@media (max-width: 640px) {
+  .casillas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

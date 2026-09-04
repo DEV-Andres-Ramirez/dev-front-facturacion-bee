@@ -1,9 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import {
-  ClaveParametro,
-  PARAMETROS_POR_DEFECTO,
-  ParametroRow,
-} from '../models';
+import { ClaveParametro, PARAMETROS_POR_DEFECTO, ParametroRow } from '../models';
 import { SupabaseService } from './supabase.service';
 
 /**
@@ -23,9 +19,7 @@ export class ParametrosService {
   readonly rows = this._rows.asReadonly();
   readonly cargado = this._cargado.asReadonly();
 
-  private readonly mapa = computed(
-    () => new Map(this._rows().map((p) => [p.clave, p.valor])),
-  );
+  private readonly mapa = computed(() => new Map(this._rows().map((p) => [p.clave, p.valor])));
 
   async load(): Promise<void> {
     const { data, error } = await this.supabase.rpc('fn_listar_parametros');
@@ -41,9 +35,7 @@ export class ParametrosService {
   /** Valor numérico. Un valor no numérico cae al respaldo en vez de dar `NaN`. */
   numero(clave: ClaveParametro): number {
     const valor = Number(this.texto(clave).replace(',', '.'));
-    return Number.isFinite(valor)
-      ? valor
-      : Number(PARAMETROS_POR_DEFECTO[clave].replace(',', '.'));
+    return Number.isFinite(valor) ? valor : Number(PARAMETROS_POR_DEFECTO[clave].replace(',', '.'));
   }
 
   /** Lista de correos separados por coma, ya limpia de vacíos. */

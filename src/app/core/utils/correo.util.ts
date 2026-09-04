@@ -26,6 +26,37 @@ const SIN_SECUENCIAL = 'Sin secuencial';
  */
 const CORREO_VALIDO = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/;
 
+/** Extensión en minúsculas, sin punto y sin parámetros de consulta. */
+function extensionDe(nombreOUrl: string): string {
+  const limpio = nombreOUrl.split(/[?#]/)[0];
+  const punto = limpio.lastIndexOf('.');
+  return punto === -1 ? '' : limpio.slice(punto + 1).toLowerCase();
+}
+
+/**
+ * Distintivo del adjunto: la clase del sistema de diseño y su rótulo. Antes el
+ * HTML llevaba `fx-pdf` fijo, así que el Excel de la prefactura se anunciaría
+ * como si fuera un PDF.
+ */
+export function tipoDeArchivo(nombre: string): { readonly clase: string; readonly rotulo: string } {
+  switch (extensionDe(nombre)) {
+    case 'xlsx':
+    case 'xls':
+    case 'csv':
+      return { clase: 'fx-xls', rotulo: 'XLS' };
+    case 'doc':
+    case 'docx':
+      return { clase: 'fx-doc', rotulo: 'DOC' };
+    case 'png':
+    case 'jpg':
+    case 'jpeg':
+    case 'webp':
+      return { clase: 'fx-img', rotulo: 'IMG' };
+    default:
+      return { clase: 'fx-pdf', rotulo: 'PDF' };
+  }
+}
+
 /** Formatea un monto guardado como número para el cuerpo del correo. */
 const MONTO_FMT = new Intl.NumberFormat('es-CO', {
   minimumFractionDigits: 2,
@@ -54,10 +85,7 @@ export function esCorreoValido(direccion: string): boolean {
 export function cuerpoComoHtml(cuerpo: string): string {
   return cuerpo
     .split('\n')
-    .map(
-      (linea) =>
-        `<p style="margin:0 0 8px">${linea.trim() ? escaparHtml(linea) : '&nbsp;'}</p>`,
-    )
+    .map((linea) => `<p style="margin:0 0 8px">${linea.trim() ? escaparHtml(linea) : '&nbsp;'}</p>`)
     .join('');
 }
 
@@ -72,6 +100,12 @@ export interface DatosDelPeriodo {
   readonly copiasFijas: readonly string[];
   readonly proveedor: string;
   readonly asunto: string;
+  /**
+   * Excel de Aprobación de Prefactura del periodo, que va en **todos** los
+   * correos (RF-ENV-01). Es el mismo documento para todas las facturas del mes,
+   * así que no sale del registro interno sino de `documentos_facturacion`.
+   */
+  readonly aprobacion?: AdjuntoCorreo;
 }
 
 /** Contrato, líder aprobador y proyecto, indexados por colaborador. */
@@ -121,9 +155,7 @@ export function componerCorreos(datos: DatosDelPeriodo): PlantillaCorreo[] {
 
     const cc = [
       ...new Set([
-        ...filas
-          .map((f) => (f.email_aprobador_facturacion_interna ?? '').trim())
-          .filter(Boolean),
+        ...filas.map((f) => (f.email_aprobador_facturacion_interna ?? '').trim()).filter(Boolean),
         ...datos.copiasFijas,
       ]),
     ];
@@ -134,15 +166,12 @@ export function componerCorreos(datos: DatosDelPeriodo): PlantillaCorreo[] {
         .map((f) => (f.pedido_compra_facturacion_interna ?? '').trim())
         .find((p) => p && p !== '0' && p.toUpperCase() !== 'NO RECIBIDO') ??
       '';
-    const moneda =
-      factura?.moneda_factura ?? filas[0]?.tipo_moneda_facturacion_interna ?? 'USD';
-    const montoNum =
-      factura?.monto_emitido_factura ?? factura?.monto_facturado_factura ?? null;
+    const moneda = factura?.moneda_factura ?? filas[0]?.tipo_moneda_facturacion_interna ?? 'USD';
+    const montoNum = factura?.monto_emitido_factura ?? factura?.monto_facturado_factura ?? null;
     const monto =
       montoNum !== null
         ? `${moneda} ${MONTO_FMT.format(montoNum)}`
-        : (filas.find((f) => f.monto_emitido_factura_bee)?.monto_emitido_factura_bee ??
-          '—');
+        : (filas.find((f) => f.monto_emitido_factura_bee)?.monto_emitido_factura_bee ?? '—');
     const fechaIso =
       factura?.fecha_emision_factura ??
       filas.find((f) => f.fecha_factura_bee)?.fecha_factura_bee ??
@@ -197,6 +226,18 @@ export function componerCorreos(datos: DatosDelPeriodo): PlantillaCorreo[] {
       faltantes.push('Pedido de compra');
     }
 
+    // El mismo Excel de aprobación para todas las facturas del periodo: es el
+    // soporte de que el cliente reconoció lo que se le está facturando.
+    if (datos.aprobacion) {
+      const ext = extensionDe(datos.aprobacion.filename ?? datos.aprobacion.url) || 'xlsx';
+      adjuntos.push({
+        url: datos.aprobacion.url,
+        filename: `APROBACION PREFACTURA ${datos.periodo}.${ext}`,
+      });
+    } else {
+      faltantes.push('Aprobación de prefactura');
+    }
+
     plantillas.push({
       secuencial: sec,
       to: datos.destinatario,
@@ -208,8 +249,7 @@ export function componerCorreos(datos: DatosDelPeriodo): PlantillaCorreo[] {
       cuerpo: cuerpo.join('\n'),
       adjuntos,
       faltantes,
-      yaEnviada:
-        factura?.estado_factura === 'enviada' || factura?.estado_factura === 'pagada',
+      yaEnviada: factura?.estado_factura === 'enviada' || factura?.estado_factura === 'pagada',
     });
   }
 
@@ -233,9 +273,7 @@ export function prepararCorreo(
 
   const destinatarios = partirDirecciones(to);
   const copias = partirDirecciones(cc);
-  const invalidas = [...destinatarios, ...copias].filter(
-    (direccion) => !esCorreoValido(direccion),
-  );
+  const invalidas = [...destinatarios, ...copias].filter((direccion) => !esCorreoValido(direccion));
 
   return {
     ...plantilla,

@@ -60,9 +60,7 @@ export class AuditoriaService {
   readonly usuariosDisponibles = computed(() =>
     this._opciones().filter((o) => o.tipo === 'usuario'),
   );
-  readonly modulosDisponibles = computed(() =>
-    this._opciones().filter((o) => o.tipo === 'modulo'),
-  );
+  readonly modulosDisponibles = computed(() => this._opciones().filter((o) => o.tipo === 'modulo'));
   readonly accionesDisponibles = computed(() =>
     this._opciones().filter((o) => o.tipo === 'accion'),
   );

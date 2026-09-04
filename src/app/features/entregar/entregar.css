@@ -1,22 +1,21 @@
 /*
  * Estilos propios de «Entregar al cliente».
  *
- * Aquí solo vive lo que es de esta pantalla: la franja de estado del buzón, el
- * compositor editable y el resumen del envío. Lo demás (tarjetas, alertas,
- * modales, badges) sale del sistema de diseño de `src/styles.css`.
+ * Dos notas que explican por qué hay aquí cosas que parecen duplicadas:
  *
- * Dos reglas repiten a propósito lo que ya existe en global —`.modal-ic` y
- * `.fx`—: sus definiciones globales son descendientes (`.tile .ti`,
- * `.doc-item .fx`) y aquí no hay ese ancestro, así que sin esto se quedarían a
- * medio pintar.
+ * 1. `.fx` solo existe en global como `.doc-item .fx` — es un selector
+ *    descendiente. Fuera de ese ancestro se queda a medio pintar, sin error ni
+ *    aviso (ver §9 del CLAUDE.md), así que se repite aquí.
+ * 2. `.compose` global dibuja su propio marco. Dentro de una tarjeta eso deja
+ *    dos bordes concéntricos, así que aquí se aplana.
  */
 
-/* ── Estado del buzón de envío ─────────────────────────────────────────────── */
+/* ── Estado del buzón ────────────────────────────────────────────────────── */
 .servicio {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
+  gap: var(--sp-3);
+  padding: 11px var(--sp-4);
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -37,118 +36,271 @@
   border-width: 2px;
 }
 
-/* ── Resumen del último envío ──────────────────────────────────────────────── */
-.grupos {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.grupo {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  font-size: 12px;
-  min-width: 0;
-}
-.grupo .gt {
+/* ── Resultado del envío ─────────────────────────────────────────────────── */
+.res-cab {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+/*
+ * La proporción antes que las cifras: una barra de tres tramos se entiende sin
+ * leer nada. Antes eran tres recuadros de colores del mismo tamaño, que decían
+ * lo contrario de lo que pasaba cuando 19 salían bien y 1 fallaba.
+ */
+.res-barra {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--line-2);
+  gap: 2px;
+}
+.res-barra > span {
+  animation: growWidth var(--dur-4) var(--ease-out);
+}
+.seg-ok {
+  background: var(--ok);
+}
+.seg-bad {
+  background: var(--bad);
+}
+.seg-warn {
+  background: var(--honey-600);
+}
+
+.res-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+.pt {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.pt-ok {
+  background: var(--ok);
+}
+.pt-bad {
+  background: var(--bad);
+}
+.pt-warn {
+  background: var(--honey-600);
+}
+
+.res-grupo {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line-2);
+}
+.rg-tit {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-weight: 700;
   font-size: 12.5px;
+  margin-bottom: var(--sp-3);
 }
-.grupo-ok {
-  background: var(--ok-soft);
-  border-color: var(--ok-line);
+
+/* Una fila por fallo, con destinatario y motivo: es lo accionable. */
+.res-fila {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 12.5px;
 }
-.grupo-ok .gt {
-  color: var(--ok);
+.res-fila:last-child {
+  border-bottom: none;
 }
-.grupo-bad {
-  background: var(--bad-soft);
-  border-color: var(--bad-line);
+.rf-sec {
+  font-weight: 700;
+  color: var(--ink);
 }
-.grupo-bad .gt {
-  color: var(--bad);
+.rf-para {
+  color: var(--muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.grupo-warn {
-  background: var(--honey-tint);
-  border-color: var(--honey-line);
-}
-.grupo-warn .gt {
-  color: var(--honey-deep);
-}
-.fallo {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.rf-motivo {
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
 
-/* ── Barra de acción ───────────────────────────────────────────────────────── */
+/* Las pastillas van en línea y se envuelven. Antes `.grupo` era una columna,
+   así que cada una ocupaba una fila entera estirada a todo el ancho. */
+.res-pastillas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-tenue {
+  background: var(--line-2);
+  color: var(--muted);
+}
+
+/* ── Barra de acción ─────────────────────────────────────────────────────── */
 .barra {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--sp-4);
   flex-wrap: wrap;
+}
+.barra-txt {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.seg-filtro {
+  flex: none;
+}
+.seg-filtro button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .acciones {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   flex-wrap: wrap;
 }
+.pin-reenvio {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(38, 40, 44, 0.16);
+  font-size: 10.5px;
+  font-weight: 700;
+}
 
-/* ── Tarjeta de correo ─────────────────────────────────────────────────────── */
+/* ── Tarjeta de correo ───────────────────────────────────────────────────── */
 .correo {
   border-color: var(--line);
-  transition: border-color 0.16s, box-shadow 0.16s;
 }
-/* La marca de selección se ve de un vistazo: es lo que decide qué sale. */
 .correo.marcado {
   border-color: var(--honey-line);
-  box-shadow: inset 3px 0 0 var(--honey-600);
+  box-shadow:
+    inset 3px 0 0 var(--honey-600),
+    var(--shadow-sm);
 }
+
+/*
+ * Lo ya enviado se distingue sin leer: raíl verde y fondo apagado. Es la señal
+ * que evita volver a marcar por error algo que el cliente ya recibió.
+ */
+.correo.ya-enviada {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--ok);
+}
+.correo.ya-enviada.marcado {
+  /* Marcada a mano pese a estar enviada: el aviso pasa a rojo. */
+  border-color: var(--bad-line);
+  box-shadow:
+    inset 3px 0 0 var(--bad),
+    var(--shadow-sm);
+}
+
+.correo-cab {
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.correo-tit {
+  min-width: 0;
+}
+.correo-tit .ct {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.pin-aviso {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bad-soft);
+  border: 1px solid var(--bad-line);
+  color: #8c2a26;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .sel-box {
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
   flex: none;
   accent-color: var(--ink);
   cursor: pointer;
+}
+.correo.ya-enviada .sel-box {
+  accent-color: var(--bad);
 }
 .sel-box:focus-visible {
   outline: 2px solid var(--honey-600);
   outline-offset: 2px;
 }
 
-/* ── Compositor editable ───────────────────────────────────────────────────── */
+/* ── Composición ─────────────────────────────────────────────────────────── */
+.compose {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.compose .cmp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 10px var(--sp-4);
+  border-bottom: 1px solid var(--line-2);
+  min-height: 46px;
+}
+.compose .cmp-row .cl {
+  flex: none;
+  width: 58px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
 .cmp-input {
   flex: 1;
   min-width: 0;
   border: 1px solid transparent;
-  border-radius: 7px;
-  padding: 6px 9px;
+  border-radius: var(--radius-xs);
+  padding: 7px 9px;
   font-family: inherit;
   font-size: 13px;
   color: var(--ink-2);
   background: transparent;
-  transition: border-color 0.14s, background 0.14s;
-}
-.cmp-input.mono {
-  font-family: var(--mono);
-  font-size: 12px;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out);
 }
 .cmp-asunto {
   font-weight: 600;
   color: var(--ink);
 }
 .cmp-input:hover {
-  border-color: var(--line-2);
+  border-color: var(--line);
   background: var(--surface-2);
 }
 .cmp-input:focus {
@@ -157,22 +309,28 @@
   border-color: var(--honey-600);
   box-shadow: var(--ring);
 }
+
+.cmp-cuerpo {
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+}
 .cmp-area {
   display: block;
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 9px;
-  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  padding: 13px var(--sp-4);
   font-family: inherit;
   font-size: 13.5px;
-  line-height: 1.7;
+  line-height: 1.75;
   color: var(--ink-2);
   background: transparent;
   resize: vertical;
-  transition: border-color 0.14s, background 0.14s;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out);
 }
 .cmp-area:hover {
-  border-color: var(--line-2);
+  border-color: var(--line);
   background: var(--surface-2);
 }
 .cmp-area:focus {
@@ -181,15 +339,17 @@
   border-color: var(--honey-600);
   box-shadow: var(--ring);
 }
+
 .adjuntos {
   display: flex;
   gap: 9px;
   flex-wrap: wrap;
   border-top: 1px solid var(--line-2);
-  padding: 12px 16px 0;
-  margin-top: 4px;
+  padding-top: var(--sp-3);
+  margin-top: var(--sp-3);
 }
-/* `.doc-item .fx` es descendiente y aquí no hay `.doc-item`: se replica el tamaño. */
+
+/* Réplica local: en global `.fx` solo vive como `.doc-item .fx`. */
 .fx {
   position: relative;
   width: 30px;
@@ -207,27 +367,96 @@
   letter-spacing: 0.3px;
 }
 
-/* ── Modales ───────────────────────────────────────────────────────────────── */
-/* `.tile .ti` es descendiente y aquí no hay `.tile`: se replica la caja. */
-.modal-ic {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
+/* ── Confirmación del envío ──────────────────────────────────────────────── */
+.conf-cifras {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+}
+.cifra {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--sp-3) var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  text-align: center;
+}
+.cifra-alerta {
+  background: var(--bad-soft);
+  border-color: var(--bad-line);
+}
+.cf-v {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.1;
+}
+.cifra-alerta .cf-v {
+  color: var(--bad);
+}
+.cf-k {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.conf-reenvios {
+  margin-top: var(--sp-4);
+}
+.conf-lista {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  line-height: 1.7;
+}
+
+/* Freno deliberado: solo aparece cuando de verdad hay un reenvío en juego. */
+.conf-check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: 11px 13px;
+  border: 1.5px solid var(--bad-line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.conf-check input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 1px;
+  accent-color: var(--bad);
+  cursor: pointer;
+}
+
+/* ── Progreso ────────────────────────────────────────────────────────────── */
+.prog-linea {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex: none;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  font-size: 13px;
 }
-.modal-ancho {
-  max-width: 620px;
+.prog-pct {
+  font-weight: 700;
+  color: var(--ink);
 }
+
+/* ── Diagnóstico ─────────────────────────────────────────────────────────── */
 .diag-parrafo {
-  margin-top: 14px;
+  margin-top: var(--sp-4);
   color: var(--ink-2);
   line-height: 1.65;
 }
 .diag-solucion {
-  margin-top: 14px;
+  margin-top: var(--sp-4);
   padding: 13px 15px;
   border-radius: var(--radius-sm);
   background: var(--honey-tint);
@@ -236,7 +465,7 @@
   line-height: 1.6;
 }
 .diag-tecnico {
-  margin-top: 14px;
+  margin-top: var(--sp-4);
   font-size: 12px;
 }
 .diag-tecnico summary {
@@ -257,8 +486,44 @@
   color: var(--ink-2);
 }
 
+/* ── Adaptación ──────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .grupos {
+  .res-fila {
     grid-template-columns: 1fr;
+    gap: 3px;
+  }
+  .rf-para {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  .barra .acciones {
+    width: 100%;
+  }
+  .barra .acciones .btn-sm {
+    flex: 1;
+  }
+  .seg-filtro {
+    width: 100%;
+    overflow-x: auto;
+  }
+  .compose .cmp-row {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+  .compose .cmp-row .cl {
+    width: auto;
+  }
+  .cmp-input {
+    flex: 1 0 100%;
+  }
+  .conf-cifras {
+    grid-template-columns: 1fr;
+  }
+  .cifra {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: var(--sp-2) var(--sp-3);
   }
 }

@@ -33,3 +33,28 @@
   justify-content: center;
   flex: none;
 }
+
+/* La celda de acciones puede llevar dos cosas: el estado y el enlace de anular. */
+.celda-acciones {
+  text-align: right;
+}
+.acciones-fila {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.link-bad {
+  color: var(--bad);
+}
+.link-bad:hover {
+  color: #9a2f2b;
+}
+
+/* Fila de totales del consolidado. */
+.fila-total td {
+  background: var(--surface-2);
+  padding: 13px 16px;
+  font-weight: 600;
+}

@@ -6,7 +6,15 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { Data, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet, ActivatedRoute } from '@angular/router';
+import {
+  Data,
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+  ActivatedRoute,
+} from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '@core/services/auth.service';
@@ -16,16 +24,14 @@ import { PeriodosService } from '@core/services/periodos.service';
 import { NotificacionesService } from '@core/services/notificaciones.service';
 import { FacturasService } from '@core/services/facturas.service';
 import { ParametrosService } from '@core/services/parametros.service';
+import { EtapaCiclo, MESES, Notificacion, PeriodoId } from '@core/models';
 import {
-  ETAPAS,
-  ETIQUETA_ETAPA,
-  EtapaCiclo,
-  MESES,
-  Notificacion,
-  PeriodoId,
-  ordenEtapa,
-} from '@core/models';
-import { BeeMarkComponent, IconComponent, IconName } from '@shared/ui';
+  BeeMarkComponent,
+  CicloComponent,
+  IconComponent,
+  IconName,
+  ModalComponent,
+} from '@shared/ui';
 
 interface NavItem {
   readonly label: string;
@@ -77,7 +83,15 @@ const NAV: readonly NavGroup[] = [
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, BeeMarkComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    IconComponent,
+    BeeMarkComponent,
+    CicloComponent,
+    ModalComponent,
+  ],
   templateUrl: './shell.html',
   styleUrl: './shell.css',
 })
@@ -96,18 +110,8 @@ export class Shell implements OnInit {
   protected readonly isAdmin = this.auth.isAdmin;
   protected readonly sidebarOpen = signal(false);
 
-  // ── Línea del ciclo, transversal a todo el tablero ──────────────────────────
-
-  /** Etapas visibles en el encabezado; «cerrado» no es un paso, es un final. */
-  protected readonly etapasCiclo = ETAPAS.filter((e) => e !== 'cerrado');
-  protected readonly etiquetaEtapa = ETIQUETA_ETAPA;
+  /** La línea del ciclo la pinta `bee-ciclo`; aquí solo se le pasa la etapa. */
   protected readonly etapaActual = this.periodStore.etapa;
-
-  protected readonly indiceEtapa = computed(() => {
-    const actual = ordenEtapa(this.etapaActual());
-    // Un periodo cerrado deja todos los pasos completados.
-    return actual >= this.etapasCiclo.length ? this.etapasCiclo.length : actual;
-  });
 
   // ── Centro de notificaciones ────────────────────────────────────────────────
 
@@ -159,7 +163,9 @@ export class Shell implements OnInit {
     { initialValue: {} as Data },
   );
 
-  protected readonly title = computed(() => (this.routeData()['title'] as string) ?? 'Facturación Bee');
+  protected readonly title = computed(
+    () => (this.routeData()['title'] as string) ?? 'Facturación Bee',
+  );
   protected readonly subtitle = computed(() => (this.routeData()['subtitle'] as string) ?? '');
 
   protected onPeriodChange(event: Event): void {

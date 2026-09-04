@@ -69,16 +69,50 @@
   --sans: 'Jakarta', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --mono: 'JBMono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
 
-  --radius: 14px;
+  --radius-xs: 6px;
   --radius-sm: 10px;
+  --radius: 14px;
   --radius-lg: 20px;
-  --shadow-sm: 0 1px 2px rgba(22, 25, 42, 0.04), 0 1px 3px rgba(22, 25, 42, 0.06);
-  --shadow-md: 0 2px 6px rgba(22, 25, 42, 0.05), 0 8px 24px rgba(22, 25, 42, 0.07);
-  --shadow-lg: 0 12px 40px rgba(22, 25, 42, 0.12), 0 4px 12px rgba(22, 25, 42, 0.06);
-  --shadow-honey: 0 8px 22px rgba(244, 196, 26, 0.35);
-  --shadow-ink: 0 8px 22px rgba(38, 40, 44, 0.22);
+
+  /* Escala de espaciado. Antes no existía y cada regla inventaba su número. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* Movimiento. Tampoco existía: había literales de .12s a .5s por todo el
+     archivo, así que dos elementos hermanos podían animar a ritmos distintos. */
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 260ms;
+  --dur-4: 420ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Elevación en dos capas: una sombra de contacto corta y muy tenue, y una
+     ambiental larga y difusa. Una sola sombra siempre se ve pegatina. */
+  --shadow-xs: 0 1px 1px rgba(22, 25, 42, 0.04);
+  --shadow-sm: 0 1px 2px rgba(22, 25, 42, 0.05), 0 2px 6px rgba(22, 25, 42, 0.05);
+  --shadow-md: 0 2px 4px rgba(22, 25, 42, 0.05), 0 8px 20px rgba(22, 25, 42, 0.07);
+  --shadow-lg: 0 4px 10px rgba(22, 25, 42, 0.06), 0 16px 40px rgba(22, 25, 42, 0.11);
+  --shadow-xl: 0 8px 20px rgba(22, 25, 42, 0.08), 0 28px 64px rgba(22, 25, 42, 0.16);
+  --shadow-honey: 0 2px 6px rgba(244, 196, 26, 0.24), 0 10px 24px rgba(244, 196, 26, 0.3);
+  --shadow-ink: 0 2px 6px rgba(38, 40, 44, 0.16), 0 10px 24px rgba(38, 40, 44, 0.2);
   --ring: 0 0 0 4px rgba(244, 196, 26, 0.4);
+
   --sidebar-w: 256px;
+  /* Alto real del área visible; en móvil descuenta la barra de direcciones. */
+  --app-h: 100dvh;
+  /*
+   * Alto del encabezado fijo. Lo necesita todo lo que se pegue debajo de él:
+   * sin esto, un elemento `sticky` con `top: 12px` se pega al borde del panel,
+   * que está detrás del encabezado, y su parte superior queda tapada.
+   */
+  --topbar-h: 153px;
 }
 
 /* ── Reset / base ─────────────────────────────────────────────────────────── */
@@ -87,9 +121,26 @@
   padding: 0;
   box-sizing: border-box;
 }
-html,
-body {
+/*
+ * La cadena de alturas del documento. Antes `html, body` medían `height: 100%`
+ * —el viewport GRANDE— mientras el shell medía `100dvh` —el DINÁMICO—. En móvil,
+ * con la barra de direcciones desplegada, el documento quedaba más alto que la
+ * aplicación justo por esa diferencia: aparecía una segunda barra de scroll en
+ * <html> y, al llegar al final del panel y seguir bajando, subía toda la
+ * interfaz y se veía el fondo desnudo. `app-root` además no tenía ninguna regla,
+ * así que era un elemento desconocido con `display: inline` y no propagaba nada.
+ */
+html {
   height: 100%;
+}
+body {
+  min-height: var(--app-h);
+  /* Corta el encadenamiento del scroll al documento y el rebote elástico. */
+  overscroll-behavior-y: none;
+}
+app-root {
+  display: block;
+  min-height: var(--app-h);
 }
 body {
   font-family: var(--sans);
@@ -149,6 +200,7 @@ a {
   margin: -1px;
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -203,6 +255,86 @@ a {
   animation-delay: 0.29s;
 }
 
+/* Esqueleto de carga: evita el salto de vacío a lleno al traer datos. */
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--line-2) 25%, var(--line) 37%, var(--line-2) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+  color: transparent !important;
+  user-select: none;
+  pointer-events: none;
+}
+.skeleton-line {
+  height: 12px;
+  margin: 6px 0;
+}
+.skeleton-line.w-40 {
+  width: 40%;
+}
+.skeleton-line.w-60 {
+  width: 60%;
+}
+.skeleton-line.w-80 {
+  width: 80%;
+}
+
+/* Entrada de diálogos: escala corta desde el centro, no un salto seco. */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes veilIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Anillo que late en el paso actual de la línea del ciclo. */
+@keyframes pulseRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(244, 196, 26, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(244, 196, 26, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 196, 26, 0);
+  }
+}
+
+/* Trazado progresivo de los arcos y líneas de los gráficos SVG. */
+@keyframes drawStroke {
+  from {
+    stroke-dashoffset: var(--dash, 1000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes growWidth {
+  from {
+    width: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -245,6 +377,16 @@ a {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out);
+}
+/* Solo reacciona al ratón lo que se puede pulsar: que se levante todo lo que
+   hay en pantalla no comunica nada. */
+.card-hover:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 .card-pad {
   padding: 20px 22px;
@@ -295,8 +437,12 @@ a {
   align-items: center;
   justify-content: center;
   gap: 9px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease,
-    border-color 0.18s ease, color 0.18s ease;
+  transition:
+    transform var(--dur-2) var(--ease-out),
+    box-shadow var(--dur-2) var(--ease-out),
+    background var(--dur-2) var(--ease-out),
+    border-color var(--dur-2) var(--ease-out),
+    color var(--dur-2) var(--ease-out);
   white-space: nowrap;
   cursor: pointer;
   border: none;
@@ -313,8 +459,12 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease,
-    border-color 0.16s ease, color 0.16s ease;
+  transition:
+    transform var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out),
+    background var(--dur-1) var(--ease-out),
+    border-color var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
   cursor: pointer;
   border: none;
   background: none;
@@ -358,6 +508,12 @@ a {
 }
 .btn-soft:hover {
   background: #e3e3e6;
+}
+/* Respuesta al pulsar: sin esto un botón parece inerte en pantalla táctil. */
+.btn:not([disabled]):active,
+.btn-sm:not([disabled]):active {
+  transform: translateY(1px) scale(0.985);
+  transition-duration: var(--dur-1);
 }
 .btn[disabled],
 .btn-sm[disabled] {
@@ -457,7 +613,10 @@ a {
   box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    box-shadow var(--dur-3) var(--ease-out),
+    transform var(--dur-3) var(--ease-out),
+    border-color var(--dur-3) var(--ease-out);
 }
 .kpi:hover {
   box-shadow: var(--shadow-md);
@@ -551,6 +710,21 @@ a {
 /* ── Tablas de datos ──────────────────────────────────────────────────────── */
 .tbl-wrap {
   overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* Degradado en los bordes: avisa de que la tabla sigue a los lados. Sin esto,
+     en móvil no hay ninguna pista de que hay más columnas. */
+  background:
+    linear-gradient(to right, var(--surface) 30%, rgba(255, 255, 255, 0)) left center,
+    linear-gradient(to left, var(--surface) 30%, rgba(255, 255, 255, 0)) right center,
+    linear-gradient(to right, rgba(22, 25, 42, 0.09), rgba(255, 255, 255, 0)) left center,
+    linear-gradient(to left, rgba(22, 25, 42, 0.09), rgba(255, 255, 255, 0)) right center;
+  background-repeat: no-repeat;
+  background-size:
+    36px 100%,
+    36px 100%,
+    12px 100%,
+    12px 100%;
+  background-attachment: local, local, scroll, scroll;
 }
 table.dt {
   width: 100%;
@@ -633,6 +807,9 @@ table.dt .strong {
   display: grid;
   grid-template-columns: 1.8fr 1fr;
   gap: 16px;
+  /* Sin esto las dos columnas se igualan en alto y la más corta queda con un
+     hueco blanco enorme debajo de su contenido. */
+  align-items: start;
 }
 .row {
   display: flex;
@@ -654,6 +831,11 @@ table.dt .strong {
   margin-bottom: 16px;
 }
 
+/* ── Puntos de corte ──────────────────────────────────────────────────────────
+   Antes solo existía el de 1080 px: `.k4` bajaba a dos columnas y ahí se
+   quedaba, las tablas solo hacían scroll horizontal sin avisar y nada
+   contemplaba un teléfono. Escala real: 1080 · 900 · 640 · 480. */
+
 @media (max-width: 1080px) {
   .k4 {
     grid-template-columns: repeat(2, 1fr);
@@ -662,6 +844,150 @@ table.dt .strong {
   .grid-2,
   .grid-3 {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .k3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --topbar-h: 196px;
+  }
+  .k4,
+  .k3,
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .card-pad {
+    padding: var(--sp-4);
+  }
+  .card-h {
+    padding: var(--sp-3) var(--sp-4);
+  }
+  .h-page {
+    font-size: 19px;
+  }
+  /* Objetivo táctil mínimo de 44 px (WCAG 2.5.8). */
+  .btn-sm {
+    height: 44px;
+    padding: 0 var(--sp-4);
+  }
+  .btn {
+    height: 50px;
+    width: 100%;
+  }
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+  .modal-actions > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .kv-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  .stat-line {
+    gap: var(--sp-2);
+  }
+}
+
+/* ── Tabla apilada en móvil ───────────────────────────────────────────────────
+   `table.dt.dt-stack` convierte cada fila en una tarjeta por debajo de 640 px.
+   Cada `td` necesita su `data-label`, que es lo que se pinta como rótulo. Una
+   tabla de ocho columnas en un teléfono es ilegible por mucho scroll que tenga. */
+@media (max-width: 640px) {
+  table.dt.dt-stack,
+  table.dt.dt-stack tbody,
+  table.dt.dt-stack tfoot,
+  table.dt.dt-stack tr,
+  table.dt.dt-stack td {
+    display: block;
+    width: 100%;
+  }
+  /* El pie de totales se apila igual que las filas, pero destacado. */
+  table.dt.dt-stack tfoot tr {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    padding: var(--sp-1) var(--sp-3);
+  }
+  table.dt.dt-stack tfoot td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-2) 0;
+    border-bottom: 1px solid var(--line);
+    font-weight: 700;
+  }
+  table.dt.dt-stack tfoot td:last-child {
+    border-bottom: none;
+  }
+  table.dt.dt-stack tfoot td:empty {
+    display: none;
+  }
+  table.dt.dt-stack thead {
+    display: none;
+  }
+  table.dt.dt-stack tbody tr {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    padding: var(--sp-1) var(--sp-3);
+    margin-bottom: var(--sp-3);
+    box-shadow: var(--shadow-xs);
+  }
+  table.dt.dt-stack tbody tr:hover {
+    background: var(--surface);
+  }
+  table.dt.dt-stack tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    padding: var(--sp-2) 0;
+    border-bottom: 1px solid var(--line-2);
+    text-align: left;
+  }
+  table.dt.dt-stack tbody td:last-child {
+    border-bottom: none;
+  }
+  table.dt.dt-stack tbody td::before {
+    content: attr(data-label);
+    flex: none;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  /* Una celda sin rótulo (la de acciones) ocupa el ancho completo. */
+  table.dt.dt-stack tbody td:not([data-label])::before {
+    content: none;
+  }
+  table.dt.dt-stack tbody td.num {
+    text-align: right;
+  }
+  /* La primera celda hace de titular de la tarjeta. */
+  table.dt.dt-stack tbody td.dt-head {
+    display: block;
+    padding-top: var(--sp-3);
+  }
+  table.dt.dt-stack tbody td.dt-head::before {
+    content: none;
+  }
+  /* Sin scroll horizontal no hacen falta los degradados de los bordes. */
+  .tbl-wrap:has(table.dt.dt-stack) {
+    overflow-x: visible;
+    background: none;
   }
 }
 
@@ -814,7 +1140,10 @@ table.dt .strong {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  transition: border-color 0.16s, box-shadow 0.16s, transform 0.16s;
+  transition:
+    border-color 0.16s,
+    box-shadow 0.16s,
+    transform 0.16s;
   cursor: pointer;
   width: 100%;
   text-align: left;
@@ -967,7 +1296,9 @@ table.dt .strong {
   background: var(--surface-2);
   padding: 34px 28px;
   text-align: center;
-  transition: border-color 0.18s, background 0.18s;
+  transition:
+    border-color 0.18s,
+    background 0.18s;
   cursor: pointer;
   width: 100%;
   font-family: inherit;
@@ -1104,7 +1435,9 @@ table.dt .strong {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   border: none;
   background: none;
   cursor: pointer;
@@ -1147,7 +1480,9 @@ table.dt .strong {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.14s, border-color 0.14s;
+  transition:
+    background 0.14s,
+    border-color 0.14s;
   cursor: pointer;
   flex: none;
 }
@@ -1284,7 +1619,12 @@ table.dt .strong {
   color: var(--ink);
   background: var(--surface);
   outline: none;
-  transition: border-color 0.16s, box-shadow 0.16s;
+  transition:
+    border-color var(--dur-1) var(--ease-out),
+    box-shadow var(--dur-1) var(--ease-out);
+}
+.f-input:hover:not(:focus) {
+  border-color: #d8dae1;
 }
 .f-input:focus {
   border-color: var(--honey-600);
@@ -1449,18 +1789,24 @@ select.f-input {
 .modal-veil {
   position: fixed;
   inset: 0;
-  background: rgba(20, 22, 26, 0.5);
+  background: rgba(20, 22, 26, 0.52);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding: var(--sp-5);
   z-index: 60;
+  animation: veilIn var(--dur-2) var(--ease-out);
 }
 .modal-card {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  box-shadow: var(--shadow-xl);
+  animation: scaleIn var(--dur-3) var(--ease-out);
+  max-height: calc(var(--app-h) - var(--sp-10));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 22px;
   width: 100%;
   max-width: 440px;
@@ -1481,4 +1827,73 @@ select.f-input {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+/* Un `bee-modal` sin acciones no debe dejar un hueco al pie. */
+.modal-actions:empty {
+  display: none;
+}
+.modal-body:last-child {
+  margin-bottom: 0;
+}
+.modal-sm {
+  max-width: 380px;
+}
+.modal-lg {
+  max-width: 620px;
+}
+
+/*
+ * Cuadro del icono de cabecera. Existe como clase propia porque su equivalente
+ * global, `.ti`, solo funciona dentro de `.tile` (ver §9 del CLAUDE.md): fuera
+ * de ese ancestro se quedaba a medio pintar, sin error ni aviso.
+ */
+.modal-ic {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.modal-x {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background var(--dur-1) var(--ease-out),
+    color var(--dur-1) var(--ease-out);
+}
+.modal-x:hover {
+  background: var(--line-2);
+  color: var(--ink);
+}
+
+/*
+ * Mientras hay un diálogo abierto el fondo no se desplaza. `position: fixed`
+ * sería más contundente, pero salta al principio de la página al cerrar.
+ */
+body.scroll-bloqueado {
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .modal-veil {
+    padding: var(--sp-3);
+    align-items: flex-end;
+  }
+  .modal-card {
+    max-height: calc(var(--app-h) - var(--sp-6));
+    border-bottom-left-radius: var(--radius);
+    border-bottom-right-radius: var(--radius);
+    margin-bottom: env(safe-area-inset-bottom);
+  }
 }

@@ -4,6 +4,8 @@ Aplicativo web del ciclo de facturación de **Bee Consultoría y Negocios**. Lé
 entero antes de tocar código: recoge qué está construido de verdad, qué es
 fachada, las convenciones del proyecto y las trampas que ya han costado un bug.
 
+> Actualizado el 2026-09-04.
+>
 > Las reglas de estilo de Angular están en `.claude/CLAUDE.md` y siguen vigentes:
 > standalone sin `standalone: true`, signals, `inject()`, `OnPush`, control de
 > flujo nativo (`@if`/`@for`), `class`/`style` bindings, formularios reactivos.
@@ -53,10 +55,10 @@ datos. Esto es lo que hay:
 | `entregar` | `/app/entregar` | **REAL** (§7) | Supabase + backend NestJS |
 | `usuarios` | `/app/usuarios` | **REAL** (CRUD) | RPC |
 | **`auditoria`** | `/app/auditoria` | **REAL** (§5) | Tabla `auditoria` vía RPC |
-| `dashboard` | `/app/dashboard` | **REAL** | `facturas` + prefactura |
-| `conciliar` | `/app/conciliar` | **REAL** (RF-CON) | `facturas` vía RPC |
+| `dashboard` | `/app/dashboard` | **REAL** · gráficos SVG propios | `facturas` + prefactura + `fn_resumen_periodos` |
+| `conciliar` | `/app/conciliar` | **REAL** (RF-CON) · anula facturas ya enviadas | `facturas` vía RPC |
 | `registros` | `/app/registros` | **REAL** (RF-DOC) | `documentos_facturacion` + Storage |
-| `manuales` | `/app/manual-*` | Estático | — |
+| `manuales` | `/app/manual-*` | Estático, con índice buscable | — |
 
 **Ya no queda ninguna fachada.** `BillingDataService` y `EMPTY_DATASET` fueron
 el andamiaje de esas tres pantallas mientras no tenían datos; hoy solo sobrevive
@@ -69,10 +71,31 @@ la matriz de permisos que pinta la pantalla de usuarios.
 ```
 src/app/
   core/        dominio: models · data · services (stores) · guards · utils
-  shared/      sistema de diseño: ui (icon, badge, kpi-card, empty-state…) · pipes
+  shared/
+    ui/        sistema de diseño, sin dominio: icon, badge, kpi-card,
+               empty-state, modal, ciclo, direcciones, toc, grafico/
+    facturas/  widgets de DOMINIO que usa más de una pantalla
   layout/      shell (barra lateral + encabezado)
   features/    una carpeta por módulo, lazy con loadComponent
 ```
+
+**`shared/` tiene dos mitades y no se mezclan.** `ui/` no sabe nada del negocio y
+podría llevarse a otro proyecto; `facturas/` sí lo sabe, pero tampoco pertenece a
+un `feature` concreto porque lo comparten varios. Hoy solo vive ahí
+`AnularFacturaDialog`, que usan Revisar y Conciliar: sus tres avisos —motivo
+obligatorio, irreversibilidad y número quemado— tienen que decir lo mismo en los
+dos sitios, y duplicarlos es pedir que diverjan.
+
+### Componentes del sistema de diseño
+
+| Componente | Para qué |
+| --- | --- |
+| `bee-modal` | **Todos** los diálogos. Foco atrapado, `Escape`, velo clicable y bloqueo del scroll de fondo. **No escribas un `.modal-veil` a mano** |
+| `bee-ciclo` | La línea del ciclo. Variante `cinta` (encabezado) o `panel` (tablero). Fuente única: antes se pintaba de tres formas distintas, una con las etapas desfasadas |
+| `bee-direcciones` | Campo de correos como pastillas, con validación por dirección |
+| `bee-donut` · `bee-barras` · `bee-serie` | Los gráficos del tablero, en SVG propio |
+| `bee-toc` | Índice de los manuales: buscador y apartado activo |
+| `bee-icon` · `bee-badge` · `bee-kpi-card` · `bee-empty-state` · `bee-mark` | Piezas básicas |
 
 Alias: `@core/*`, `@shared/*`, `@features/*`, `@env`. Dentro de `core/` se usan
 rutas relativas (`../models`); fuera, los alias.
@@ -114,7 +137,7 @@ columnas: `<concepto>_<sufijo_de_tabla>`.
 | `auditoria` | Bitácora inmutable (§5) |
 | `periodos` | Catálogo de periodos y **etapa del ciclo** (§6) |
 | `facturas` | La factura como entidad: estado, envío y conciliación (§6) |
-| `parametros` | Retención, TRM, destinatarios y plazos (§6) |
+| `parametros` | Retención, TRM, destinatarios, plazos y prefijo de factura (§6) |
 
 > `respuestas_prospectiva` pertenece a otro producto del mismo proyecto Supabase.
 > **No la toques**: es ruido para este aplicativo.
@@ -261,17 +284,68 @@ no lo tenía: `estado_factura` (`emitida · enviada · pagada · anulada`),
 
 - **`fn_sincronizar_facturas(periodo)`** regenera las facturas desde el registro
   interno tras cada carga. **Respeta las anuladas y las pagadas**: su estado
-  manda sobre lo que diga una recarga del Excel.
+  manda sobre lo que diga una recarga del Excel. Devuelve **`jsonb`**
+  (`{ creadas, omitidas, conflictos[] }`), no un entero: con la unicidad global
+  del secuencial puede rechazar filas, y callárselo dejaría facturas fuera sin
+  que nadie se entere.
 - **La retención y el equivalente en COP los calcula la base de datos**
   (`fn_registrar_pago`), no el navegador, para que todas las pantallas muestren
   la misma cifra y quede guardada la TRM concreta de esa operación.
 - **Los días transcurridos y el vencimiento** los calcula `fn_listar_facturas`
   contra el plazo parametrizado, por el mismo motivo.
 
+### El secuencial es único para siempre, no por mes
+
+`secuencial_factura` tiene una restricción **global**
+(`facturas_secuencial_global_unico`), no `(periodo, secuencial)` como antes. Un
+número de factura identifica un documento contable: es de la empresa, no del mes,
+y **anular no lo libera**.
+
+Cuatro barreras, en este orden:
+
+1. **Carga** consulta `fn_verificar_secuenciales(periodo, secuenciales[])` al
+   interpretar el Excel y avisa **antes** de guardar nada.
+2. **`fn_sincronizar_facturas`** filtra los conflictivos antes del `insert` y los
+   devuelve en su informe.
+3. **La restricción de la base de datos** lo impide aunque se intente por SQL.
+4. **`fn_siguiente_secuencial()`** propone siempre un número libre, calculado
+   sobre `facturas` **y** `registro_facturacion_interna` de todos los periodos,
+   anuladas incluidas. Sustituyó al cálculo local de `carga.ts`, que solo miraba
+   las filas del periodo abierto y por eso reproponía números ya usados al abrir
+   un mes nuevo.
+
+> **Trampa al tocar la sincronización:** el `on conflict` apunta a
+> `(periodo, secuencial)` y **no cubre** el índice global. Si se quita el filtro
+> de conflictivos, un número repetido entre periodos aborta toda la
+> sincronización con una violación de unicidad.
+
+El prefijo (`BEE`) es el parámetro `prefijo_secuencial`, no un literal.
+
+### Anular una factura
+
+El diálogo es **uno solo** (`shared/facturas/anular-factura-dialog.ts`) y se monta
+desde dos sitios con compuertas distintas, que es justo el matiz que hay que
+respetar:
+
+| Dónde | Quién | Cuándo |
+| --- | --- | --- |
+| **Revisar** | Admin | Solo **antes** de confirmar el paso a Entrega (`!supero('revision')`) |
+| **Conciliar** | Admin | Cualquier estado salvo `pagada` y `anulada` |
+
+La compuerta de Revisar **no sirve** en Conciliar: allí el periodo ya pasó de
+`revision`, así que `!supero('revision')` sería siempre falsa y la acción nunca
+se pintaría. Conciliar existe justo para el caso contrario: anular algo que el
+cliente **ya recibió** y rechaza al momento de pagarlo.
+
+`fn_anular_factura` rechaza anular una pagada, y `fn_registrar_pago` rechaza
+pagar una anulada. Las dos direcciones están cerradas en la base de datos, no
+solo en la interfaz.
+
 ### Parámetros de negocio
 
 Retención, TRM por defecto, plazo de pago, destinatario del cliente, copias
-fijas, plantilla del asunto y razón social están en la tabla `parametros`
+fijas, plantilla del asunto, razón social y prefijo de factura están en la tabla
+`parametros`
 (RF-CON-02, RF-ENV-02, RF-USR-02). **No vuelvas a escribir un correo ni un
 porcentaje en el código**: el destinatario del cliente estuvo como constante en
 `entregar.ts` y era justo lo que el requisito prohíbe.
@@ -287,12 +361,22 @@ cuanto el periodo existe.
 Para añadir un aviso, amplía uno de los tres métodos privados de ese servicio.
 Cada notificación enlaza al módulo que la resuelve (RF-DSH-03).
 
-### Desviación consciente del SRS
+### Los tres adjuntos (RF-ENV-01, ya cumplido)
 
-**RF-ENV-01 pide tres adjuntos** —factura, orden de compra y Excel de aprobación
-de prefactura— pero el aplicativo envía **solo los dos primeros**, por decisión
-expresa. Si alguien audita el proyecto contra el documento de requisitos, esta
-es la diferencia.
+Cada correo lleva **tres** adjuntos, todos por URL de Storage:
+
+| Adjunto | De dónde sale |
+| --- | --- |
+| Factura BEE | `registro_facturacion_interna.documento_factura_bee` |
+| Pedido de Compra | `registro_facturacion_interna.documento_pedido_compra`, solo si la factura declara uno |
+| Aprobación de Prefactura | `documentos_facturacion` con tipo `'Aprobación Prefactura'` — **el mismo para todo el periodo** |
+
+El tercero se añadió cerrando la desviación que este documento declaraba antes.
+Como es del periodo y no de la factura, `componerCorreos` lo recibe aparte en
+`DatosDelPeriodo.aprobacion` y no lo busca en el registro interno.
+
+El distintivo del adjunto (`fx-pdf`, `fx-xls`…) se deriva de la extensión con
+`tipoDeArchivo()`: estaba fijado a PDF y anunciaba el Excel como si lo fuera.
 
 ---
 
@@ -347,8 +431,23 @@ respeta los editados.
   (`2026-08`), no la etiqueta. Sobreviven a un F5, se limpian con «Restablecer».
 - Toda lectura y escritura del almacenamiento va en `try/catch`: en modo privado
   lanza, y una pantalla de envío no puede caerse por eso.
-- Las direcciones se parten por coma, punto y coma o salto de línea, y se validan
-  **por tarjeta**: un correo mal escrito se señala donde está, no al final del lote.
+- **Las direcciones son pastillas, no texto separado por comas** (`bee-direcciones`).
+  Cada una se quita con su aspa, se añade con coma o Enter, y **la que está mal
+  escrita se marca ella misma en rojo** — antes el aviso salía al pie de toda la
+  tarjeta y no decía cuál era. Queda un modo texto para pegar listas enteras, que
+  es como llegan del cliente.
+
+### Distinguir lo enviado antes de volver a enviarlo
+
+Es la parte que evita el error caro, así que tiene tres capas:
+
+1. **Filtro segmentado** arriba: Todas · Por enviar · Ya enviadas.
+2. **La tarjeta ya enviada** lleva raíl verde, fondo apagado y la fecha real del
+   envío; si se marca a mano, el raíl pasa a rojo y aparece «Se reenviará».
+3. **La confirmación enumera los secuenciales concretos** que se reenviarían con
+   la fecha en que salieron la primera vez, y **exige marcar una casilla** para
+   habilitar el botón. La casilla solo aparece cuando de verdad hay reenvíos:
+   estorbar siempre la volvería invisible.
 
 ### La selección y los tres desenlaces
 
@@ -369,6 +468,12 @@ Al terminar, cada factura queda en uno de estos estados, y el resumen los agrupa
 `omitido` es la tercera respuesta que el usuario necesita. Sin marcarla, las que
 no se intentaron serían indistinguibles de las que nadie ha tocado.
 
+El desglose se pinta como **una barra proporcional** más el detalle de lo que
+existe. Antes eran tres recuadros de colores al mismo peso, cada uno con una
+columna de pastillas negras estiradas a todo el ancho —`.grupo` era
+`flex-direction: column`—: con 19 correos bien y 1 mal, la imagen decía lo
+contrario de lo que había pasado. Los grupos vacíos ya no se pintan.
+
 ### El mecanismo de `epoch`
 
 `private epoch` se incrementa al cambiar de periodo, al pulsar «Detener el envío»
@@ -376,6 +481,12 @@ y al destruir el componente. El bucle lo comprueba **justo después de cada
 `await`**. Es lo que impide que sigan saliendo correos de un lote abandonado, y
 por eso `auditoria.registrar()` nunca se espera con `await` dentro de él (§5,
 regla 1).
+
+Los `marcarEnviada` son la excepción: van sueltos dentro del bucle —esperarlos
+retrasaría el correo siguiente sin motivo— pero se confirman con
+`Promise.allSettled` **antes** de recargar las facturas. Sin eso la recarga
+adelantaba al último y la factura salía como no enviada hasta el siguiente
+cambio de periodo.
 
 Un correo ya entregado al servidor no se puede retirar: «Detener» corta los
 siguientes, no el que está en vuelo. El texto de la interfaz lo dice.
@@ -388,7 +499,62 @@ cliente. Se cuenta como enviado y se registra la advertencia aparte.
 
 ---
 
-## 8. Convenciones del código
+## 8. El sistema de diseño y el scroll
+
+`src/styles.css` (~1.700 líneas). **Tailwind está instalado pero no se usa como
+framework de utilidades**: no hay ni una clase utilitaria en las plantillas, solo
+aporta su reset. No lo mezcles ahora: media clase utilitaria y media clase propia
+es peor que cualquiera de los dos modelos.
+
+### Tokens
+
+| Familia | Uso |
+| --- | --- |
+| Color | Carbón (`--ink*`) + miel (`--honey*`) + semánticos `--ok` `--info` `--bad` `--warn`, cada uno con `-soft` y `-line` |
+| Espaciado | `--sp-1` … `--sp-10` |
+| Movimiento | `--dur-1` … `--dur-4` y `--ease-out`. **No escribas duraciones literales** |
+| Elevación | `--shadow-xs` … `--shadow-xl`, siempre en dos capas: sombra de contacto corta + ambiental difusa |
+| Viewport | `--app-h` (alto visible) y `--topbar-h` (alto del encabezado fijo) |
+
+### El scroll: tres reglas que no se pueden romper
+
+**El documento no se desplaza nunca.** El único panel con scroll es `.main`, y el
+shell mide exactamente `--app-h` con `overflow: hidden`. Cada una de estas reglas
+arregla un fallo que se dio de verdad:
+
+1. **`overscroll-behavior: contain`** en todo contenedor con scroll. Sin él, al
+   agotarse `.main` el scroll se encadena al documento.
+2. **`.main` es `position: relative`.** Sin eso, un `.sr-only` —que es
+   `position: absolute`— resuelve contra el bloque inicial y se coloca en
+   coordenadas del **documento**: una etiqueta invisible a 1.100 px dentro del
+   contenido desplazado estiraba el documento esos 1.100 px. Era la causa real de
+   que la aplicación «se subiera y quedara en blanco» al llegar abajo del todo.
+3. **El desenfoque del encabezado va en `.topbar::before`**, no en `.topbar`.
+   `backdrop-filter` convierte al elemento en raíz de fondo y rompe el pintado de
+   los descendientes que se salen de sus límites: el desplegable del ciclo en
+   móvil aparecía transparente con el contenido de la página por encima.
+
+Además: `html` mide `100%` pero `body` y `app-root` miden `--app-h`. Mezclar
+`height: 100%` con `100dvh` fue la otra mitad del bug — en móvil, con la barra de
+direcciones desplegada, el documento quedaba más alto que la aplicación
+exactamente por esa diferencia.
+
+### Adaptación a móvil
+
+Puntos de corte reales en **1080 · 900 · 640 · 480**. Antes solo existía el de
+1080 y nada contemplaba un teléfono.
+
+- **Tablas**: `table.dt.dt-stack` convierte cada fila en una tarjeta por debajo de
+  640 px, y el rótulo de cada celda sale de su `data-label`. **Si añades una
+  columna, añade también su `data-label`**, o la tarjeta saldrá sin rótulo. La
+  primera celda lleva `class="dt-head"` y hace de titular.
+- Las que sigan con scroll horizontal llevan un degradado en los bordes de
+  `.tbl-wrap` que avisa de que hay más a los lados.
+- Objetivos táctiles ≥ 44 px.
+
+---
+
+## 9. Convenciones del código
 
 **Idioma — regla mixta y consistente**: español para el dominio nuevo conectado a
 Supabase (`DocumentosService`, `guardarPrefactura`, `AuditoriaRow`), todas las
@@ -433,7 +599,7 @@ Los `.css` de componente son solo para lo que no tiene equivalente global.
 
 ---
 
-## 9. Trampas conocidas
+## 10. Trampas conocidas
 
 1. **Doble clave de periodo.** En la BD el periodo es la etiqueta
    `"Agosto 2026"` (`periodStore.current().label`); en las rutas de Storage es el
@@ -459,15 +625,27 @@ Los `.css` de componente son solo para lo que no tiene equivalente global.
    pantalla las deja sin estilo (ya pasa en `revisar.html`).
 8. **Varias clases globales son selectores descendientes.** `.ti` solo existe
    como `.tile .ti` y `.fx` como `.doc-item .fx`: fuera de ese ancestro se
-   quedan a medio pintar, sin error ni aviso. `entregar.css` las redefine en
-   local (`.modal-ic`, `.fx`) y explica por qué. Antes de reutilizar una clase
-   de `styles.css`, comprueba si su regla tiene ancestro.
+   quedan a medio pintar, sin error ni aviso. `entregar.css` redefine `.fx` en
+   local y explica por qué; `.modal-ic` ya es global desde que existe
+   `bee-modal`. Antes de reutilizar una clase de `styles.css`, comprueba si su
+   regla tiene ancestro.
 9. **`xlsx@0.18.5` solo lee** y arrastra vulnerabilidades conocidas. Para
    exportar, usa `core/utils/csv.util.ts`.
+10. **`[value]` en un `<select>` con `@for` no basta.** Las opciones llegan
+    después que el valor, así que el binding se evalúa contra una lista vacía y
+    el desplegable se queda en la primera opción. El selector de periodo mostraba
+    un mes mientras la pantalla trabajaba con otro. Hay que añadir `[selected]`
+    en la `<option>`.
+11. **Nada de `100vh` ni `100dvh` sueltos**: usa `--app-h`. Mezclar unidades de
+    viewport entre el documento y el shell fue media causa del bug de scroll (§8).
+12. **Un `sticky` dentro de un elemento de rejilla no se pega** si ese elemento
+    mide exactamente lo que su contenido. El pegado va en el **host**, no en el
+    hijo (`bee-toc` lo hace así), y su `top` tiene que descontar `--topbar-h` o
+    quedará detrás del encabezado.
 
 ---
 
-## 10. Trabajar en local
+## 11. Trabajar en local
 
 ```bash
 pnpm install
@@ -484,18 +662,23 @@ menciona el README antiguo no existe.
 
 **Antes de dar por terminado un cambio**: `pnpm build && pnpm test`.
 
-## 11. Deuda pendiente (por gravedad)
+## 12. Deuda pendiente (por gravedad)
 
 1. **Seguridad**: las 3 tablas del ciclo tienen políticas RLS `using (true)` para
    `anon` y la clave publicable viaja en el bundle → la facturación es legible y
    escribible por cualquiera. Las contraseñas están **en texto plano** en
    `usuarios`. El bucket es público. La sesión de `localStorage` no está firmada:
    editarla concede rol `ADMIN`.
-2. **Sin registro de envíos**: no se sabe si una factura ya se mandó ⇒ riesgo de
-   doble envío al cliente. La bitácora lo mitiga, pero no lo impide.
-3. **Cerrar un periodo**: la etapa `cerrado` existe en el modelo pero no hay
+2. **Habilitar SMTP AUTH** en el tenant de Microsoft 365. Mientras siga
+   deshabilitado, Entregar no puede enviar aunque el código sea correcto.
+3. **Registro de envíos incompleto**: la factura guarda su fecha de envío, y la
+   pantalla ya avisa de los reenvíos, pero no se guarda el `messageId` ni los
+   destinatarios reales de cada correo.
+4. **Cerrar un periodo**: la etapa `cerrado` existe en el modelo pero no hay
    todavía una acción que la active ni que bloquee la edición retroactiva.
-4. **Informe consolidado en PDF** del periodo (pedido en `context/Cambios.txt`):
+5. **Informe consolidado en PDF** del periodo (pedido en `context/Cambios.txt`):
    no hay dependencia de PDF en el proyecto.
-5. **Previsualización de archivos** sin salir del aplicativo: hoy Registros abre
+6. **Previsualización de archivos** sin salir del aplicativo: hoy Registros abre
    la URL pública de Storage en otra pestaña.
+7. **Multi-cliente**: se asume un único cliente y un único contrato. Los
+   parámetros ya están fuera del código, pero no hay catálogo.

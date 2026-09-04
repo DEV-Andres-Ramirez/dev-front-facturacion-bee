@@ -17,34 +17,7 @@
     </div>
 
     <div class="card card-pad mb-16">
-      <div class="row" style="margin-bottom: 12px">
-        <span style="font-weight: 700; font-size: 14px">Avance del ciclo</span>
-        <bee-badge tone="neutral" [label]="periodShort()" [dot]="false" style="margin-left: auto" />
-      </div>
-
-      <div class="progress" style="margin-bottom: 14px">
-        <div class="bar ok" [style.width.%]="avanceCiclo()"></div>
-      </div>
-
-      <div class="ciclo-grid">
-        @for (etapa of etapas; track etapa; let i = $index) {
-          <a
-            class="ciclo-tile"
-            [class.done]="i < indiceEtapa()"
-            [class.cur]="i === indiceEtapa()"
-            [routerLink]="['/app', rutaEtapa[etapa]]"
-          >
-            <span class="ct-n">
-              @if (i < indiceEtapa()) {
-                <bee-icon name="check" [size]="12" [strokeWidth]="3" />
-              } @else {
-                {{ i + 1 }}
-              }
-            </span>
-            <span class="ct-l">{{ etiquetaEtapa[etapa] }}</span>
-          </a>
-        }
-      </div>
+      <bee-ciclo [etapa]="etapa()" variante="panel" />
     </div>
 
     <div class="grid-2-1">
@@ -64,7 +37,7 @@
         </div>
 
         <div class="tbl-wrap">
-          <table class="dt">
+          <table class="dt dt-stack">
             <caption class="sr-only">
               Facturas del periodo con su cliente, orden de compra, monto, estado y días de cobro
             </caption>
@@ -81,7 +54,7 @@
             <tbody>
               @for (factura of facturasVisibles(); track factura.id_factura) {
                 <tr [style.opacity]="factura.estado_factura === 'anulada' ? 0.6 : null">
-                  <td>
+                  <td class="dt-head">
                     <div class="cell-main">
                       <span class="cell-av av-ink" aria-hidden="true">B</span>
                       <div>
@@ -92,24 +65,28 @@
                       </div>
                     </div>
                   </td>
-                  <td class="strong">{{ factura.cliente_factura ?? '—' }}</td>
-                  <td class="mono dim">{{ factura.pedido_compra_factura ?? '—' }}</td>
-                  <td class="num mono">{{ usd(montoDe(factura)) }}</td>
-                  <td>
+                  <td data-label="Cliente" class="strong">{{ factura.cliente_factura ?? '—' }}</td>
+                  <td data-label="Orden" class="mono dim">
+                    {{ factura.pedido_compra_factura ?? '—' }}
+                  </td>
+                  <td data-label="Monto" class="num mono">{{ usd(montoDe(factura)) }}</td>
+                  <td data-label="Estado">
                     <bee-badge
                       [tone]="estadoDe[factura.estado_factura].tone"
                       [label]="estadoDe[factura.estado_factura].label"
                     />
                   </td>
-                  <td class="num mono" [class.t-bad]="factura.vencida">
+                  <td data-label="Días" class="num mono" [class.t-bad]="factura.vencida">
                     {{ factura.dias_transcurridos ?? '—' }}
                   </td>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6">
+                  <td data-label="Factura" colspan="6">
                     <p class="note-line" style="text-align: center; padding: 22px 0">
-                      {{ loading() ? 'Cargando facturas…' : 'Aún no hay facturas en este periodo.' }}
+                      {{
+                        loading() ? 'Cargando facturas…' : 'Aún no hay facturas en este periodo.'
+                      }}
                     </p>
                   </td>
                 </tr>
@@ -121,7 +98,11 @@
         @if (todasLasFacturas().length > 8) {
           <div class="card-pad" style="border-top: 1px solid var(--line-2); text-align: center">
             <button class="link" type="button" (click)="alternarVerTodas()">
-              {{ verTodas() ? 'Ver solo las primeras 8' : 'Ver las ' + todasLasFacturas().length + ' facturas' }}
+              {{
+                verTodas()
+                  ? 'Ver solo las primeras 8'
+                  : 'Ver las ' + todasLasFacturas().length + ' facturas'
+              }}
             </button>
           </div>
         }
@@ -131,7 +112,12 @@
         <div class="card card-pad">
           <div class="row" style="margin-bottom: 4px">
             <span style="font-weight: 700; font-size: 14px">Resumen financiero</span>
-            <bee-badge tone="neutral" [label]="periodShort()" [dot]="false" style="margin-left: auto" />
+            <bee-badge
+              tone="neutral"
+              [label]="periodShort()"
+              [dot]="false"
+              style="margin-left: auto"
+            />
           </div>
 
           <div class="stat-line">
@@ -164,28 +150,20 @@
 
         @if (reparto().length) {
           <div class="card card-pad mt-16">
-            <span style="font-weight: 700; font-size: 14px">Reparto por estado</span>
+            <span class="bloque-tit">Reparto por estado</span>
+            <bee-donut [datos]="reparto()" unidad="facturas" />
+          </div>
+        }
 
-            <div class="barra-apilada" role="img" aria-label="Reparto de facturas por estado">
-              @for (porcion of reparto(); track porcion.etiqueta) {
-                <span
-                  class="ba-seg"
-                  [style.width.%]="porcion.porcentaje"
-                  [style.background]="porcion.color"
-                  [title]="porcion.etiqueta + ': ' + porcion.valor"
-                ></span>
-              }
+        <!-- Antigüedad de lo que está por cobrar. `dias_transcurridos` ya lo
+             calculaba la base de datos y no se estaba usando en ninguna parte. -->
+        @if (hayPorCobrar()) {
+          <div class="card card-pad mt-16">
+            <span class="bloque-tit">Antigüedad de lo pendiente</span>
+            <div class="note-line" style="margin-bottom: 10px">
+              Días desde el envío · plazo acordado {{ plazoPago() }}
             </div>
-
-            @for (porcion of reparto(); track porcion.etiqueta) {
-              <div class="stat-line">
-                <span class="sl-k">
-                  <span class="ld" [style.background]="porcion.color"></span>
-                  {{ porcion.etiqueta }}
-                </span>
-                <span class="sl-v mono">{{ porcion.valor }} · {{ porcion.porcentaje }}%</span>
-              </div>
-            }
+            <bee-barras [datos]="antiguedad()" />
           </div>
         }
 
@@ -212,23 +190,26 @@
         <div class="card-h">
           <div>
             <div class="ct">Proyectos que más facturan</div>
-            <div class="cd">
-              {{ totalColaboradores() }} colaboradores facturados en el periodo
-            </div>
+            <div class="cd">{{ totalColaboradores() }} colaboradores facturados en el periodo</div>
           </div>
         </div>
         <div class="card-pad">
-          @for (proyecto of topProyectos(); track proyecto.nombre) {
-            <div class="proyecto-fila">
-              <div class="pf-cab">
-                <span class="pf-nombre">{{ proyecto.nombre }}</span>
-                <span class="mono dim">{{ usd(proyecto.monto) }}</span>
-              </div>
-              <div class="progress">
-                <div class="bar info" [style.width.%]="proyecto.porcentaje"></div>
-              </div>
-            </div>
-          }
+          <bee-barras [datos]="proyectosBarras()" />
+        </div>
+      </div>
+    }
+
+    <!-- Evolución entre periodos: hasta ahora ninguna pantalla cruzaba meses. -->
+    @if (hayEvolucion()) {
+      <div class="card mt-16">
+        <div class="card-h">
+          <div>
+            <div class="ct">Evolución por periodo</div>
+            <div class="cd">Facturado de cada mes, sin contar las anuladas</div>
+          </div>
+        </div>
+        <div class="card-pad">
+          <bee-serie [puntos]="evolucion()" />
         </div>
       </div>
     }

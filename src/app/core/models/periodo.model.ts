@@ -100,3 +100,19 @@ export function etiquetaDePeriodo(anio: number, mes: number): string {
 export function idDePeriodo(anio: number, mes: number): PeriodoId {
   return `${anio}-${String(mes).padStart(2, '0')}`;
 }
+
+/**
+ * Totales de un periodo, tal como los devuelve `fn_resumen_periodos`.
+ * Es la única consulta del aplicativo que cruza meses.
+ */
+export interface ResumenPeriodo {
+  readonly id_periodo: PeriodoId;
+  readonly etiqueta_periodo: string;
+  readonly etiqueta_corta_periodo: string;
+  readonly anio_periodo: number;
+  readonly mes_periodo: number;
+  readonly total_facturas: number;
+  readonly facturado: number;
+  readonly cobrado: number;
+  readonly anuladas: number;
+}

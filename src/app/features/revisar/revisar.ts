@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { DocumentosService } from '@core/services/documentos.service';
 import { AuditoriaService } from '@core/services/auditoria.service';
@@ -7,7 +14,8 @@ import { PeriodosService } from '@core/services/periodos.service';
 import { FacturasService } from '@core/services/facturas.service';
 import { AuthService } from '@core/services/auth.service';
 import { formatCentavos, montoACentavos } from '@core/utils/monto.util';
-import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
+import { BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent } from '@shared/ui';
+import { AnularFacturaDialog } from '@shared/facturas';
 
 interface FacturaRevisar {
   readonly secuencial: string;
@@ -33,11 +41,17 @@ const SIN_SECUENCIAL = 'Sin secuencial';
 @Component({
   selector: 'app-revisar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
+  imports: [
+    BadgeComponent,
+    EmptyStateComponent,
+    IconComponent,
+    AnularFacturaDialog,
+    ModalComponent,
+  ],
   templateUrl: './revisar.html',
 })
 export class Revisar {
-  private readonly periodStore = inject(PeriodStore);
+  protected readonly periodStore = inject(PeriodStore);
   private readonly periodos = inject(PeriodosService);
   private readonly facturasService = inject(FacturasService);
   private readonly auth = inject(AuthService);
@@ -70,15 +84,10 @@ export class Revisar {
     () => this.esAdmin() && !this.periodStore.supero('revision'),
   );
   protected readonly anulando = signal<string | null>(null);
-  protected readonly motivoAnulacion = signal('');
-  protected readonly guardandoAnulacion = signal(false);
 
   /** Estado de cada factura, para pintarlo y excluir las anuladas. */
   protected readonly estados = computed(
-    () =>
-      new Map(
-        this.facturasService.rows().map((f) => [f.secuencial_factura, f.estado_factura]),
-      ),
+    () => new Map(this.facturasService.rows().map((f) => [f.secuencial_factura, f.estado_factura])),
   );
 
   // ── Fecha aplicable a todas las facturas ───────────────────────────────────
@@ -110,11 +119,17 @@ export class Revisar {
       }
     }
     return [...grupos.values()]
-      .map((f) => ({ ...f, esperadoCents: acc.get(f.secuencial)!.esperado, talentos: acc.get(f.secuencial)!.talentos }))
+      .map((f) => ({
+        ...f,
+        esperadoCents: acc.get(f.secuencial)!.esperado,
+        talentos: acc.get(f.secuencial)!.talentos,
+      }))
       .sort((a, b) => a.secuencial.localeCompare(b.secuencial, undefined, { numeric: true }));
   });
 
-  private readonly facturasMap = computed(() => new Map(this.facturas().map((f) => [f.secuencial, f])));
+  private readonly facturasMap = computed(
+    () => new Map(this.facturas().map((f) => [f.secuencial, f])),
+  );
 
   protected readonly resumen = computed(() => {
     const fs = this.facturas();
@@ -129,8 +144,10 @@ export class Revisar {
     const ed = this.ediciones();
     return Object.keys(ed).some((sec) => {
       const f = this.facturasMap().get(sec);
-      return (ed[sec].monto !== undefined && ed[sec].monto !== f?.montoEmitido) ||
-        (ed[sec].fecha !== undefined && ed[sec].fecha !== f?.fecha);
+      return (
+        (ed[sec].monto !== undefined && ed[sec].monto !== f?.montoEmitido) ||
+        (ed[sec].fecha !== undefined && ed[sec].fecha !== f?.fecha)
+      );
     });
   });
 
@@ -223,51 +240,16 @@ export class Revisar {
   // ── Anulación ──────────────────────────────────────────────────────────────
 
   protected pedirAnulacion(sec: string): void {
-    this.motivoAnulacion.set('');
     this.anulando.set(sec);
   }
 
   protected cancelarAnulacion(): void {
     this.anulando.set(null);
-    this.motivoAnulacion.set('');
   }
 
-  protected setMotivoAnulacion(event: Event): void {
-    this.motivoAnulacion.set((event.target as HTMLTextAreaElement).value);
-  }
-
-  protected async confirmarAnulacion(): Promise<void> {
-    const sec = this.anulando();
-    const motivo = this.motivoAnulacion().trim();
-    if (!sec || !motivo) return;
-
-    this.guardandoAnulacion.set(true);
-    const periodo = this.periodStore.label();
-    const resultado = await this.facturasService.anular(
-      periodo,
-      sec,
-      motivo,
-      this.auth.user()?.email,
-    );
-    this.guardandoAnulacion.set(false);
-
-    this.auditoria.registrar({
-      modulo: 'Revisión',
-      accion: 'ANULAR_FACTURA',
-      resultado: resultado.ok ? 'exito' : 'error',
-      observacion: resultado.ok
-        ? `Anuló la factura ${sec}: ${motivo}`
-        : `No se pudo anular la factura ${sec}.`,
-      entidad: 'factura',
-      referencia: sec,
-      detalle: { motivo },
-    });
-
-    if (!resultado.ok) {
-      this.saveError.set(resultado.error ?? 'No se pudo anular la factura.');
-      return;
-    }
-    this.cancelarAnulacion();
+  /** El diálogo compartido ya escribió y ya registró en la bitácora. */
+  protected trasAnular(): void {
+    this.anulando.set(null);
   }
 
   protected async guardar(): Promise<void> {
@@ -324,7 +306,9 @@ export class Revisar {
   protected continuar(): void {
     if (this.saving()) return;
     if (this.hayCambios()) {
-      this.saveError.set('Tienes cambios sin guardar. Pulsa «Actualizar datos» antes de continuar.');
+      this.saveError.set(
+        'Tienes cambios sin guardar. Pulsa «Actualizar datos» antes de continuar.',
+      );
       this.auditoria.registrar({
         modulo: 'Revisión',
         accion: 'BLOQUEAR_AVANCE',

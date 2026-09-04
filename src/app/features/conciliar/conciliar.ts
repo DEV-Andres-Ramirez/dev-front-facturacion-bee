@@ -1,13 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { AuditoriaService } from '@core/services/auditoria.service';
+import { AuthService } from '@core/services/auth.service';
 import { FacturasService } from '@core/services/facturas.service';
 import { ParametrosService } from '@core/services/parametros.service';
 import { PeriodStore } from '@core/services/period.store';
 import { PeriodosService } from '@core/services/periodos.service';
 import { FacturaRow, PRESENTACION_ESTADO } from '@core/models';
-import { BadgeComponent, EmptyStateComponent, IconComponent } from '@shared/ui';
+import { BadgeComponent, EmptyStateComponent, IconComponent, ModalComponent } from '@shared/ui';
+import { AnularFacturaDialog } from '@shared/facturas';
 
-type Filtro = 'todas' | 'pendientes' | 'pagadas' | 'vencidas';
+type Filtro = 'todas' | 'pendientes' | 'pagadas' | 'vencidas' | 'anuladas';
 
 const FMT = new Intl.NumberFormat('es-CO', {
   minimumFractionDigits: 2,
@@ -26,7 +35,13 @@ const FMT_COP = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 });
 @Component({
   selector: 'app-conciliar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, EmptyStateComponent, IconComponent],
+  imports: [
+    BadgeComponent,
+    EmptyStateComponent,
+    IconComponent,
+    AnularFacturaDialog,
+    ModalComponent,
+  ],
   templateUrl: './conciliar.html',
   styleUrl: './conciliar.css',
 })
@@ -36,6 +51,7 @@ export class Conciliar {
   private readonly parametros = inject(ParametrosService);
   private readonly periodos = inject(PeriodosService);
   private readonly auditoria = inject(AuditoriaService);
+  private readonly auth = inject(AuthService);
 
   protected readonly periodLabel = this.periodStore.label;
   protected readonly loading = this.facturas.loading;
@@ -49,6 +65,7 @@ export class Conciliar {
       if (!label) return;
       this.filtro.set('todas');
       this.cerrarPago();
+      this.anulando.set(null);
       void this.facturas.load(label);
     });
   }
@@ -71,12 +88,18 @@ export class Conciliar {
         return todas.filter((f) => f.estado_factura === 'pagada');
       case 'vencidas':
         return todas.filter((f) => f.vencida);
+      case 'anuladas':
+        return todas.filter((f) => f.estado_factura === 'anulada');
       default:
         return todas;
     }
   });
 
   protected readonly vencidas = computed(() => this.conciliables().filter((f) => f.vencida));
+
+  protected readonly numAnuladas = computed(
+    () => this.conciliables().filter((f) => f.estado_factura === 'anulada').length,
+  );
 
   // ── Consolidado del periodo (RF-CON-04) ────────────────────────────────────
 
@@ -218,6 +241,15 @@ export class Conciliar {
 
   // ── Presentación ────────────────────────────────────────────────────────────
 
+  /** Fecha corta a partir de un `timestamptz`, para la celda de acciones. */
+  protected fecha(iso: string | null): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime())
+      ? ''
+      : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  }
+
   protected setFiltro(filtro: Filtro): void {
     this.filtro.set(filtro);
   }
@@ -244,5 +276,41 @@ export class Conciliar {
     if (factura.estado_factura === 'anulada') return 'var(--bad)';
     if (factura.estado_factura === 'pagada') return 'var(--ok)';
     return factura.vencida ? 'var(--bad)' : 'var(--info)';
+  }
+  // ── Anulación ───────────────────────────────────────────────────────────────
+
+  /**
+   * En Conciliar la compuerta **no** puede ser la de Revisar
+   * (`!periodStore.supero('revision')`): aquí ya se pasó de largo esa etapa, así
+   * que sería siempre falsa. Lo que gobierna aquí es el estado de la factura —la
+   * base de datos rechaza anular una pagada— y el rol.
+   */
+  protected readonly puedeAnular = this.auth.isAdmin;
+
+  protected readonly anulando = signal<FacturaRow | null>(null);
+
+  protected anulable(factura: FacturaRow): boolean {
+    return (
+      this.puedeAnular() &&
+      factura.estado_factura !== 'pagada' &&
+      factura.estado_factura !== 'anulada'
+    );
+  }
+
+  protected pedirAnulacion(factura: FacturaRow): void {
+    this.anulando.set(factura);
+  }
+
+  protected cancelarAnulacion(): void {
+    this.anulando.set(null);
+  }
+
+  /**
+   * Anular una enviada la saca de las pendientes de cobro, así que el periodo
+   * puede haber quedado conciliado del todo justo ahora.
+   */
+  protected async trasAnular(): Promise<void> {
+    this.anulando.set(null);
+    await this.avanzarSiTodoConciliado();
   }
 }

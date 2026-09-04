@@ -99,12 +99,7 @@ export interface CorreoPreparado extends PlantillaCorreo {
 }
 
 /** Estado del envío de una factura concreta dentro del lote. */
-export type EstadoEnvio =
-  | 'pendiente'
-  | 'enviando'
-  | 'enviado'
-  | 'error'
-  | 'omitido';
+export type EstadoEnvio = 'pendiente' | 'enviando' | 'enviado' | 'error' | 'omitido';
 
 /** Cómo se pinta cada estado de envío. */
 export const PRESENTACION_ENVIO: Record<

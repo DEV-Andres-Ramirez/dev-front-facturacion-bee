@@ -92,21 +92,45 @@ export class DocumentosService {
   }
 
   /** Sube y persiste la prefactura aprobada (un Excel por periodo). */
-  async guardarPrefactura(periodId: string, periodo: string, file: File, reemplazar: boolean): Promise<SaveResult> {
-    return this.guardarExcel(periodId, periodo, file, reemplazar, 'Aprobación Prefactura', async () => {
-      const filas = await this.parsearPrefactura(periodo, file);
-      const { error } = await this.supabase.from('aprobacion_prefactura').insert(filas);
-      return error;
-    });
+  async guardarPrefactura(
+    periodId: string,
+    periodo: string,
+    file: File,
+    reemplazar: boolean,
+  ): Promise<SaveResult> {
+    return this.guardarExcel(
+      periodId,
+      periodo,
+      file,
+      reemplazar,
+      'Aprobación Prefactura',
+      async () => {
+        const filas = await this.parsearPrefactura(periodo, file);
+        const { error } = await this.supabase.from('aprobacion_prefactura').insert(filas);
+        return error;
+      },
+    );
   }
 
   /** Sube y persiste el registro de facturación interna (un Excel por periodo). */
-  async guardarRegistro(periodId: string, periodo: string, file: File, reemplazar: boolean): Promise<SaveResult> {
-    const res = await this.guardarExcel(periodId, periodo, file, reemplazar, 'Registro Facturación Interna', async () => {
-      const filas = await this.parsearRegistro(periodo, file);
-      const { error } = await this.supabase.from('registro_facturacion_interna').insert(filas);
-      return error;
-    });
+  async guardarRegistro(
+    periodId: string,
+    periodo: string,
+    file: File,
+    reemplazar: boolean,
+  ): Promise<SaveResult> {
+    const res = await this.guardarExcel(
+      periodId,
+      periodo,
+      file,
+      reemplazar,
+      'Registro Facturación Interna',
+      async () => {
+        const filas = await this.parsearRegistro(periodo, file);
+        const { error } = await this.supabase.from('registro_facturacion_interna').insert(filas);
+        return error;
+      },
+    );
     if (res.ok) {
       await this.relacionarPedidos(periodo);
       await this.loadPeriodo(periodo);
@@ -128,11 +152,21 @@ export class DocumentosService {
   }
 
   /** Persiste las novedades del periodo (Excel · uno por periodo). */
-  async guardarNovedades(periodId: string, periodo: string, file: File, reemplazar: boolean): Promise<SaveResult> {
+  async guardarNovedades(
+    periodId: string,
+    periodo: string,
+    file: File,
+    reemplazar: boolean,
+  ): Promise<SaveResult> {
     if (reemplazar) await this.eliminarTipo(periodo, 'Novedades Periodo');
     const subido = await this.subirArchivo(periodId, 'Novedades Periodo', file);
     if (!subido.ok) return subido;
-    const error = await this.insertarDocumento(periodo, 'Novedades Periodo', subido.url!, this.nombreSinExtension(file.name));
+    const error = await this.insertarDocumento(
+      periodo,
+      'Novedades Periodo',
+      subido.url!,
+      this.nombreSinExtension(file.name),
+    );
     if (error) return { ok: false, error: this.friendly(error) };
     await this.loadPeriodo(periodo);
     return { ok: true };
@@ -141,15 +175,26 @@ export class DocumentosService {
   // ── Factura BEE y datos de emisión (módulo Revisar) ─────────────────────────
 
   /** Sube la Factura BEE de una factura (secuencial) y la enlaza a sus registros. */
-  async guardarFacturaBee(periodId: string, periodo: string, secuencial: string, file: File): Promise<SaveResult> {
+  async guardarFacturaBee(
+    periodId: string,
+    periodo: string,
+    secuencial: string,
+    file: File,
+  ): Promise<SaveResult> {
     const actual = this._registro().find(
-      (r) => (r.secuencial_facturacion_interna ?? '').trim() === secuencial && r.documento_factura_bee,
+      (r) =>
+        (r.secuencial_facturacion_interna ?? '').trim() === secuencial && r.documento_factura_bee,
     )?.documento_factura_bee;
     if (actual) await this.eliminarArchivoPorUrl(actual); // reemplazo: borra el anterior
 
     const subido = await this.subirArchivo(periodId, 'Factura BEE', file);
     if (!subido.ok) return subido;
-    const errDoc = await this.insertarDocumento(periodo, 'Factura BEE', subido.url!, this.nombreSinExtension(file.name));
+    const errDoc = await this.insertarDocumento(
+      periodo,
+      'Factura BEE',
+      subido.url!,
+      this.nombreSinExtension(file.name),
+    );
     if (errDoc) return { ok: false, error: this.friendly(errDoc) };
 
     const { error } = await this.supabase
@@ -162,7 +207,11 @@ export class DocumentosService {
   }
 
   /** Guarda el monto emitido (global) para todos los registros de una factura. */
-  async guardarMontoEmitido(periodo: string, secuencial: string, monto: string): Promise<SaveResult> {
+  async guardarMontoEmitido(
+    periodo: string,
+    secuencial: string,
+    monto: string,
+  ): Promise<SaveResult> {
     const { error } = await this.supabase
       .from('registro_facturacion_interna')
       .update({ monto_emitido_factura_bee: monto })
@@ -172,7 +221,11 @@ export class DocumentosService {
   }
 
   /** Guarda la fecha de la factura física para todos los registros de una factura. */
-  async guardarFechaFactura(periodo: string, secuencial: string, fecha: string): Promise<SaveResult> {
+  async guardarFechaFactura(
+    periodo: string,
+    secuencial: string,
+    fecha: string,
+  ): Promise<SaveResult> {
     const { error } = await this.supabase
       .from('registro_facturacion_interna')
       .update({ fecha_factura_bee: fecha })
@@ -197,13 +250,22 @@ export class DocumentosService {
     if (doc.tipo_documento_facturacion === 'Aprobación Prefactura') {
       await this.supabase.from('aprobacion_prefactura').delete().eq('periodo_prefactura', periodo);
     } else if (doc.tipo_documento_facturacion === 'Registro Facturación Interna') {
-      await this.supabase.from('registro_facturacion_interna').delete().eq('periodo_facturacion_interna', periodo);
+      await this.supabase
+        .from('registro_facturacion_interna')
+        .delete()
+        .eq('periodo_facturacion_interna', periodo);
     }
     // Limpia referencias al archivo borrado en el registro interno.
-    await this.supabase.from('registro_facturacion_interna').update({ documento_pedido_compra: null })
-      .eq('periodo_facturacion_interna', periodo).eq('documento_pedido_compra', url);
-    await this.supabase.from('registro_facturacion_interna').update({ documento_factura_bee: null })
-      .eq('periodo_facturacion_interna', periodo).eq('documento_factura_bee', url);
+    await this.supabase
+      .from('registro_facturacion_interna')
+      .update({ documento_pedido_compra: null })
+      .eq('periodo_facturacion_interna', periodo)
+      .eq('documento_pedido_compra', url);
+    await this.supabase
+      .from('registro_facturacion_interna')
+      .update({ documento_factura_bee: null })
+      .eq('periodo_facturacion_interna', periodo)
+      .eq('documento_factura_bee', url);
 
     await this.loadPeriodo(periodo);
     return { ok: true };
@@ -227,7 +289,12 @@ export class DocumentosService {
     const errDetalle = await insertarDetalle();
     if (errDetalle) return { ok: false, error: this.friendly(errDetalle) };
 
-    const errDoc = await this.insertarDocumento(periodo, tipo, subido.url!, this.nombreSinExtension(file.name));
+    const errDoc = await this.insertarDocumento(
+      periodo,
+      tipo,
+      subido.url!,
+      this.nombreSinExtension(file.name),
+    );
     if (errDoc) return { ok: false, error: this.friendly(errDoc) };
 
     await this.loadPeriodo(periodo);
@@ -285,11 +352,17 @@ export class DocumentosService {
     if (tipo === 'Aprobación Prefactura') {
       await this.supabase.from('aprobacion_prefactura').delete().eq('periodo_prefactura', periodo);
     } else if (tipo === 'Registro Facturación Interna') {
-      await this.supabase.from('registro_facturacion_interna').delete().eq('periodo_facturacion_interna', periodo);
+      await this.supabase
+        .from('registro_facturacion_interna')
+        .delete()
+        .eq('periodo_facturacion_interna', periodo);
     }
   }
 
-  private async parsearPrefactura(periodo: string, file: File): Promise<AprobacionPrefacturaInsert[]> {
+  private async parsearPrefactura(
+    periodo: string,
+    file: File,
+  ): Promise<AprobacionPrefacturaInsert[]> {
     const filas = await leerPrimeraHoja(file);
     return filas
       .slice(1)
@@ -373,7 +446,8 @@ export class DocumentosService {
         normalizar(d.nombre_documento_facturacion ?? '').includes(normalizar(codigo)),
       );
       if (!coincidencia) continue;
-      if (registro.documento_pedido_compra === coincidencia.direccion_documento_facturacion) continue;
+      if (registro.documento_pedido_compra === coincidencia.direccion_documento_facturacion)
+        continue;
 
       await this.supabase
         .from('registro_facturacion_interna')
@@ -382,12 +456,14 @@ export class DocumentosService {
     }
   }
 
-
   /** Borra del Storage y del índice un documento identificado por su URL pública. */
   private async eliminarArchivoPorUrl(url: string): Promise<void> {
     const path = this.pathDesdeUrl(url);
     if (path) await this.supabase.storage.from(BUCKET).remove([path]);
-    await this.supabase.from('documentos_facturacion').delete().eq('direccion_documento_facturacion', url);
+    await this.supabase
+      .from('documentos_facturacion')
+      .delete()
+      .eq('direccion_documento_facturacion', url);
   }
 
   /** Nombre original del archivo sin la extensión (p. ej. `PCC-2026-00745.pdf` → `PCC-2026-00745`). */

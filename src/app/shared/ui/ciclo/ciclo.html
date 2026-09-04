@@ -1,0 +1,100 @@
+@if (variante() === 'panel') {
+  <!-- ── Casillas del tablero ─────────────────────────────────────────────── -->
+  <div class="panel-cab">
+    <span class="panel-tit">Avance del ciclo</span>
+    <span class="panel-pct mono">{{ porcentaje() }}%</span>
+  </div>
+  <div class="rail rail-ancho" aria-hidden="true">
+    <span class="rail-fill" [style.width.%]="avance()"></span>
+  </div>
+
+  <ol class="casillas" [attr.aria-label]="'Avance del ciclo: ' + etiquetaActual()">
+    @for (paso of pasos; track paso; let i = $index) {
+      <li
+        class="casilla"
+        [class]="estadoDe(i)"
+        [attr.aria-current]="estadoDe(i) === 'actual' ? 'step' : null"
+      >
+        <a class="casilla-a" [routerLink]="['/app', ruta[paso]]">
+          <span class="nodo">
+            @if (estadoDe(i) === 'hecho') {
+              <bee-icon name="check" [size]="13" [strokeWidth]="3" />
+            } @else {
+              <bee-icon [name]="icono[paso]" [size]="14" />
+            }
+          </span>
+          <span class="etq">{{ etiqueta[paso] }}</span>
+        </a>
+      </li>
+    }
+  </ol>
+} @else {
+  <!-- ── Tira del encabezado ──────────────────────────────────────────────── -->
+  <!-- Resumen para pantallas estrechas: siete pasos no caben en un teléfono,
+       y la tira con scroll oculto que había antes no daba ninguna pista. -->
+  <button
+    class="resumen"
+    type="button"
+    [attr.aria-expanded]="desplegado()"
+    aria-controls="ciclo-pasos"
+    (click)="alternar()"
+  >
+    <span class="resumen-txt">
+      @if (completo()) {
+        <b>Ciclo completado</b>
+      } @else {
+        Paso <b>{{ indice() + 1 }}</b> de {{ pasos.length }} ·
+        <b>{{ etiquetaActual() }}</b>
+      }
+    </span>
+    <span class="resumen-barra" aria-hidden="true">
+      <span class="rail-fill" [style.width.%]="porcentaje()"></span>
+    </span>
+    <bee-icon name="chevron-down" [size]="15" class="resumen-fx" />
+  </button>
+
+  <div class="cinta" id="ciclo-pasos" [class.abierta]="desplegado()">
+    <div class="rail" aria-hidden="true">
+      <span class="rail-fill" [style.width.%]="avance()"></span>
+    </div>
+
+    <ol class="pasos" [attr.aria-label]="'Avance del ciclo: ' + etiquetaActual()">
+      @for (paso of pasos; track paso; let i = $index) {
+        <li
+          class="paso"
+          [class]="estadoDe(i)"
+          [attr.aria-current]="estadoDe(i) === 'actual' ? 'step' : null"
+        >
+          @if (navegable()) {
+            <a
+              class="paso-a"
+              [routerLink]="['/app', ruta[paso]]"
+              [attr.title]="etiqueta[paso]"
+              (click)="desplegado.set(false)"
+            >
+              <span class="nodo">
+                @if (estadoDe(i) === 'hecho') {
+                  <bee-icon name="check" [size]="12" [strokeWidth]="3" />
+                } @else {
+                  {{ i + 1 }}
+                }
+              </span>
+              <span class="etq">{{ etiqueta[paso] }}</span>
+            </a>
+          } @else {
+            <span class="paso-a">
+              <span class="nodo">
+                @if (estadoDe(i) === 'hecho') {
+                  <bee-icon name="check" [size]="12" [strokeWidth]="3" />
+                } @else {
+                  {{ i + 1 }}
+                }
+              </span>
+              <span class="etq">{{ etiqueta[paso] }}</span>
+            </span>
+          }
+        </li>
+      }
+    </ol>
+  </div>
+}

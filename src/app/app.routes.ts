@@ -26,13 +26,19 @@ export const routes: Routes = [
       {
         path: 'carga',
         title: 'Carga de documentos · Facturación Bee',
-        data: { title: 'Carga de documentos', subtitle: 'Importa prefactura aprobada y soportes del periodo' },
+        data: {
+          title: 'Carga de documentos',
+          subtitle: 'Importa prefactura aprobada y soportes del periodo',
+        },
         loadComponent: () => import('@features/carga/carga').then((m) => m.Carga),
       },
       {
         path: 'validar',
         title: 'Validar información · Facturación Bee',
-        data: { title: 'Validar información', subtitle: 'Coteja la prefactura aprobada contra el registro interno' },
+        data: {
+          title: 'Validar información',
+          subtitle: 'Coteja la prefactura aprobada contra el registro interno',
+        },
         loadComponent: () => import('@features/validar/validar').then((m) => m.Validar),
       },
       {
@@ -44,25 +50,37 @@ export const routes: Routes = [
       {
         path: 'revisar',
         title: 'Revisar facturas · Facturación Bee',
-        data: { title: 'Revisar facturas', subtitle: 'Verifica las facturas emitidas por el outsourcing' },
+        data: {
+          title: 'Revisar facturas',
+          subtitle: 'Verifica las facturas emitidas por el outsourcing',
+        },
         loadComponent: () => import('@features/revisar/revisar').then((m) => m.Revisar),
       },
       {
         path: 'entregar',
         title: 'Entregar al cliente · Facturación Bee',
-        data: { title: 'Entregar al cliente', subtitle: 'Envía la factura y sus soportes con copia controlada' },
+        data: {
+          title: 'Entregar al cliente',
+          subtitle: 'Envía la factura y sus soportes con copia controlada',
+        },
         loadComponent: () => import('@features/entregar/entregar').then((m) => m.Entregar),
       },
       {
         path: 'conciliar',
         title: 'Conciliar cuentas · Facturación Bee',
-        data: { title: 'Conciliar cuentas', subtitle: 'Concilia los pagos recibidos · retención y TRM' },
+        data: {
+          title: 'Conciliar cuentas',
+          subtitle: 'Concilia los pagos recibidos · retención y TRM',
+        },
         loadComponent: () => import('@features/conciliar/conciliar').then((m) => m.Conciliar),
       },
       {
         path: 'registros',
         title: 'Guardar registros · Facturación Bee',
-        data: { title: 'Guardar registros', subtitle: 'Conserva los soportes del ciclo por año y mes' },
+        data: {
+          title: 'Guardar registros',
+          subtitle: 'Conserva los soportes del ciclo por año y mes',
+        },
         loadComponent: () => import('@features/registros/registros').then((m) => m.Registros),
       },
       {
@@ -82,15 +100,23 @@ export const routes: Routes = [
       {
         path: 'manual-usuario',
         title: 'Manual de Usuario · Facturación Bee',
-        data: { title: 'Manual de Usuario', subtitle: 'Aprende a usar Facturación Bee paso a paso' },
-        loadComponent: () => import('@features/manuales/manual-usuario').then((m) => m.ManualUsuario),
+        data: {
+          title: 'Manual de Usuario',
+          subtitle: 'Aprende a usar Facturación Bee paso a paso',
+        },
+        loadComponent: () =>
+          import('@features/manuales/manual-usuario').then((m) => m.ManualUsuario),
       },
       {
         path: 'manual-tecnico',
         canActivate: [adminGuard],
         title: 'Manual Técnico · Facturación Bee',
-        data: { title: 'Manual Técnico', subtitle: 'Arquitectura, datos e integraciones del sistema' },
-        loadComponent: () => import('@features/manuales/manual-tecnico').then((m) => m.ManualTecnico),
+        data: {
+          title: 'Manual Técnico',
+          subtitle: 'Arquitectura, datos e integraciones del sistema',
+        },
+        loadComponent: () =>
+          import('@features/manuales/manual-tecnico').then((m) => m.ManualTecnico),
       },
     ],
   },

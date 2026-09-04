@@ -140,9 +140,7 @@ export class NotificacionesService {
     const registro = this.documentos.registro();
     if (registro.length === 0) return [];
 
-    const sinFactura = this.facturas
-      .vigentes()
-      .filter((f) => f.monto_emitido_factura === null);
+    const sinFactura = this.facturas.vigentes().filter((f) => f.monto_emitido_factura === null);
     if (sinFactura.length === 0) return [];
 
     return [

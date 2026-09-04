@@ -41,11 +41,32 @@ export interface FacturaRow {
   readonly soporte_pago_factura: string | null;
   readonly motivo_anulacion_factura: string | null;
   readonly anulada_por_factura: string | null;
+  readonly fecha_anulacion_factura: string | null;
   readonly observacion_factura: string | null;
   /** Del envío al pago, o del envío a hoy si aún no se ha pagado. */
   readonly dias_transcurridos: number | null;
   /** Enviada y fuera del plazo parametrizado, sin pago registrado. */
   readonly vencida: boolean;
+}
+
+/**
+ * Un secuencial del Excel que ya pertenece a otro periodo.
+ *
+ * El número de factura es único en toda la historia de la empresa: anularla no
+ * lo libera. Si el registro interno trae uno ya consumido, la sincronización lo
+ * rechaza y lo devuelve aquí para poder decir de quién era.
+ */
+export interface SecuencialEnConflicto {
+  readonly secuencial: string;
+  readonly periodo: string;
+  readonly estado: EstadoFactura;
+}
+
+/** Lo que devuelve `fn_sincronizar_facturas`. */
+export interface InformeSincronizacion {
+  readonly creadas: number;
+  readonly omitidas: number;
+  readonly conflictos: readonly SecuencialEnConflicto[];
 }
 
 /** Datos del pago recibido (RF-CON-01). */

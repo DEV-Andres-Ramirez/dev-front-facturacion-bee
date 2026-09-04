@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { AuditoriaService } from '@core/services/auditoria.service';
 import { DocumentosService } from '@core/services/documentos.service';
 import { PeriodStore } from '@core/services/period.store';
@@ -169,7 +176,9 @@ export class Registros {
     });
 
     if (!resultado.ok) {
-      this.aviso.set('No se pudo descargar ningún archivo. Revisa tu conexión e inténtalo de nuevo.');
+      this.aviso.set(
+        'No se pudo descargar ningún archivo. Revisa tu conexión e inténtalo de nuevo.',
+      );
       return;
     }
     if (resultado.fallidos.length) {
